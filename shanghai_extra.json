@@ -1,0 +1,32 @@
+{
+  "attraction": [
+    {"name":"北外滩滨江","district":"虹口区","category":"滨江漫步","description":"沿黄浦江步道欣赏外滩建筑与陆家嘴天际线，可结合苏州河口安排散步。","duration":"1–2 小时","transport":"地铁12号线国际客运中心站"},
+    {"name":"静安寺","district":"静安区","category":"历史建筑","description":"位于南京西路的寺院，可结合周边街区游览。进入寺院前核对开放安排和购票要求。","duration":"1 小时","transport":"地铁2/7/14号线静安寺站"},
+    {"name":"龙华寺","district":"徐汇区","category":"历史文化","description":"龙华历史街区的寺院，与龙华塔及周边街巷构成半日文化路线。","duration":"1–2 小时","transport":"地铁11/12号线龙华站"},
+    {"name":"徐汇滨江","district":"徐汇区","category":"滨江漫步","description":"沿江步道、公共空间与美术馆集中，适合散步骑行，展览需另查预约信息。","duration":"2–3 小时","transport":"按目的地选择龙腾大道沿线站点"},
+    {"name":"上海当代艺术博物馆","district":"黄浦区","category":"艺术展览","description":"由原南市发电厂改建的当代艺术馆，展览内容随展期变化，参观前查看当期安排。","duration":"2–3 小时","transport":"地铁4/8号线西藏南路站后步行"},
+    {"name":"中华艺术宫","district":"浦东新区","category":"艺术展览","description":"原上海世博会中国馆建筑，适合结合世博片区安排艺术参观，注意当期开放公告。","duration":"2–3 小时","transport":"地铁8号线中华艺术宫站"},
+    {"name":"世纪公园","district":"浦东新区","category":"公园","description":"草坪、湖面与林地相结合的城市公园，可安排散步、休息和亲子活动。","duration":"2–3 小时","transport":"地铁2号线世纪公园站"},
+    {"name":"共青森林公园","district":"杨浦区","category":"自然休闲","description":"以森林景观见长的城市公园，适合野餐、漫步和季节花卉观赏。","duration":"半天","transport":"按公园入园口查询公交或地图路线"},
+    {"name":"上海动物园","district":"长宁区","category":"亲子","description":"展示多种野生动物的城市动物园，建议预留步行时间并遵守园内参观规则。","duration":"半天","transport":"地铁10号线上海动物园站"},
+    {"name":"上海野生动物园","district":"浦东新区","category":"亲子","description":"兼有步行和车入式参观区域，园区较大，适合单独安排一天。","duration":"1 天","transport":"地铁16号线野生动物园站后换乘"},
+    {"name":"七宝古镇","district":"闵行区","category":"古镇","description":"围绕老街与河道的小型古镇，可品尝小吃、看桥巷，周末人流较多。","duration":"2–3 小时","transport":"地铁9号线七宝站"},
+    {"name":"古猗园","district":"嘉定区","category":"园林","description":"南翔的古典园林，可结合南翔老街与小笼馒头安排半日游。","duration":"1–2 小时","transport":"地铁11号线南翔站后步行或换乘"},
+    {"name":"上海佘山国家森林公园","district":"松江区","category":"自然休闲","description":"上海近郊的山林游览地，适合步行登高，具体开放区域以园方公告为准。","duration":"半天","transport":"地铁9号线佘山站后换乘"},
+    {"name":"新天地","district":"黄浦区","category":"街区漫步","description":"石库门建筑与餐饮商业结合的街区，可与中共一大纪念馆分开安排参观。","duration":"1–2 小时","transport":"地铁10/13号线一大会址·新天地站"}
+  ],
+  "food": [
+    {"name":"鲜肉月饼","category":"点心","description":"酥皮包裹鲜肉馅，趁热食用能感受外皮层次与肉汁。","where_to_try":"传统糕点店、老字号食品店","tip":"现烤时段可能排队，小心烫口。"},
+    {"name":"蟹壳黄","category":"点心","description":"形似蟹壳的酥烧饼，常见咸甜两类馅料，表面带芝麻香。","where_to_try":"传统点心店、烧饼铺","tip":"适合少量购买后趁热吃。"},
+    {"name":"四喜烤麸","category":"本帮冷菜","description":"烤麸搭配菌菇等配料烧制，吸收酱汁，口味偏浓。","where_to_try":"本帮菜馆","tip":"各店配料和甜咸比例不同。"},
+    {"name":"响油鳝糊","category":"本帮热菜","description":"鳝丝以酱汁调味，临上桌浇热油，蒜香与葱香突出。","where_to_try":"本帮菜馆","tip":"适合多人点菜分享。"},
+    {"name":"草头圈子","category":"本帮热菜","description":"草头与猪大肠搭配，是有代表性的本帮菜，口感与香气对比鲜明。","where_to_try":"传统本帮菜馆","tip":"不吃内脏可单点清炒草头。"},
+    {"name":"上海熏鱼","category":"本帮冷菜","description":"鱼块炸后浸入调味汁，外层入味，通常带甜咸风味。","where_to_try":"本帮菜馆、熟食店","tip":"注意鱼刺。"},
+    {"name":"条头糕","category":"糯米点心","description":"条状糯米糕包裹豆沙，口感软糯，常配桂花香。","where_to_try":"传统糕团店","tip":"糯米点心适合少量品尝。"},
+    {"name":"海棠糕","category":"街头点心","description":"模具烘制的传统糕点，常见豆沙馅，表层带焦糖香。","where_to_try":"老街点心摊、传统糕点铺","tip":"馅料温度较高，放凉片刻再吃。"},
+    {"name":"粢饭团","category":"早餐","description":"糯米包裹油条及其他配料，常见咸甜口味，是上海早餐选择之一。","where_to_try":"早餐铺、社区早点摊","tip":"分量较实在，可作为早餐主食。"},
+    {"name":"小馄饨","category":"早餐","description":"薄皮小馄饨配清汤，与菜肉大馄饨的口感和分量不同。","where_to_try":"馄饨店、社区小吃店","tip":"可搭配生煎或烧饼。"},
+    {"name":"酒酿圆子","category":"甜品","description":"酒酿与小圆子煮成的甜品，部分店铺加入桂花或蛋花。","where_to_try":"传统甜品店、本帮菜馆","tip":"含酒酿，按个人饮食需要选择。"},
+    {"name":"葱油饼","category":"街头小吃","description":"面饼加入葱花煎烤，表面酥香，是街头常见的咸味点心。","where_to_try":"社区饼铺、早点店","tip":"现做口感更好。"}
+  ]
+}

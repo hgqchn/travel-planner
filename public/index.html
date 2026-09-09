@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#123b3a" />
+    <meta
+      name="description"
+      content="轻量的多人多城市旅游规划，整理每日行程、景点、交通和本地美食。"
+    />
+    <title>旅游规划</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body class="is-booting">
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#itinerary" aria-label="返回行程规划">
+          <span class="brand-mark" aria-hidden="true">旅</span>
+          <span class="brand-copy">
+            <strong>旅游规划</strong>
+            <span id="sync-status" role="status" aria-live="polite"><i></i><span id="sync-label">正在连接</span></span>
+          </span>
+        </a>
+        <button class="identity-button" id="identity-button" type="button" aria-label="查看或切换用户 ID">
+          <span aria-hidden="true">我</span>
+          <b id="identity-label">设置 ID</b>
+        </button>
+      </header>
+
+      <main>
+        <div class="project-toolbar"><div><strong id="project-name">旅游规划</strong><label for="city-select">当前城市</label><select id="city-select" aria-label="切换城市"></select></div><a href="/admin.html">管理员入口</a></div>
+        <section class="trip-cover" aria-labelledby="page-title">
+          <img
+            src="/assets/shanghai-sunset.jpg"
+            alt="上海黄昏时分的黄浦江、外滩与浦东天际线插画"
+            width="1600"
+            height="900"
+          />
+          <div class="trip-cover-shade" aria-hidden="true"></div>
+          <div class="trip-cover-content">
+            <div>
+              <p class="eyebrow">共享旅行清单 · 上海</p>
+              <h1 id="page-title">一起安排这趟旅行</h1>
+              <p class="trip-stats" id="trip-stats">正在读取计划…</p>
+            </div>
+            <button class="share-button" id="share-button" type="button">
+              <span aria-hidden="true">↗</span> 分享
+            </button>
+          </div>
+        </section>
+
+        <section class="workspace">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker" id="section-kicker">一起挑选</p>
+              <h2 id="section-title">景点</h2>
+              <p id="section-description">地点信息和攻略链接都可以共同修改。</p>
+            </div>
+            <button class="add-button" id="add-button" type="button">
+              <span aria-hidden="true">＋</span><span>添加景点</span>
+            </button>
+          </div>
+
+          <div class="cards" id="cards" aria-busy="true">
+            <article class="skeleton-card"><i></i><i></i><i></i></article>
+            <article class="skeleton-card"><i></i><i></i><i></i></article>
+          </div>
+
+          <section class="activity-panel" id="activity-panel" hidden>
+            <div class="activity-intro">
+              <span class="activity-icon" aria-hidden="true">↻</span>
+              <div>
+                <h3>最近修改</h3>
+                <p>每次新增、编辑和删除都会留下署名。</p>
+              </div>
+            </div>
+            <ol class="activity-list" id="activity-list"></ol>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="旅行计划分类">
+        <button class="nav-item" type="button" data-tab="itinerary">
+          <span aria-hidden="true">▦</span><b>行程</b>
+        </button>
+        <button class="nav-item is-active" type="button" data-tab="attraction" aria-current="page">
+          <span aria-hidden="true">⌖</span><b>景点</b>
+        </button>
+        <button class="nav-item" type="button" data-tab="transit">
+          <span aria-hidden="true">⇆</span><b>交通</b>
+        </button>
+        <button class="nav-item" type="button" data-tab="food">
+          <span aria-hidden="true">◒</span><b>美食</b>
+        </button>
+        <button class="nav-item" type="button" data-tab="activity">
+          <span aria-hidden="true">◷</span><b>动态</b>
+        </button>
+      </nav>
+    </div>
+
+    <dialog
+      class="project-gate"
+      id="project-dialog"
+      aria-labelledby="project-title"
+      aria-describedby="project-description"
+    >
+      <form id="project-form">
+        <div class="gate-mark" aria-hidden="true">旅</div>
+        <p class="eyebrow dark">旅游规划</p>
+        <h1 id="project-title">输入项目口令</h1>
+        <p class="dialog-lead" id="project-description">
+          这份计划只向同行者开放。口令通过后，再选择你的编辑署名。
+        </p>
+        <label class="field">
+          <span>项目口令</span>
+          <input
+            id="project-code-input"
+            name="project_code"
+            type="password"
+            maxlength="200"
+            autocomplete="current-password"
+            placeholder="向项目创建者索取"
+            required
+          />
+        </label>
+        <p class="form-error" id="project-error" role="alert"></p>
+        <button class="primary-button" type="submit">进入项目</button>
+        <p class="privacy-note">项目口令只用于验证访问权限，不会显示在页面内容中。</p>
+        <a href="/admin.html">管理员入口</a>
+      </form>
+    </dialog>
+
+    <dialog
+      class="sheet identity-sheet"
+      id="identity-dialog"
+      aria-labelledby="identity-title"
+      aria-describedby="identity-description"
+    >
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <form id="identity-form">
+        <div class="identity-symbol" aria-hidden="true">同行</div>
+        <p class="eyebrow dark">项目内身份</p>
+        <h2 id="identity-title">选择你的用户 ID</h2>
+        <p class="dialog-lead" id="identity-description">ID 只用于编辑署名，不需要用户密码。</p>
+        <section class="known-users" id="known-users-section" aria-labelledby="known-users-title" hidden>
+          <div class="known-users-heading">
+            <h3 id="known-users-title">已有用户</h3>
+            <span id="known-users-count"></span>
+          </div>
+          <div class="user-choice-list" id="user-choice-list"></div>
+        </section>
+        <div class="identity-divider" id="identity-divider" hidden><span>或者</span></div>
+        <label class="field">
+          <span>使用或创建一个 ID</span>
+          <input
+            id="user-id-input"
+            name="user_id"
+            maxlength="20"
+            minlength="2"
+            placeholder="例如：xiaoyu-01"
+            autocomplete="username"
+            required
+          />
+          <small>2–20 位中文、字母、数字、点、横线或下划线</small>
+        </label>
+        <p class="form-error" id="identity-error" role="alert"></p>
+        <button class="primary-button" type="submit">使用这个 ID</button>
+        <button class="text-button" id="identity-cancel" type="button" hidden>暂不切换</button>
+        <button class="text-button is-danger" id="project-lock-button" type="button">退出这个项目</button>
+        <p class="privacy-note">同一项目内的同行者都能切换到已有 ID，请不要把项目口令发给无关人员。</p>
+      </form>
+    </dialog>
+
+    <dialog
+      class="sheet edit-sheet"
+      id="edit-dialog"
+      aria-labelledby="edit-title"
+      aria-describedby="edit-kicker edit-error"
+    >
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <form id="edit-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker" id="edit-kicker">编辑内容</p>
+            <h2 id="edit-title">编辑景点</h2>
+          </div>
+          <button class="icon-button" id="edit-close" type="button" aria-label="关闭编辑窗口">×</button>
+        </div>
+        <div class="edit-fields" id="edit-fields"></div>
+        <section class="conflict-panel" id="edit-conflict" role="alert" hidden>
+          <h3>发现同时编辑</h3>
+          <p>别人已先保存。你的表单内容仍然保留，请先查看对方改动，再决定如何处理。</p>
+          <ul id="conflict-details"></ul>
+          <div class="conflict-actions">
+            <button class="secondary-button" id="conflict-load" type="button">载入最新内容</button>
+            <button class="danger-button" id="conflict-overwrite" type="button">保留并准备覆盖</button>
+          </div>
+        </section>
+        <p class="form-error" id="edit-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button class="danger-button" id="delete-button" type="button">删除</button>
+          <button class="primary-button" id="save-button" type="submit">保存修改</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
+      class="confirm-dialog"
+      id="confirm-dialog"
+      aria-labelledby="confirm-title"
+      aria-describedby="confirm-message"
+    >
+      <form>
+        <span class="warning-mark" aria-hidden="true">!</span>
+        <h2 id="confirm-title">确认删除？</h2>
+        <p id="confirm-message">删除后，其他人也会看不到这条内容。</p>
+        <div class="confirm-actions">
+          <button class="secondary-button" id="confirm-cancel" type="button">取消</button>
+          <button class="danger-solid-button" id="confirm-delete" type="button">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <noscript>这个页面需要启用 JavaScript 才能共同编辑旅行计划。</noscript>
+  </body>
+</html>

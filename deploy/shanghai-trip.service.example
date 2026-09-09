@@ -1,0 +1,26 @@
+[Unit]
+Description=Shanghai shared trip planner
+After=network.target
+
+[Service]
+Type=simple
+User=shanghai-trip
+Group=shanghai-trip
+WorkingDirectory=/opt/shanghai-trip/current
+Environment=TRIP_HOST=127.0.0.1
+Environment=TRIP_PORT=8000
+Environment=TRIP_DATA_DIR=/var/lib/shanghai-trip
+Environment=TRIP_COOKIE_SECURE=1
+EnvironmentFile=/etc/shanghai-trip.env
+ExecStart=/usr/bin/python3 /opt/shanghai-trip/current/server.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/shanghai-trip
+
+[Install]
+WantedBy=multi-user.target

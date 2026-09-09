@@ -1,0 +1,381 @@
+{
+  "attraction": [
+    {
+      "name": "外滩风景区",
+      "district": "黄浦区",
+      "category": "滨水景观 / 历史建筑",
+      "description": "近代建筑群与陆家嘴天际线隔江相望，是认识上海城市风貌的经典起点。",
+      "duration": "1.5–2 小时",
+      "transport": "2/10号线南京东路站，向东步行约 10–15 分钟",
+      "link": "https://www.shanghai.gov.cn/citywalk/20260625/9dfb6f86b9664e018607b5cc9ec9a53c.html"
+    },
+    {
+      "name": "南京路步行街",
+      "district": "黄浦区",
+      "category": "商业街 / 城市漫步",
+      "description": "从人民广场延伸至外滩的百年商业轴，集中老字号、百货与夜间街景。",
+      "duration": "2–3 小时",
+      "transport": "1/2/8号线人民广场站，或2/10号线南京东路站",
+      "link": "https://english.shanghai.gov.cn/en-ScenicSpots/20231226/45172d56a204477195888159d4698ac8.html"
+    },
+    {
+      "name": "豫园",
+      "district": "黄浦区",
+      "category": "江南园林 / 老城厢",
+      "description": "始建于明代的江南古典园林，可与城隍庙、豫园商城组合体验老城厢。",
+      "duration": "2–3 小时",
+      "transport": "10/14号线豫园站，步行约 5–10 分钟",
+      "link": "https://www.shanghai.gov.cn/citywalk/20260625/3a8ac74e088f4d468d9c3434b0b43d94.html"
+    },
+    {
+      "name": "东方明珠广播电视塔",
+      "district": "浦东新区",
+      "category": "都市观景 / 地标",
+      "description": "集高空观景、城市历史陈列和娱乐体验于一体，可俯瞰外滩与陆家嘴。",
+      "duration": "2–3 小时",
+      "transport": "2/14号线陆家嘴站，步行约 5–10 分钟",
+      "link": "https://lycx.whlyj.sh.gov.cn/c/scenicArea.view.ac?id=24801"
+    },
+    {
+      "name": "上海博物馆东馆",
+      "district": "浦东新区",
+      "category": "博物馆 / 中国古代艺术",
+      "description": "以青铜、陶瓷、书画、玉器等中国古代艺术通史陈列为核心的大型博物馆。",
+      "duration": "3–4 小时",
+      "transport": "2号线上海科技馆站；4号线向城路站；6号线浦电路站",
+      "link": "https://www.shanghaimuseum.cn/mu/frontend/pg/m/service/visit-east"
+    },
+    {
+      "name": "中共一大纪念馆",
+      "district": "黄浦区",
+      "category": "历史展馆 / 石库门",
+      "description": "围绕中国共产党诞生地设置历史展陈，可与附近的新天地石库门街区安排在同一段行程。",
+      "duration": "2.5–3 小时",
+      "transport": "1号线一大会址·黄陂南路站，或10/13号线一大会址·新天地站",
+      "link": "https://www.zgyd1921.com/about.html"
+    },
+    {
+      "name": "武康路—安福路街区",
+      "district": "徐汇区",
+      "category": "历史风貌 / Citywalk",
+      "description": "街区串联武康大楼、名人旧居、花园住宅、书店和咖啡馆，适合慢走。",
+      "duration": "2–3 小时",
+      "transport": "10/11号线交通大学站，或10号线上海图书馆站",
+      "link": "https://www.shanghai.gov.cn/citywalk/20260625/3492b1b945c146fc96c4585d7b04f00d.html"
+    },
+    {
+      "name": "田子坊",
+      "district": "黄浦区",
+      "category": "石库门 / 文创街区",
+      "description": "在老弄堂与旧厂房中聚集工作室、画廊和特色小店，适合短程闲逛。",
+      "duration": "1.5–2 小时",
+      "transport": "9号线打浦桥站，步行数分钟",
+      "link": "https://whlyj.sh.gov.cn/gqfc/20211125/72659f35d4e94a6aa1f16d4304ac9616.html"
+    },
+    {
+      "name": "上海自然博物馆",
+      "district": "静安区",
+      "category": "自然科学 / 亲子",
+      "description": "以演化、生物多样性和大型标本为主线，互动展项丰富，适合亲子与雨天行程。",
+      "duration": "3–4 小时",
+      "transport": "13号线自然博物馆站最便捷",
+      "link": "https://www.snhm.org.cn/"
+    },
+    {
+      "name": "上海迪士尼乐园",
+      "district": "浦东新区",
+      "category": "主题乐园 / 亲子娱乐",
+      "description": "包含多个主题园区、巡游与夜间演出，适合预留一整天。",
+      "duration": "9–12 小时",
+      "transport": "优先乘11号线至迪士尼站",
+      "link": "https://www.shanghaidisneyresort.com/zh-cn/experience/guest-service/rail"
+    },
+    {
+      "name": "上海天文馆",
+      "district": "浦东新区",
+      "category": "天文科普 / 亲子",
+      "description": "以“家园、宇宙、征程”为主展线，通过球幕与互动展项讲述人与宇宙。",
+      "duration": "4–5 小时",
+      "transport": "16号线滴水湖站，步行约 15 分钟；中心城区出发需预留通勤时间",
+      "link": "https://www.sstm-sam.org.cn/"
+    },
+    {
+      "name": "朱家角古镇",
+      "district": "青浦区",
+      "category": "江南古镇 / 水乡",
+      "description": "水网、古桥和老街格局保存完整，可体验放生桥、课植园与水乡慢生活。",
+      "duration": "4–6 小时",
+      "transport": "17号线朱家角站，再步行约 20 分钟或换乘短途交通",
+      "link": "https://www.shanghai.gov.cn/fygz/20260625/09beddb4cff345ba80b159c409cad101.html"
+    }
+  ],
+  "transit": [
+    {
+      "name": "1号线",
+      "color": "#E3002B",
+      "route": "莘庄—上海南站—徐家汇—人民广场—上海火车站—富锦路",
+      "connections": "南北主轴，连接上海南站、徐家汇、人民广场与上海火车站",
+      "service_note": "热门换乘线；首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "2号线",
+      "color": "#86B81C",
+      "route": "蟠祥路·国家会计学院—虹桥枢纽—人民广场—陆家嘴—龙阳路—浦东1号2号航站楼",
+      "connections": "东西机场轴，连接虹桥枢纽、人民广场、陆家嘴和浦东1号2号航站楼",
+      "service_note": "去往机场时留意列车终点与末班时间",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "3号线",
+      "color": "#FCD600",
+      "route": "上海南站—中山公园—上海火车站—虹口足球场—江杨北路",
+      "connections": "连接西南城区、上海火车站和北部城区",
+      "service_note": "与4号线有共线区段，上车前看清线路编号",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "4号线",
+      "color": "#5A2B81",
+      "route": "中心城区环线，串联上海火车站、世纪大道、南浦大桥、上海体育馆与中山公园",
+      "connections": "环线换乘密集，适合在中心城区跨区移动",
+      "service_note": "与3号线有共线区段，上车前看清线路编号",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "5号线",
+      "color": "#A05DA5",
+      "route": "莘庄至东川路后，分为闵行开发区、奉贤新城两支",
+      "connections": "连接闵行与奉贤，莘庄可换乘1号线",
+      "service_note": "分支运营，上车前确认列车终点",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "6号线",
+      "color": "#D7006E",
+      "route": "港城路—巨峰路—世纪大道—高科西路—东方体育中心",
+      "connections": "浦东南北向线路，连接世纪大道与东方体育中心",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "7号线",
+      "color": "#F57F25",
+      "route": "美兰湖—上海大学—静安寺—常熟路—耀华路—龙阳路—花木路",
+      "connections": "连接静安寺、世博区域、龙阳路和新国际博览中心附近",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "8号线",
+      "color": "#0094D8",
+      "route": "市光路—虹口足球场—人民广场—老西门—中华艺术宫—沈杜公路",
+      "connections": "连接人民广场、老城厢、世博区域与浦江线",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "9号线",
+      "color": "#78C7EB",
+      "route": "上海松江站—佘山—七宝—徐家汇—打浦桥—世纪大道—曹路",
+      "connections": "连接松江、七宝、徐家汇、田子坊附近与浦东",
+      "service_note": "线路较长，跨城出行预留换乘时间",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "10号线",
+      "color": "#C6AFD4",
+      "route": "虹桥火车站 / 航中路两支，经新天地、豫园、南京东路、五角场至基隆路",
+      "connections": "串联虹桥枢纽、武康路片区、新天地、豫园与外滩附近",
+      "service_note": "西端有两支线路，上车前确认列车终点",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "11号线",
+      "color": "#871C2A",
+      "route": "嘉定北 / 花桥两支，经上海西站、江苏路、徐家汇、东方体育中心至迪士尼",
+      "connections": "上海迪士尼主要轨交线路；花桥支线延伸至江苏昆山",
+      "service_note": "北端分支运营，上车前确认终点",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "12号线",
+      "color": "#007A60",
+      "route": "七莘路—陕西南路—南京西路—天潼路—大连路—金海路",
+      "connections": "中心城区换乘点密集，横跨徐汇、静安、黄浦与杨浦",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "13号线",
+      "color": "#EC91CC",
+      "route": "金运路—自然博物馆—南京西路—一大会址·新天地—世博大道—张江路",
+      "connections": "直达自然博物馆，并连接南京西路、新天地与世博区域",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "14号线",
+      "color": "#616020",
+      "route": "封浜—真如—静安寺—一大会址·黄陂南路—豫园—陆家嘴—金桥—桂桥路",
+      "connections": "横贯中心城区，连接静安寺、豫园与陆家嘴",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "15号线",
+      "color": "#B9A15F",
+      "route": "顾村公园—上海西站—桂林公园—上海南站—紫竹高新区",
+      "connections": "上海西部南北向线路，连接两个铁路站点与多所高校区域",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "16号线",
+      "color": "#2CBEC3",
+      "route": "龙阳路—新场—野生动物园—惠南—临港大道—滴水湖",
+      "connections": "浦东快速放射线，可前往上海野生动物园、临港与上海天文馆",
+      "service_note": "部分列车停站方式不同，留意站台信息",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "17号线",
+      "color": "#B67770",
+      "route": "虹桥火车站—国家会展中心—青浦新城—朱家角—东方绿舟—西岑",
+      "connections": "从虹桥枢纽向西连接青浦、朱家角与东方绿舟",
+      "service_note": "周末前往朱家角时建议错峰",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "18号线",
+      "color": "#C9A870",
+      "route": "康文路—呼兰路—长江南路—复旦大学—江浦公园—龙阳路—御桥—航头",
+      "connections": "连接宝山南部、杨浦、浦东中部与航头",
+      "service_note": "首末班车与临时调整请在出发前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "浦江线",
+      "color": "#8E8E8E",
+      "route": "沈杜公路—汇臻路",
+      "connections": "胶轮全自动接驳线，在沈杜公路换乘8号线",
+      "service_note": "车厢与地铁不同，按现场引导换乘",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "磁浮线",
+      "color": "#A6CE39",
+      "route": "龙阳路—浦东 1 号 2 号航站楼",
+      "connections": "连接龙阳路枢纽与浦东1号2号航站楼",
+      "service_note": "换乘地铁需出站重新计费，运营时间请提前核对",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "市域机场线",
+      "color": "#1C5EAE",
+      "route": "虹桥2号航站楼—中春路—景洪路—三林南—康桥东—上海国际旅游度假区—浦东1号2号航站楼",
+      "connections": "两大机场间的市域快速联系线，也连接上海迪士尼度假区周边",
+      "service_note": "与普通地铁的票制、进站和换乘方式可能不同，请看现场指引",
+      "link": "https://jtw.sh.gov.cn/csgdjt/index.html"
+    },
+    {
+      "name": "71路中运量",
+      "color": "#D64A3A",
+      "route": "沿延安路东西向运行，串联外滩、人民广场周边、静安寺与虹桥路一带",
+      "connections": "适合沿延安路观察城市街景，可与多条地铁换乘",
+      "service_note": "地面交通易受路况影响，准确站点与班次请查实时公交",
+      "link": "https://jtw.sh.gov.cn/csgj/index.html"
+    },
+    {
+      "name": "黄浦江轮渡",
+      "color": "#237A8B",
+      "route": "多条航线连接浦西与浦东两岸码头",
+      "connections": "适合把外滩、陆家嘴或滨江步道串联成跨江路线",
+      "service_note": "航线、班次可能受天气和客流调整，抵达码头前请查公告",
+      "link": "https://jtw.sh.gov.cn/szcx/index.html"
+    }
+  ],
+  "food": [
+    {
+      "name": "南翔小笼馒头",
+      "category": "蒸点 / 汤包",
+      "description": "薄皮、多褶、肉馅带鲜汤，是起源于嘉定南翔的上海代表点心。",
+      "where_to_try": "早餐或早午餐；南翔老街、豫园一带",
+      "tip": "夹起后先开小口、慢慢品汤，小心烫口",
+      "link": "https://english.shanghai.gov.cn/en-SpecialtyFood/20260511/594d417a429d426e8442a47336c47574.html"
+    },
+    {
+      "name": "生煎馒头",
+      "category": "煎点 / 街头小吃",
+      "description": "底部焦脆、面皮松软或薄韧、肉馅鲜香，常见清水与浑水两种流派。",
+      "where_to_try": "早餐或午餐；黄浦老城厢、人民广场一带",
+      "tip": "刚出锅汤汁很热，建议先咬小口散热",
+      "link": "https://english.shanghai.gov.cn/en-GlobalTasteinShanghai2026-LocalFlavors/20260430/c012ba9f05414f3184be86244a03e950.html"
+    },
+    {
+      "name": "葱油拌面",
+      "category": "面食 / 家常小吃",
+      "description": "热面拌入慢熬葱油与酱油，简单却突出焦香和上海式咸甜平衡。",
+      "where_to_try": "早餐或简餐；黄浦、静安、徐汇老式面馆",
+      "tip": "可配焖肉、大排或一碗清汤",
+      "link": "https://english.shanghai.gov.cn/en-GlobalTasteinShanghai2026-LocalFlavors/20260424/5996b2b3de77425f9166f59f2f30833c.html"
+    },
+    {
+      "name": "排骨年糕",
+      "category": "小吃 / 主食",
+      "description": "炸排骨配软糯年糕，再淋甜咸酱汁或佐上海辣酱油，口感层次鲜明。",
+      "where_to_try": "午餐或下午加餐；云南南路一带",
+      "tip": "一份较扎实，适合两人搭配其他小吃分享",
+      "link": "https://english.shanghai.gov.cn/en-Staple-travelinshanghai/20240111/e8d99f859eb64285adaebee1a7139aa2.html"
+    },
+    {
+      "name": "菜肉大馄饨",
+      "category": "汤点 / 家常小吃",
+      "description": "青菜或荠菜配猪肉，常以蛋皮、葱花和少量猪油提香，是上海日常风味。",
+      "where_to_try": "早餐或夜宵；老城厢、思南路、中华路周边",
+      "tip": "可问店家当日是青菜馅还是荠菜馅",
+      "link": "https://english.shanghai.gov.cn/en-GlobalTasteinShanghai2026-LocalFlavors/20260605/81483538821d4e7ebfb82b5c8267c946.html"
+    },
+    {
+      "name": "本帮红烧肉",
+      "category": "本帮热菜",
+      "description": "五花肉以酱油、冰糖慢火红烧，讲究色泽油亮、软糯和甜咸平衡。",
+      "where_to_try": "午餐或晚餐；黄浦、徐汇、静安本帮菜馆",
+      "tip": "味道浓郁，适合配米饭并与清淡蔬菜同点",
+      "link": "https://english.shanghai.gov.cn/en-GlobalTasteinShanghai2026-LocalFlavors/20260509/3cb184e834064f4cbb1af26cfc34dc1e.html"
+    },
+    {
+      "name": "油爆河虾",
+      "category": "本帮河鲜",
+      "description": "小河虾旺火快炒至壳脆肉嫩，以甜咸酱汁突出鲜味。",
+      "where_to_try": "午餐或晚餐；老城厢、福州路一带",
+      "tip": "适合多人分食；对甲壳类过敏者请避开",
+      "link": "https://www.meet-in-shanghai.net/cn/intangible-cultural-heritage/the-traditional-cooking-skills-of-the-old-hotel-in-shanghai-554950/"
+    },
+    {
+      "name": "八宝鸭",
+      "category": "本帮宴席菜",
+      "description": "整鸭填入糯米、栗子、香菇等配料后慢蒸或焖制，滋味丰厚。",
+      "where_to_try": "多人晚餐；豫园、老城厢传统本帮餐厅",
+      "tip": "份量较大，部分餐厅需要提前预订",
+      "link": "https://english.shanghai.gov.cn/en-SpecialtyFood/20260511/594d417a429d426e8442a47336c47574.html"
+    },
+    {
+      "name": "腌笃鲜",
+      "category": "时令汤菜",
+      "description": "咸肉、鲜肉与春笋小火同炖，乳白汤色体现江南春季的咸鲜滋味。",
+      "where_to_try": "春季午餐或晚餐；传统本帮菜馆",
+      "tip": "春笋季风味最佳，汤本身已有咸味",
+      "link": "https://english.shanghai.gov.cn/en-GlobalTasteinShanghai2026-LocalFlavors/20260410/1554e7ea15da4a6796e5bf8dc5cfb57f.html"
+    },
+    {
+      "name": "上海梨膏糖",
+      "category": "传统甜点 / 伴手礼",
+      "description": "以雪梨、糖及多种草本原料制成，甜酥清凉，是城隍庙传统特色食品。",
+      "where_to_try": "白天逛街或购买伴手礼；城隍庙、豫园商城",
+      "tip": "不同口味甜度和草本配方有差异，可先少量尝试",
+      "link": "https://www.shanghai.gov.cn/huangpu/index.html"
+    }
+  ],
+  "itinerary": []
+}
