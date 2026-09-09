@@ -90,6 +90,8 @@ python3 server.py --data-dir /var/lib/shanghai-trip \
 
 部署到 Linux 小服务器的完整步骤见 [DEPLOY.md](DEPLOY.md)。
 
+已有 Docker 和宝塔 Nginx 的阿里云服务器，见 [Docker 部署与更新说明](DOCKER_DEPLOY.md)。
+
 ## 初始资料来源
 
 初始景点、美食和交通信息以官方或权威页面为主，包括：

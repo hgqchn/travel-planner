@@ -1,0 +1,8 @@
+[Unit]
+Description=Travel planner SQLite online backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/travel-planner/deployment/backup.sh

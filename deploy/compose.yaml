@@ -1,0 +1,31 @@
+name: travel-planner
+services:
+  app:
+    image: travel-planner:${TRIP_IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/travel-planner/app.env
+    ports:
+      - "127.0.0.1:18081:8000"
+    volumes:
+      - /var/lib/travel-planner:/data
+      - /var/backups/travel-planner:/backups
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.75
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
