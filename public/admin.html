@@ -4,7 +4,7 @@
 <body><main class="admin-shell">
 <header class="admin-heading"><div><p>旅游规划</p><h1>项目管理</h1></div><a href="/">返回旅行页面</a></header>
 <p id="admin-message" role="status" aria-live="polite"></p>
-<form id="admin-login" class="admin-card"><h2>管理员登录</h2><label class="field">管理员密码<input name="password" type="password" required autocomplete="current-password" minlength="12" maxlength="200"></label><button class="primary-button">登录管理</button><p>管理员密码由部署者设置，与同行者的项目口令独立。</p></form>
+<form id="admin-login" class="admin-card"><h2>管理员登录</h2><label class="field">管理员密码<input name="password" type="password" required autocomplete="current-password"></label><button class="primary-button">登录管理</button><p>管理员密码由部署者设置，与同行者的项目口令独立。</p></form>
 <div id="admin-content" hidden>
 <form id="project-settings" class="admin-card"><h2>项目设置</h2><label class="field">项目名称<input name="name" required maxlength="60"></label><label class="field">新项目口令<input name="project_code" type="password" maxlength="200" autocomplete="new-password" placeholder="留空则保持当前口令"></label><p>口令可自由设置，1–200 个字符，不限字符类型；留空则不修改。更改后所有同行者需要重新输入新口令。当前口令不显示。</p><button class="primary-button">保存项目设置</button></form>
 <section class="admin-card"><h2>城市管理</h2><p>同一项目可包含多个城市。含有内容的城市需先整理内容才能删除。</p><form id="city-add" class="inline-form"><label class="field">城市名称<input name="name" maxlength="30" required placeholder="例如：杭州"></label><button class="secondary-button">添加城市</button></form><div id="admin-cities"></div></section>
