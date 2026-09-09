@@ -60,7 +60,7 @@ sudoedit /etc/shanghai-trip.env
 
 ```text
 TRIP_PROJECT_CODE=替换成一个只发给同行者的长项目口令
-TRIP_ADMIN_PASSWORD=替换成至少12位的独立管理员密码
+TRIP_ADMIN_PASSWORD=替换成独立管理员密码
 TRIP_PUBLIC_ORIGIN=https://trip.example.com
 ```
 

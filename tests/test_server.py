@@ -20,7 +20,7 @@ import server  # noqa: E402
 
 
 TEST_PROJECT_CODE = "同行项目口令-2026"
-TEST_ADMIN_PASSWORD = "admin-test-password-2026"
+TEST_ADMIN_PASSWORD = "test1234"
 
 
 class RunningServer:

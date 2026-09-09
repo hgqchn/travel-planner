@@ -108,12 +108,6 @@ def validate_project_code(value: Any) -> str:
     return value
 
 
-def validate_admin_password(value: Any) -> str:
-    if not isinstance(value, str) or len(value) < 12 or len(value) > 200:
-        raise ValueError("TRIP_ADMIN_PASSWORD 必须设置为 12–200 个字符的管理员密码。")
-    return value
-
-
 def hash_secret(value: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac(
         "sha256",
@@ -1550,8 +1544,6 @@ def create_server(
 ) -> TripHTTPServer:
     project_code = validate_project_code(project_code)
     db_path = data_dir / "trip.db"
-    if admin_password:
-        validate_admin_password(admin_password)
     init_database(db_path, project_code)
     handler = partial(TripRequestHandler, directory=str(public_dir))
     return TripHTTPServer(
@@ -1656,7 +1648,7 @@ def main() -> None:
         return
     try:
         project_code = validate_project_code(os.environ.get("TRIP_PROJECT_CODE", ""))
-        admin_password = validate_admin_password(os.environ.get("TRIP_ADMIN_PASSWORD", ""))
+        admin_password = os.environ.get("TRIP_ADMIN_PASSWORD", "")
         public_origin = validate_public_origin(os.environ.get("TRIP_PUBLIC_ORIGIN", ""))
     except ValueError as error:
         print(f"启动失败：{error}", file=sys.stderr)
