@@ -1312,6 +1312,7 @@ async function enterUnlockedProject() {
 async function submitProject(event) {
   event.preventDefault();
   const submit = dom.projectForm.querySelector('[type="submit"]');
+  if (submit.disabled) return;
   submit.disabled = true;
   dom.projectError.textContent = "";
   try {

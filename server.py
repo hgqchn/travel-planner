@@ -2127,7 +2127,6 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.handle_admin_write("POST", path)
                 return
             if path == "/api/project-session":
-                self.enforce_rate_limit("access")
                 data = self.read_json()
                 submitted_code = data.get("project_code", "") if isinstance(data, dict) else ""
                 record = project_auth_record(self.db_path)
@@ -2272,7 +2271,6 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.handle_admin_write("DELETE", path)
                 return
             if path == "/api/project-session":
-                self.enforce_rate_limit("access")
                 self.read_json()
                 self.send_json(
                     HTTPStatus.OK,
