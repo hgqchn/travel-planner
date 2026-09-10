@@ -203,3 +203,7 @@
 .field .place-category-select { border-color: var(--category-line); background-color: var(--category-tint); color: var(--category-ink); font-weight: 600; }
 .field .place-category-select:focus { border-color: var(--category-ink); outline-color: var(--category-ink); }
 .tags .tag { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+
+.ai-task-controls { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; }
+.ai-task-controls .field { flex: 1; min-width: 0; }
+.ai-task-controls .secondary-button { flex-shrink: 0; }

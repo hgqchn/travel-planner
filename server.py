@@ -41,6 +41,7 @@ import itinerary_links
 import project_itinerary
 import travel_guidance
 from place_taxonomy import TAXONOMY, normalize_place, migrate_project
+from project_store import ProjectStore
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -48,6 +49,7 @@ DEFAULT_PUBLIC_DIR = PROJECT_ROOT / "public"
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 SEED_PATH = PROJECT_ROOT / "seed_data.json"
 MAX_BODY_BYTES = 64 * 1024
+MAX_AI_BODY_BYTES = 8 * 1024 * 1024
 MAX_ITEMS_PER_KIND = 250
 MAX_ITEMS_TOTAL = int(os.environ.get("TRIP_MAX_ITEMS_TOTAL", "50000"))
 MAX_USERS = 1000
@@ -1123,6 +1125,17 @@ def verify_project_code(db_path: Path, submitted_code: Any) -> bool:
     return verify_secret(submitted_code, record["code_salt"], record["code_hash"])
 
 
+def projects_matching_code(store: ProjectStore, code: str, exclude: str | None = None) -> list[dict]:
+    """Call under the store lock so lookup and subsequent changes stay atomic."""
+    return [project for project in store.list_projects()
+            if project['id'] != exclude and verify_project_code(store.resolve(project['id']), code)]
+
+
+def require_unique_project_code(store: ProjectStore, code: str, exclude: str | None = None) -> None:
+    if projects_matching_code(store, code, exclude):
+        raise ApiError(409, "该口令已用于其他项目，请使用不同的项目口令。")
+
+
 def claim_identity(db_path: Path, data: Any, supplied_token: str = "") -> dict[str, str]:
     if not isinstance(data, dict):
         raise ApiError(HTTPStatus.BAD_REQUEST, "内容格式不正确。")
@@ -1990,8 +2003,9 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             length = int(raw_length)
         except ValueError as exc:
             raise ApiError(HTTPStatus.BAD_REQUEST, "内容长度无效。") from exc
-        if length < 0 or length > MAX_BODY_BYTES:
-            raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "一次提交的内容不能超过 64 KB。")
+        maximum = MAX_AI_BODY_BYTES if urlparse(self.path).path.startswith('/api/ai/jobs') else MAX_BODY_BYTES
+        if length < 0 or length > maximum:
+            raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, f"一次提交的内容不能超过 {maximum // 1024} KB。")
         try:
             return json.loads(self.rfile.read(length).decode("utf-8"))
         except TimeoutError as exc:
@@ -2125,6 +2139,26 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.validate_write_request()
             if path.startswith("/api/admin/"):
                 self.handle_admin_write("POST", path)
+                return
+            if path == "/api/project-entry":
+                data = self.read_json()
+                try:
+                    code = validate_project_code(data.get('project_code') if isinstance(data, dict) else None)
+                except ValueError as error:
+                    raise ApiError(400, str(error)) from error
+                with self.server.project_store.lock:
+                    matches = projects_matching_code(self.server.project_store, code)
+                    if not matches:
+                        raise ApiError(403, "项目口令不正确，请确认后重试。")
+                    if len(matches) != 1:
+                        raise ApiError(409, "该口令对应多个项目，请联系管理员为项目设置不同口令。")
+                    project = matches[0]
+                    record = project_auth_record(self.server.project_store.resolve(project['id']))
+                    access_token = create_project_access_token(record['session_secret'], record['access_version'])
+                    self.send_json(200, {'unlocked': True, 'project_id': project['id']},
+                                   extra_headers={'Set-Cookie': self.build_cookie(
+                                       'trip_project', access_token, PROJECT_ACCESS_MAX_AGE,
+                                       project_id=project['id'])})
                 return
             if path == "/api/project-session":
                 data = self.read_json()
@@ -2374,6 +2408,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 code = validate_project_code(data.get('project_code'))
                 import place_cache
                 with self.server.project_store.lock:
+                    require_unique_project_code(self.server.project_store, code)
                     for project in self.server.project_store.list_projects():
                         place_cache.flush(self.server.project_store.resolve(project['id']))
                     project = self.server.project_store.create(name, code)
@@ -2396,6 +2431,12 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(200, result)
             return
         with self.server.project_store.lock:
+            if path == '/api/admin/project' and method == 'PUT' and isinstance(data, dict) and data.get('project_code'):
+                try:
+                    code = validate_project_code(data['project_code'])
+                except ValueError as error:
+                    raise ApiError(400, str(error)) from error
+                require_unique_project_code(self.server.project_store, code, exclude=self.project_id)
             result = admin_change(self.db_path, method, path.removeprefix("/api/admin/"), data)
         self.send_json(200, result)
 
@@ -2407,8 +2448,11 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 {"code": "PROJECT_LOCKED"},
             )
 
-    def build_cookie(self, base_name: str, value: str, max_age: int) -> str:
-        base_name = self.scoped_cookie_name(base_name)
+    def build_cookie(self, base_name: str, value: str, max_age: int, *, project_id: str | None = None) -> str:
+        if project_id is None:
+            base_name = self.scoped_cookie_name(base_name)
+        elif base_name in {'trip_session', 'trip_project'} and project_id != 'main':
+            base_name = f'{base_name}_{project_id}'
         secure = self.server.cookie_secure  # type: ignore[attr-defined]
         cookie_name = f"__Host-{base_name}" if secure else base_name
         cookie = (
@@ -2497,7 +2541,6 @@ def create_server(
     project_code = validate_project_code(project_code)
     db_path = data_dir / "trip.db"
     init_database(db_path, project_code)
-    from project_store import ProjectStore
     projects = ProjectStore(db_path, init_database)
     handler = partial(TripRequestHandler, directory=str(public_dir))
     httpd = TripHTTPServer(

@@ -1316,10 +1316,14 @@ async function submitProject(event) {
   submit.disabled = true;
   dom.projectError.textContent = "";
   try {
-    await requestJson("/api/project-session", {
+    const { data } = await requestJson(window.TripProject.entryByCode ? "/api/project-entry" : "/api/project-session", {
       method: "POST",
       body: JSON.stringify({ project_code: dom.projectCodeInput.value }),
     });
+    if (data.project_id && data.project_id !== window.TripProject.id) {
+      location.assign(window.TripProject.url(`/${location.hash}`, data.project_id));
+      return;
+    }
     await enterUnlockedProject();
   } catch (error) {
     dom.projectError.textContent = error.message;
@@ -1580,6 +1584,8 @@ async function start() {
     if (data.unlocked) await enterUnlockedProject();
   } catch (error) {
     setProjectGateChecking(false);
+    // The homepage remains a code entry point even after main is deleted.
+    if (error.status === 404 && window.TripProject.entryByCode) return;
     dom.projectError.textContent = error.status === 404 ? error.message : "暂时无法连接项目，请稍后重试。";
   } finally {
     window.clearTimeout(timeout);

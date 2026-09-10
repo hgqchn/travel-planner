@@ -3,6 +3,7 @@
 window.TripProject = (() => {
   const params = new URLSearchParams(location.search);
   const id = params.has("project") ? params.get("project") : "main";
+  const entryByCode = !params.has("project");
   const validId = (value) => value === "main" || /^[0-9a-f]{16}$/.test(value);
 
   function requireValid() {
@@ -36,5 +37,5 @@ window.TripProject = (() => {
     });
   }
 
-  return { id, valid: validId(id), requireValid, headers, url, storageKey, initLinks };
+  return { id, entryByCode, valid: validId(id), requireValid, headers, url, storageKey, initLinks };
 })();

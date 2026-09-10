@@ -2,7 +2,7 @@
 server {
     listen 8081;
     server_name 39.106.229.7;
-    client_max_body_size 64k;
+    client_max_body_size 8m;
     access_log /www/wwwlogs/travel-planner.log;
     error_log /www/wwwlogs/travel-planner.error.log;
 

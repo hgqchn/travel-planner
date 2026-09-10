@@ -96,7 +96,7 @@ class AIReplanTests(unittest.TestCase):
             {"planning_mode": "replace_day", "target_date": "2026-02-30", "days": 1},
             {"planning_mode": "replace_day", "target_date": "2026-10-01"},
             {"planning_mode": "replace_day", "target_date": "2026-10-02", "days": 1},
-            {"target_date": "2026-10-01"}, {"days": 0}, {"days": 8},
+            {"target_date": "2026-10-01"}, {"days": 0},
         ]
         for changes in invalid:
             with self.subTest(changes=changes), self.assertRaises(ai.AIError) as error:

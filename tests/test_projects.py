@@ -156,6 +156,65 @@ class ProjectApiTests(unittest.TestCase):
         _, main_snapshot, _ = self.request("/api/snapshot?city_id=beijing")
         self.assertNotIn("不能写入", {item["name"] for item in main_snapshot["items"]["food"]})
 
+    def test_homepage_code_entry_selects_child_and_keeps_cookies_isolated(self):
+        status, result, response = self.request('/api/project-entry', 'POST',
+                                               {'project_code': 'second-project-code'})
+        self.assertEqual(status, 200)
+        self.assertEqual(result, {'unlocked': True, 'project_id': self.project_id})
+        self.assertIn(f'trip_project_{self.project_id}=', response.headers['Set-Cookie'])
+        self.assertEqual(self.request('/api/users', project=self.project_id)[0], 200)
+        self.assert_http_error(401, '/api/users')
+        self.assert_http_error(401, '/api/session', project=self.project_id)
+        _, result, _ = self.request('/api/project-entry', 'POST', {'project_code': TEST_PROJECT_CODE})
+        self.assertEqual(result['project_id'], 'main')
+        self.assertEqual(self.request('/api/users')[0], 200)
+
+    def test_homepage_entry_works_after_default_project_is_deleted(self):
+        store = self.running.httpd.project_store
+        main = next(project for project in store.list_projects() if project['id'] == 'main')
+        self.request('/api/admin/projects/main', 'DELETE', {'confirm_name': main['name']})
+        _, result, _ = self.request('/api/project-entry', 'POST',
+                                    {'project_code': 'second-project-code'}, project='main')
+        self.assertEqual(result['project_id'], self.project_id)
+        self.assertEqual(self.request('/api/users', project=self.project_id)[0], 200)
+        self.assert_http_error(403, '/api/project-entry', 'POST', {'project_code': TEST_PROJECT_CODE})
+        self.request(f'/api/admin/projects/{self.project_id}', 'DELETE', {'confirm_name': self.project['name']})
+        self.assert_http_error(403, '/api/project-entry', 'POST', {'project_code': 'second-project-code'})
+
+    def test_duplicate_codes_are_rejected_on_create_and_update(self):
+        self.assert_http_error(409, '/api/admin/projects', 'POST',
+                               {'name': '重复项目', 'project_code': 'second-project-code'})
+        self.assert_http_error(409, '/api/admin/project', 'PUT',
+                               {'name': '不应改名', 'project_code': TEST_PROJECT_CODE}, project=self.project_id)
+        self.assertEqual(self.request('/api/admin/state', project=self.project_id)[1]['project']['name'], self.project['name'])
+        # Keeping the same code or leaving it blank remains supported.
+        for code in ('second-project-code', ''):
+            self.request('/api/admin/project', 'PUT', {'name': self.project['name'], 'project_code': code},
+                         project=self.project_id)
+        self.request('/api/admin/project', 'PUT', {'name': self.project['name'], 'project_code': '新口令'},
+                     project=self.project_id)
+        self.assert_http_error(403, '/api/project-entry', 'POST', {'project_code': 'second-project-code'})
+        self.assertEqual(self.request('/api/project-entry', 'POST', {'project_code': '新口令'})[1]['project_id'], self.project_id)
+
+    def test_legacy_duplicate_codes_do_not_unlock_an_arbitrary_project(self):
+        import server
+        # Simulate records created before deployment-wide uniqueness checks.
+        server.admin_change(self.running.httpd.project_store.resolve(self.project_id), 'PUT', 'project',
+                            {'name': self.project['name'], 'project_code': TEST_PROJECT_CODE})
+        self.assert_http_error(409, '/api/project-entry', 'POST', {'project_code': TEST_PROJECT_CODE})
+        self.assertFalse(any(cookie.name.startswith('trip_project') for cookie in self.cookies))
+        self.request('/api/project-session', 'POST', {'project_code': TEST_PROJECT_CODE}, project=self.project_id)
+        self.assertEqual(self.request('/api/users', project=self.project_id)[0], 200)
+
+    def test_homepage_invalid_codes_never_grant_access(self):
+        for code in (None, [], '', 'x' * 201):
+            self.assert_http_error(400, '/api/project-entry', 'POST', {'project_code': code})
+        for _ in range(12):
+            error = self.assert_http_error(403, '/api/project-entry', 'POST', {'project_code': 'wrong'})
+            self.assertNotIn('project_id', error)
+        self.assertFalse(any(cookie.name.startswith('trip_project') for cookie in self.cookies))
+        self.assertEqual(self.request('/api/project-entry', 'POST', {'project_code': TEST_PROJECT_CODE})[0], 200)
+
 
 if __name__ == "__main__":
     unittest.main()

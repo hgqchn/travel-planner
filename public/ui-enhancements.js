@@ -24,6 +24,68 @@ window.TripUI = (() => {
   function rememberTask() {
     if (!ai.job?.id || !state.userId) return;
     try { localStorage.setItem(window.TripProject.storageKey("trip-ai-current-task"), JSON.stringify({ jobId: ai.job.id, userId: state.userId, projectId: state.projectId })); } catch { /* Optional recovery; no key or generated content is stored. */ }
+    try {
+      const all = taskHistory().filter((item) => item.jobId !== ai.job.id);
+      all.unshift({ jobId: ai.job.id, userId: state.userId, cityName: ai.job.city_name || ai.cityName, status: ai.job.status });
+      localStorage.setItem(taskHistoryKey(), JSON.stringify(all));
+    } catch { /* Tasks continue when optional browser storage is unavailable. */ }
+    renderTaskHistory();
+  }
+
+  function taskHistoryKey() { return window.TripProject.storageKey(`trip-ai-history:${state.userId}`); }
+  function taskHistory() {
+    try {
+      const items = JSON.parse(localStorage.getItem(taskHistoryKey()) || "[]");
+      return Array.isArray(items) ? items.filter((item) => item?.userId === state.userId && /^[0-9a-f]{32}$/.test(item.jobId)) : [];
+    } catch { return []; }
+  }
+  function taskSwitchBlocked() { return Boolean(ai.pendingRequest) || ai.importing || ai.restoring || (ai.busy && !["queued", "running"].includes(ai.job?.status)); }
+  function renderTaskHistory() {
+    const select = $("ai-task-select");
+    const labels = { queued: "排队中", running: "生成中", ready: "可查看", failed: "未完成", imported: "已导入" };
+    select.replaceChildren();
+    const blank = element("option", "", "新任务"); blank.value = ""; select.append(blank);
+    for (const task of taskHistory()) {
+      const option = element("option", "", `${task.cityName || "旅行计划"} · ${labels[task.status] || "查看任务"} · ${task.jobId.slice(-6)}`);
+      option.value = task.jobId; select.append(option);
+    }
+    select.value = ai.job?.id || "";
+    select.disabled = taskSwitchBlocked();
+    $("ai-new-task").disabled = taskSwitchBlocked();
+  }
+  async function switchTask(jobId = "") {
+    if (taskSwitchBlocked() || jobId === ai.job?.id) { renderTaskHistory(); return; }
+    if (ai.job?.status === "ready" && !window.confirm("切换任务会放弃当前预览中尚未导入的手工编辑。原始生成结果仍可从任务记录打开，继续吗？")) { renderTaskHistory(); return; }
+    if (ai.job) rememberTask();
+    const oldJob = ai.job;
+    const epoch = ++ai.epoch;
+    clearTimeout(ai.timer);
+    if (!jobId) {
+      clearAiDraft();
+      ai.formMode = "append"; ai.longRange = 0;
+      setAiBusy(false);
+      updateModeControls();
+      return;
+    }
+    ai.restoring = true;
+    updateModeControls();
+    try {
+      const { data } = await requestJson(`/api/ai/jobs/${encodeURIComponent(jobId)}`);
+      if (epoch !== ai.epoch) return;
+      ai.restoring = false;
+      ai.job = unwrapJob(data);
+      ai.previewId = null; ai.rows = []; ai.replacementConflict = false;
+      $("ai-preview").hidden = true;
+      $("ai-error").textContent = "";
+      restoreRequestForm(ai.job.request || {});
+      updateAiJob();
+    } catch (error) {
+      if (epoch !== ai.epoch) return;
+      ai.restoring = false;
+      ai.job = oldJob;
+      if (oldJob) updateAiJob(); else setAiBusy(false);
+      handleError(error, "ai-error");
+    }
   }
 
   function forgetTask(jobId) {
@@ -496,12 +558,15 @@ window.TripUI = (() => {
   function busyJob() { return ai.busy || ai.importing || ai.restoring || ["queued", "running"].includes(ai.job?.status); }
   function formInput(name) { return $("ai-form").elements.namedItem(name); }
   function planningMode(request = ai.job?.request) { return ["replace_all", "replace_day"].includes(request?.planning_mode) ? request.planning_mode : "append"; }
-  function requestDates(request) {
+  function requestDateRange(request) {
     const start = new Date(`${request.start_date}T00:00:00Z`);
-    if (Number.isNaN(start.getTime())) return [];
+    if (Number.isNaN(start.getTime())) return null;
+    if (start.toISOString().slice(0, 10) !== request.start_date) return null;
     const days = Number(request.days);
-    if (!Number.isInteger(days) || days < 1 || days > 7) return [];
-    return Array.from({ length: days }, (_, index) => new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10));
+    if (!Number.isSafeInteger(days) || days < 1) return null;
+    const end = new Date(start.getTime() + (days - 1) * 86400000);
+    if (Number.isNaN(end.getTime()) || end.getUTCFullYear() > 9999) return null;
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10), days };
   }
 
   function replacementLabel(request) {
@@ -509,6 +574,7 @@ window.TripUI = (() => {
   }
 
   function updateModeControls() {
+    renderTaskHistory();
     const mode = ai.formMode;
     const replan = mode !== "append";
     const day = mode === "replace_day";
@@ -533,7 +599,7 @@ window.TripUI = (() => {
     const scope = day ? `${formInput("target_date").value || "所选日期"} 当天行程` : "全部行程（包括新日期范围之外的旧行程）";
     $("ai-replan-scope").textContent = `${ai.cityName || "当前城市"}的${scope}将被新方案替换。确认应用前原行程保留，地点、美食与其他城市的行程保留。`;
     $("ai-replan-range-note").hidden = mode !== "replace_all" || !ai.longRange;
-    $("ai-replan-range-note").textContent = ai.longRange ? `已有行程跨度为 ${ai.longRange} 天。每次生成支持 1–7 天，请重新选择出发日期和天数；应用后仍会替换当前城市的全部旧行程。` : "";
+    $("ai-replan-range-note").textContent = ai.longRange ? `已有行程跨度为 ${ai.longRange} 天，将按所选日期和天数重新规划。` : "";
     $("ai-model-input").disabled = locked || !ai.config?.enabled;
     $("ai-generate").disabled = !ai.config?.enabled || busyJob() || !formInput("model").value.trim();
     if (!busyJob()) $("ai-generate").textContent = ai.pendingRequest ? "重试本次请求" : replan ? "✧ 生成新的行程方案" : "✧ 生成旅行灵感";
@@ -587,9 +653,9 @@ window.TripUI = (() => {
       const dates = (state.items.itinerary || []).filter((item) => item.city_id === state.cityId && /^\d{4}-\d{2}-\d{2}$/.test(item.date)).map((item) => item.date).sort();
       if (dates.length) {
         const span = Math.round((new Date(`${dates.at(-1)}T00:00:00Z`) - new Date(`${dates[0]}T00:00:00Z`)) / 86400000) + 1;
-        ai.longRange = span > 7 ? span : 0;
-        formInput("start_date").value = ai.longRange ? "" : dates[0];
-        formInput("days").value = ai.longRange ? "" : String(span);
+        ai.longRange = 0;
+        formInput("start_date").value = dates[0];
+        formInput("days").value = String(span);
       } else {
         formInput("start_date").value = localDate();
         formInput("days").value = "3";
@@ -673,8 +739,8 @@ window.TripUI = (() => {
       if (!kinds.length) { $("ai-error").textContent = "请至少选择地点、美食或行程中的一项。"; return; }
       const startDate = mode === "replace_day" ? formInput("target_date").value : formInput("start_date").value;
       const days = mode === "replace_day" ? 1 : Number(formInput("days").value);
-      if (kinds.includes("itinerary") && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isInteger(days) || days < 1 || days > 7)) {
-        $("ai-error").textContent = "请选择有效的出发日期，以及 1–7 天的旅行天数。";
+      if (kinds.includes("itinerary") && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !requestDateRange({ start_date: startDate, days }))) {
+        $("ai-error").textContent = "请选择有效的出发日期，并填写正整数旅行天数。";
         return;
       }
       if (ai.job?.status === "ready" && !window.confirm("当前 AI 预览尚未应用。重新生成会替换这份预览，原行程保留，继续吗？")) return;
@@ -733,6 +799,7 @@ window.TripUI = (() => {
 
   function updateAiJob() {
     const job = ai.job;
+    rememberTask();
     $("ai-model").textContent = job.model ? ` · 本次结果：${job.model}` : "";
     ai.cityId = job.city_id;
     ai.cityName = job.city_name || ai.cityName;
@@ -760,7 +827,7 @@ window.TripUI = (() => {
     const job = ai.job;
     const result = job.result || {};
     const replan = planningMode(job.request) !== "append";
-    const dates = replan ? requestDates(job.request) : [];
+    const range = replan ? requestDateRange(job.request) : null;
     ai.previewId = job.id;
     ai.rows = [];
     $("ai-notices").replaceChildren(...(result.notices || []).map((notice) => element("li", "", notice)));
@@ -807,7 +874,7 @@ window.TripUI = (() => {
           field.htmlFor = input.id;
           if (definition.tagsKind || definition.attractionNames) field.querySelector("label").htmlFor = input.id;
           input.required = checkbox.checked && Boolean(definition.required);
-          if (replan && definition.key === "date" && dates.length) { input.min = dates[0]; input.max = dates.at(-1); }
+          if (replan && definition.key === "date" && range) { input.min = range.start; input.max = range.end; }
           fields.append(field);
         }
         details.append(fields);
@@ -861,12 +928,17 @@ window.TripUI = (() => {
   }
 
   function replacementCoverageError(items) {
-    const dates = requestDates(ai.job.request);
-    if (!dates.length) return "本次任务的日期无效，请重新生成。";
-    if (items.some((item) => item.kind !== "itinerary" || !dates.includes(item.data.date))) return `行程日期必须在本次规划范围内：${dates[0]}${dates.length > 1 ? ` 至 ${dates.at(-1)}` : ""}。`;
+    const range = requestDateRange(ai.job.request);
+    if (!range) return "本次任务的日期无效，请重新生成。";
+    if (items.some((item) => item.kind !== "itinerary" || item.data.date < range.start || item.data.date > range.end)) return `行程日期必须在本次规划范围内：${range.start}${range.days > 1 ? ` 至 ${range.end}` : ""}。`;
     const selected = new Set(items.map((item) => item.data.date));
-    const missing = dates.filter((date) => !selected.has(date));
-    return missing.length ? `请为 ${missing.join("、")} 至少选择一项行程。` : "";
+    if (selected.size === range.days) return "";
+    let firstMissing = range.start;
+    for (const value of [...selected].sort()) {
+      if (value !== firstMissing) break;
+      firstMissing = new Date(new Date(`${value}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10);
+    }
+    return `请为 ${firstMissing} 等未覆盖日期至少选择一项行程。`;
   }
 
   function disableImportedPreview() {
@@ -915,7 +987,7 @@ window.TripUI = (() => {
     const payload = { city_id: ai.job.city_id, items };
     if (replan) payload.confirm_replace = true;
     const body = JSON.stringify(payload);
-    if (items.length > 60 || new TextEncoder().encode(body).length > 60 * 1024) { showAiImportError("所选内容过多，请减少条目或缩短详细说明后再导入。"); return; }
+    if (new TextEncoder().encode(body).length > 8 * 1024 * 1024) { showAiImportError("所选内容过多，请减少条目或缩短详细说明后再导入。"); return; }
     if (replan) {
       const oldCount = Number.isInteger(ai.job.replacement?.count) ? `${ai.job.replacement.count} 项旧行程` : "原行程";
       const scope = `${ai.cityName}的${replacementLabel(ai.job.request)}`;
@@ -1014,6 +1086,8 @@ window.TripUI = (() => {
     $("ai-replan-all").addEventListener("click", () => openReplan("replace_all"));
     for (const id of ["ai-close", "ai-result-close"]) $(id).addEventListener("click", () => $("ai-dialog").close());
     $("ai-form").addEventListener("submit", generateAi);
+    $("ai-new-task").addEventListener("click", () => switchTask());
+    $("ai-task-select").addEventListener("change", () => switchTask($("ai-task-select").value));
     $("ai-model-input").addEventListener("input", updateModeControls);
     $("ai-target-change").addEventListener("click", () => {
       choosePlanningMode("append", "", true);

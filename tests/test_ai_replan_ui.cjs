@@ -198,15 +198,15 @@ test("all entry infers the current city's date span and warns it replaces outsid
   assert.match(h.node("ai-import").textContent, /确认替换全部行程/);
 });
 
-test("a longer than seven-day trip requires an explicit new range instead of truncation", async () => {
+test("a longer than seven-day trip preserves its full range and can be generated", async () => {
   const h = harness({ items: [{ date: firstDate, city_id: "shanghai" }, { date: "2026-10-12", city_id: "shanghai" }] });
   await h.controller.openReplan("replace_all");
-  assert.equal(h.input("start_date").value, "");
-  assert.equal(h.input("days").value, "");
-  assert.equal(h.node("ai-replan-range-note").hidden, false);
-  assert.match(h.node("ai-replan-range-note").textContent, /12 天/);
+  assert.equal(h.input("start_date").value, firstDate);
+  assert.equal(h.input("days").value, "12");
+  assert.equal(h.node("ai-replan-range-note").hidden, true);
   await h.submit();
-  assert.equal(h.generations().length, 0);
+  assert.equal(h.generations().length, 1);
+  assert.equal(h.generations()[0].body.days, 12);
 });
 
 test("canceling final replacement confirmation sends no import request", async () => {
@@ -471,4 +471,34 @@ test('single-day and food-only previews omit city guidance; overall plans show o
   job.result = { summary: '仅生成美食', notices: ['不应作为整个城市行程的建议'], foods: [], itineraries: [] };
   const h = harness({ storedJob: job }); await h.click('ai-open');
   assert.equal(h.node('ai-travel-guidance').hidden, true);
+});
+
+
+test("a running task can be left in history while another task is submitted", async () => {
+  let count = 0;
+  const h = harness({ postHandler: async (request) => ({ data: { job: {
+    id: (++count).toString(16).padStart(32, "0"), city_id: "shanghai", city_name: "上海",
+    status: "queued", request,
+  } } }) });
+  await h.controller.openReplan("replace_all");
+  await h.submit();
+  assert.equal(h.node("ai-new-task").disabled, false);
+  await h.click("ai-new-task");
+  assert.equal(h.node("ai-generate").disabled, false);
+  await h.submit();
+  assert.equal(h.generations().length, 2);
+  assert.equal(h.node("ai-task-select").children.length, 3);
+});
+
+test("a previous task can be reopened after starting a new task", async () => {
+  const previous = readyJob();
+  const h = harness({ storedJob: previous });
+  await h.controller.openReplan("replace_all");
+  await h.submit();
+  await h.click("ai-new-task");
+  h.node("ai-task-select").value = jobId;
+  await h.node("ai-task-select").events.change();
+  assert.equal(h.node("ai-task-select").value, jobId);
+  assert.equal(h.input("planning_mode").value, "replace_day");
+  assert.equal(h.cards().length, 1);
 });

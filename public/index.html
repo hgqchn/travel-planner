@@ -182,7 +182,7 @@
         <p class="dialog-lead">基于 AI 的多人共享旅行规划</p>
         <h1 id="project-title">输入项目口令</h1>
         <p class="dialog-lead" id="project-description">
-          这份计划只向同行者开放。口令通过后，再选择你的编辑署名。
+          在主页输入口令即可进入对应项目。口令通过后，再选择你的编辑署名。
         </p>
         <label class="field">
           <span>项目口令</span>
@@ -364,6 +364,10 @@
       <div class="sheet-content">
         <div class="dialog-header"><div><p class="section-kicker">给灵感一个出发点</p><h2 id="ai-title">AI 旅行助手</h2></div><button class="icon-button" id="ai-close" type="button" aria-label="关闭 AI 旅行助手">×</button></div>
         <p class="ai-city-line">本次目的地 <strong id="ai-city-name"></strong><span id="ai-model" class="muted"></span><button id="ai-target-change" class="link-button" type="button" hidden>为当前城市新建计划</button></p>
+        <div class="ai-task-controls">
+          <label class="field"><span>本机任务记录</span><select id="ai-task-select" aria-label="切换 AI 任务"><option value="">新任务</option></select></label>
+          <button id="ai-new-task" class="secondary-button" type="button">新建任务</button>
+        </div>
         <form id="ai-form">
           <label class="field"><span>DeepSeek 模型 ID</span><input id="ai-model-input" name="model" type="text" maxlength="200" required autocomplete="off" spellcheck="false" aria-describedby="ai-model-hint" /><small id="ai-model-hint">默认使用当前配置的模型，可手动填写其他模型 ID。本次生成使用这里填写的模型。</small></label>
           <div class="ai-field-grid">
@@ -378,7 +382,7 @@
           <div class="ai-templates" aria-label="常用旅行模板"><button type="button" data-ai-template="classic">经典三日游</button><button type="button" data-ai-template="family">亲子轻松游</button><button type="button" data-ai-template="food">本地美食</button><button type="button" data-ai-template="extra">补充新灵感</button></div>
           <div class="ai-field-grid">
             <label class="field"><span>出发日期</span><input name="start_date" id="ai-start-date" type="date" required /></label>
-            <label class="field"><span>旅行天数</span><input name="days" type="number" min="1" max="7" value="3" required /></label>
+            <label class="field"><span>旅行天数</span><input name="days" type="number" min="1" step="1" value="3" required /></label>
             <label class="field"><span>出行人数（含自己）</span><input name="people" type="number" min="1" max="20" step="1" value="1" required aria-describedby="ai-people-hint" /><small id="ai-people-hint">独自出行填 1。</small></label>
             <label class="field"><span>人均预算（元）</span><input name="budget" type="number" min="0" max="1000000" placeholder="选填，不含往返大交通" /></label>
             <label class="field"><span>旅行节奏</span><select name="pace"><option value="relaxed">轻松慢游</option><option value="balanced" selected>适中安排</option><option value="packed">充实紧凑</option></select></label>

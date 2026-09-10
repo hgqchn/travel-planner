@@ -247,7 +247,7 @@ class AIServiceTests(unittest.TestCase):
         wrong["foods"][0]["description"] = 123
         examples.append(wrong)
         wrong = suggestion()
-        wrong["foods"] *= 13
+        wrong["foods"] = {"invalid": "not an array"}
         examples.append(wrong)
         wrong = suggestion()
         wrong["schema_version"] = True
@@ -260,7 +260,7 @@ class AIServiceTests(unittest.TestCase):
 
     def test_request_validation_prevents_unbounded_input(self):
         service = self.make_service()
-        for values in ({"days": 8}, {"days": True}, {"people": 0}, {"kinds": ["transit"]},
+        for values in ({"days": 0}, {"days": True}, {"people": 0}, {"kinds": ["transit"]},
                        {"kinds": ["food", "food"]}, {"start_date": "2026-02-30"},
                        {"start_date": ""}, {"requirements": "a" * 2001}, {"budget": float("nan")}):
             with self.subTest(values=values), self.assertRaises(ai.AIError):
@@ -317,7 +317,44 @@ class AIServiceTests(unittest.TestCase):
             self.assertEqual(db.execute("SELECT total FROM ai_daily_usage").fetchall(), [(1000,)])
             self.assertEqual(db.execute("SELECT total FROM ai_device_usage").fetchall(), [(1000,), (1000,)])
 
-    def test_cooldown_and_missing_key(self):
+    def test_long_trip_and_large_result_can_be_generated_and_imported(self):
+        class LargeService(FakeService):
+            def _generate(self, request, context):
+                value = suggestion()
+                value["attractions"] = [dict(value["attractions"][0], name=f"景点{i}",
+                                             description="介绍" * 250) for i in range(160)]
+                value["foods"] = [dict(value["foods"][0], name=f"美食{i}") for i in range(15)]
+                value["itineraries"] = [dict(value["itineraries"][0], title=f"安排{i}") for i in range(40)]
+                return provider_response(value), "json_schema"
+
+        service = self.make_service(cls=LargeService)
+        request = self.request(days=30)
+        self.assertEqual(service._validate_request(request)["days"], 30)
+        self.assertFalse(any("maxItems" in ai._schema()["properties"][plural] for plural in ai.KINDS.values()))
+        job = self.wait_job(service, service.create_job("测试用户", "device-a", request))
+        self.assertEqual(job["status"], "ready", job.get("error"))
+        result = job["result"]
+        self.assertEqual([len(result[k]) for k in ai.KINDS.values()], [160, 15, 40])
+        data = {"items": [{"kind": kind, "data": item} for kind, plural in ai.KINDS.items()
+                          for item in result[plural]]}
+        self.assertGreater(len(json.dumps(data).encode()), 64 * 1024)
+        imported = service.import_job("测试用户", "device-a", job["id"], data)
+        self.assertEqual(imported["imported"], 215)
+
+    def test_large_ai_import_body_is_accepted_without_relaxing_other_routes(self):
+        body = json.dumps({"items": [{"description": "x" * 70000}]}).encode()
+        handler = object.__new__(server.TripRequestHandler)
+        handler.headers = {"Content-Length": str(len(body))}
+        handler.rfile = io.BytesIO(body)
+        handler.path = '/api/ai/jobs/' + 'a' * 32 + '/import'
+        self.assertEqual(len(handler.read_json()['items'][0]['description']), 70000)
+        handler.path = '/api/items'
+        handler.rfile = io.BytesIO(body)
+        with self.assertRaises(server.ApiError) as error:
+            handler.read_json()
+        self.assertEqual(error.exception.status, 413)
+
+    def test_no_cooldown_and_missing_key(self):
         disabled = self.make_service(api_key="")
         with self.assertRaises(ai.AIError) as error:
             disabled.create_job("测试用户", "device-a", self.request())
@@ -325,12 +362,10 @@ class AIServiceTests(unittest.TestCase):
         disabled.close()
         service = self.make_service(cooldown_seconds=45)
         self.ready(service)
-        with self.assertRaises(ai.AIError) as error:
-            service.create_job("测试用户", "device-a", self.request())
-        self.assertEqual(error.exception.status, 429)
-        self.assertGreater(error.exception.extra["retry_after"], 0)
+        job = service.create_job("测试用户", "device-a", self.request())
+        self.assertIn(job["status"], ("queued", "running", "ready"))
 
-    def test_bounded_queue_and_active_job_limit(self):
+    def test_queue_and_active_jobs_have_no_quota(self):
         started = threading.Event()
         release = threading.Event()
 
@@ -344,12 +379,10 @@ class AIServiceTests(unittest.TestCase):
         try:
             first = service.create_job("测试用户", "device-a", self.request())
             self.assertTrue(started.wait(1))
-            with self.assertRaises(ai.AIError):
-                service.create_job("其他用户", "device-a", self.request())
-            service.create_job("其他用户", "device-b", self.request())
-            with self.assertRaises(ai.AIError) as error:
-                service.create_job("第三用户", "device-c", self.request())
-            self.assertIn("队列已满", error.exception.message)
+            jobs = [service.create_job("测试用户", "device-a", self.request()) for _ in range(8)]
+            jobs.append(service.create_job("其他用户", "device-a", self.request()))
+            jobs.append(service.create_job("第三用户", "device-c", self.request()))
+            self.assertEqual(len({job["id"] for job in jobs}), 10)
             with self.assertRaises(ai.AIError):
                 service.import_job("测试用户", "device-a", first["id"], {"items": []})
         finally:
