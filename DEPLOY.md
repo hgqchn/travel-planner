@@ -2,6 +2,8 @@
 
 推荐组合：**Python 3.9+ + systemd + Caddy + SQLite**。应用仅监听服务器本机的 `127.0.0.1:8000`，Caddy 对外提供 HTTPS。
 
+现有阿里云服务器使用 Docker Compose + 宝塔 Nginx，请按 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) 更新。本文仅适用于新建 systemd 部署，不要在同一服务器重复安装。
+
 以下示例适用于 Debian / Ubuntu。域名示例为 `trip.example.com`，请替换成你自己的域名。
 
 ## 1. 准备域名和系统
@@ -31,7 +33,7 @@ sudo install -d -m 700 -o shanghai-trip -g shanghai-trip /var/lib/shanghai-trip 
 从本机项目目录上传代码：
 
 ```sh
-rsync -av --exclude 'data/' --exclude '__pycache__/' ./ user@your-server:/tmp/shanghai-trip-release/
+git archive HEAD | ssh user@your-server 'mkdir -p /tmp/shanghai-trip-release && tar -x -C /tmp/shanghai-trip-release'
 ```
 
 登录服务器后安装本次版本。每次都使用一个新的发布目录，再原子切换 `current` 软链接，避免覆盖正在运行的代码：
@@ -45,7 +47,7 @@ sudo ln -s "/opt/shanghai-trip/releases/$release_name" /opt/shanghai-trip/curren
 sudo mv -Tf /opt/shanghai-trip/current.next /opt/shanghai-trip/current
 ```
 
-后续更新代码仍需排除 `data/`；生产数据库固定放在 `/var/lib/shanghai-trip`，不会被发布目录覆盖。
+上传内容来自已提交的 Git 版本，不包含本地口令和运行数据。生产数据库固定放在 `/var/lib/shanghai-trip`，不会被发布目录覆盖。每次上传使用新的空临时目录，避免残留旧版本文件。
 
 ## 3. 设置项目口令
 
@@ -109,10 +111,10 @@ curl -fsS https://trip.example.com/api/health
 每次更新前先创建一致性备份：
 
 ```sh
-backup_name="before-update-$(date +%Y%m%d-%H%M%S).db"
-sudo -u shanghai-trip /usr/bin/python3 /opt/shanghai-trip/current/server.py \
+backup_name="before-update-$(date +%Y%m%d-%H%M%S)"
+sudo -u shanghai-trip /usr/bin/python3 /opt/shanghai-trip/current/backup_all.py \
   --data-dir /var/lib/shanghai-trip \
-  --backup "/var/backups/shanghai-trip/$backup_name"
+  --output "/var/backups/shanghai-trip/$backup_name"
 ```
 
 按第 2 步上传到新的版本目录并切换 `current` 后执行：
@@ -122,7 +124,9 @@ sudo systemctl restart shanghai-trip
 curl -fsS http://127.0.0.1:8000/api/health
 ```
 
-如果新版本检查失败，且没有数据库结构升级，可把 `current` 原子切回上一个发布目录并重启服务（将目录名替换为实际上一版本）。v3 含结构升级，不能只回滚代码：须先停止服务、保留当前数据库和 WAL/SHM 文件，再从升级前备份恢复匹配旧版本的数据库；升级后的修改不会出现在旧备份中。
+集合备份包含默认项目、注册的所有项目库和共享缓存。旧单项目版本若没有 `backup_all.py`，使用旧版 `server.py --data-dir /var/lib/shanghai-trip --backup /var/backups/shanghai-trip/唯一名称.db` 备份后再升级。在线下载的线路图位于数据目录 `metro_maps/`，需要另行备份。
+
+如果新版本检查失败，且没有数据库结构或数据语义升级，可把 `current` 原子切回上一个发布目录并重启服务（将目录名替换为实际上一版本）。多项目和分类迁移等升级不能只回滚代码：须先停止服务、保留当前全部数据库和 WAL/SHM 文件，再恢复升级前的完整匹配备份；升级后的修改不会出现在旧备份中。
 
 ```sh
 sudo ln -s /opt/shanghai-trip/releases/上一版本目录 /opt/shanghai-trip/current.next

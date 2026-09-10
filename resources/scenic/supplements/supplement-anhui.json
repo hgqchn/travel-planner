@@ -1,0 +1,493 @@
+{
+  "province": "安徽省",
+  "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+  "source_name": "安徽部分市县文旅部门官方公开名录汇编",
+  "as_of": "2025-03-20至2025-12-19（各条分别注明）",
+  "coverage_note": "部分覆盖：共50条，仅黄山市20条、芜湖市11条、宣城市政府定价景区15条、池州市贵池区4条；未取得安徽全省完整可读名录。安徽省文化和旅游厅主站及2024年全省XLS返回403，未用百科/旅游平台代替官方数据。缺合肥、淮北、亳州、宿州、蚌埠、阜阳、淮南、滁州、六安、马鞍山、安庆、铜陵全市，以及宣城市非政府定价景区、池州市贵池区之外区县。来源年份不同，不保证检索日等级未变。3份官方历史网页仅能从web工具官方域名索引读取，原URL当前HTTP失败，已逐源注明。",
+  "sources": [
+    {
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复",
+      "as_of": "2025-09-25",
+      "coverage_note": "仅官方答复表中15个政府定价4A景区，并非全市所有4A。",
+      "retrieval_note": "实际下载官方HTML并逐行提取。"
+    },
+    {
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）",
+      "as_of": "2025-09-30",
+      "coverage_note": "官方表注明全市4A共20家，已提取20条。保留原表重复字“翡翠谷景区景区”，并另加仅去重复字别名。",
+      "retrieval_note": "web搜索工具可读官方页面索引表；直接HTTP访问返回412，未绕过访问限制。"
+    },
+    {
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）",
+      "as_of": "2025-03-20",
+      "coverage_note": "全市表39条A级景区中11个4A。",
+      "retrieval_note": "web搜索工具可读官方页面索引表；直接HTTP访问原URL返回404，保留原发布日期，不声称现行。"
+    },
+    {
+      "source_url": "https://www.ahgc.gov.cn/Jczwgk/opennessShow/1703154.html",
+      "source_name": "贵池区A级景区汇总表",
+      "as_of": "2025-12-19",
+      "coverage_note": "仅池州市贵池区4个4A，不覆盖池州市其他区县。",
+      "retrieval_note": "web搜索工具可读官方页面索引表；直接HTTP访问原URL失败，保留原发布日期，不声称现行。"
+    }
+  ],
+  "items": [
+    {
+      "name": "敬亭山风景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "安徽扬子鳄景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宣城市龙泉洞景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "郎溪县观天下景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "广德市太极洞景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宁国市夏霖九天银瀑景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宁国市青龙湾原生态旅游度假区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宣城市泾县查济景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宣城市泾县桃花潭景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "宣城市水墨汀溪旅游景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "泾县黄田景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "绩溪县鄣山大峡谷景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "绩溪县徽杭古道景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "旌德县江村风景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "旌德县朱旺景区",
+      "province": "安徽省",
+      "city": "宣城市",
+      "rating": "4A",
+      "source_url": "https://wlj.xuancheng.gov.cn/InFeedback/show/139641.html",
+      "as_of": "2025-09-25",
+      "source_name": "宣城市文化和旅游局老年人旅游优惠政策公开答复"
+    },
+    {
+      "name": "花山谜窟景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "东黄山度假区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "翡翠谷景区景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）",
+      "aliases": [
+        "翡翠谷景区"
+      ]
+    },
+    {
+      "name": "太平湖景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "九龙瀑景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "新安江山水画廊景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "雄村景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "齐云山风景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "赛金花－归园景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "南屏景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "牯牛降观音堂景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "芙蓉谷景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "新安江滨水旅游区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "打鼓岭景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "古城岩景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "岩寺新四军军部旧址纪念馆",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "黎阳in巷景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "屏山景区",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "祥源-祁红产业文化博览园",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "谢裕大茶文化博物馆",
+      "province": "安徽省",
+      "city": "黄山市",
+      "rating": "4A",
+      "source_url": "https://www.huangshan.gov.cn/zwgk/public/6615714/11916286.html",
+      "as_of": "2025-09-30",
+      "source_name": "黄山市A级旅游景区、旅游度假区、街区名单（2025年9月）"
+    },
+    {
+      "name": "红色山水涧风景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "大浦乡村世界景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "丫山景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "王稼祥纪念园",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "雨耕山文化旅游景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "鸠兹风景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "赭山公园",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "鸠兹古镇风景区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "枕水官巷",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "陶辛水韵旅游区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "马仁奇峰森林风景旅游区",
+      "province": "安徽省",
+      "city": "芜湖市",
+      "rating": "4A",
+      "source_url": "https://ct.wuhu.gov.cn/openness/public/6596641/33640961.html",
+      "as_of": "2025-03-20",
+      "source_name": "芜湖市A级旅游景区名录（截至2025年3月）"
+    },
+    {
+      "name": "大王洞景区",
+      "province": "安徽省",
+      "city": "池州市",
+      "rating": "4A",
+      "source_url": "https://www.ahgc.gov.cn/Jczwgk/opennessShow/1703154.html",
+      "as_of": "2025-12-19",
+      "source_name": "贵池区A级景区汇总表"
+    },
+    {
+      "name": "杏花村旅游景区",
+      "province": "安徽省",
+      "city": "池州市",
+      "rating": "4A",
+      "source_url": "https://www.ahgc.gov.cn/Jczwgk/opennessShow/1703154.html",
+      "as_of": "2025-12-19",
+      "source_name": "贵池区A级景区汇总表"
+    },
+    {
+      "name": "九华天池景区",
+      "province": "安徽省",
+      "city": "池州市",
+      "rating": "4A",
+      "source_url": "https://www.ahgc.gov.cn/Jczwgk/opennessShow/1703154.html",
+      "as_of": "2025-12-19",
+      "source_name": "贵池区A级景区汇总表"
+    },
+    {
+      "name": "秀山门博物馆",
+      "province": "安徽省",
+      "city": "池州市",
+      "rating": "4A",
+      "source_url": "https://www.ahgc.gov.cn/Jczwgk/opennessShow/1703154.html",
+      "as_of": "2025-12-19",
+      "source_name": "贵池区A级景区汇总表"
+    }
+  ],
+  "retrieved_at": "2026-09-10T06:27:19Z"
+}

@@ -1,0 +1,576 @@
+{
+  "province": "河南省",
+  "source_url": "https://hct.henan.gov.cn/",
+  "as_of": "2025-12-15",
+  "coverage_note": "河南省文旅厅2021、2022、2023、2024、2025年正式认定公告，分别15、11、13、16、16家；为历史基表增补，撤销和升级未据此推断。",
+  "items": [
+    {
+      "name": "黄帝千古情旅游景区",
+      "province": "河南省",
+      "city": "郑州市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "中原豫西抗日纪念园景区",
+      "province": "河南省",
+      "city": "郑州市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "爱思嘉·农业嘉年华景区",
+      "province": "河南省",
+      "city": "开封市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "万安山山顶公园",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "马街书会景区",
+      "province": "河南省",
+      "city": "平顶山市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "汤河国家湿地公园景区",
+      "province": "河南省",
+      "city": "安阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "金山淇河文化旅游区",
+      "province": "河南省",
+      "city": "鹤壁市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "大沙河生态公园景区",
+      "province": "河南省",
+      "city": "焦作市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "仰韶仙门山旅游景区",
+      "province": "河南省",
+      "city": "三门峡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "龙港湾景区",
+      "province": "河南省",
+      "city": "商丘市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "王公庄文化旅游景区",
+      "province": "河南省",
+      "city": "商丘市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "野生动物世界景区",
+      "province": "河南省",
+      "city": "周口市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "罗山县何家冲景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "息县濮公山矿山公园",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "信阳文新茶村",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2021/12-30/2374873.html",
+      "as_of": "2021-12-30"
+    },
+    {
+      "name": "伊川县龙凤山古镇",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "偃师县二里头夏都遗址博物馆",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "原阳县九多肉多酱卤文化园景区",
+      "province": "河南省",
+      "city": "新乡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "解放区森林动物园",
+      "province": "河南省",
+      "city": "焦作市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "温县蜜雪集团.大咖国际茶饮梦工厂",
+      "province": "河南省",
+      "city": "焦作市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "山城区石林会议旧址",
+      "province": "河南省",
+      "city": "鹤壁市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "濮阳县濮水小镇",
+      "province": "河南省",
+      "city": "濮阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "湖滨区庙底沟考古遗址公园",
+      "province": "河南省",
+      "city": "三门峡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "永城市日月湖景区",
+      "province": "河南省",
+      "city": "商丘市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "光山县钟鼓楼亲子乐园",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "新县武占岭生态旅游度假景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2022/12-20/2660172.html",
+      "as_of": "2022-12-15"
+    },
+    {
+      "name": "叶县县衙博物馆",
+      "province": "河南省",
+      "city": "平顶山市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "中国文字博物馆",
+      "province": "河南省",
+      "city": "安阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "汤阴县梦幻谷景区",
+      "province": "河南省",
+      "city": "安阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "辉县市五龙山旅游区",
+      "province": "河南省",
+      "city": "新乡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "西大井1919文旅景区",
+      "province": "河南省",
+      "city": "焦作市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "南乐县仓颉陵文化旅游景区",
+      "province": "河南省",
+      "city": "濮阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "舞阳县贾湖遗址博物馆",
+      "province": "河南省",
+      "city": "漯河市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "中流砥柱景区",
+      "province": "河南省",
+      "city": "三门峡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "城阳城址考古遗址公园",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "息县息州杉海景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "罗山县龟山湖景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "建业运河古镇",
+      "province": "河南省",
+      "city": "周口市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "商水县叶氏庄园",
+      "province": "河南省",
+      "city": "周口市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2023/12-25/2872187.html",
+      "as_of": "2023-12-24"
+    },
+    {
+      "name": "开封城墙景区",
+      "province": "河南省",
+      "city": "开封市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "洛邑古城",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "牡丹阁景区",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "洛阳大河荟",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "七彩童话动物王国",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "豫晨滨湖田园生态旅游区",
+      "province": "河南省",
+      "city": "平顶山市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "曹操高陵遗址博物馆",
+      "province": "河南省",
+      "city": "安阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "贾湖酒文化园",
+      "province": "河南省",
+      "city": "漯河市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "仰韶酒庄工业旅游区",
+      "province": "河南省",
+      "city": "三门峡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "瓮城瀑布景区",
+      "province": "河南省",
+      "city": "三门峡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "何家寨露营基地",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "安山景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "丁李湾景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "弦歌台景区",
+      "province": "河南省",
+      "city": "周口市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "皇家驿站景区",
+      "province": "河南省",
+      "city": "驻马店市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "济水之源文化旅游区",
+      "province": "河南省",
+      "city": "济源示范区",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2024/12-14/3098937.html",
+      "as_of": "2024-12-13"
+    },
+    {
+      "name": "香堤湾·奥帕拉拉水公园",
+      "province": "河南省",
+      "city": "郑州市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "黄河湾风景区",
+      "province": "河南省",
+      "city": "开封市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "魏坡·新序景区",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "栾川蕙兰文化产业园",
+      "province": "河南省",
+      "city": "洛阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "翔宇工业旅游景区",
+      "province": "河南省",
+      "city": "安阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "伯玉君子文化旅游区",
+      "province": "河南省",
+      "city": "新乡市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "南乐文庙景区",
+      "province": "河南省",
+      "city": "濮阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "春秋楼景区",
+      "province": "河南省",
+      "city": "许昌市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "襄城首山景区",
+      "province": "河南省",
+      "city": "许昌市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "蔡洪坊酒文化园",
+      "province": "河南省",
+      "city": "驻马店市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "商丘博物馆",
+      "province": "河南省",
+      "city": "商丘市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "睢县凤栖湖景区",
+      "province": "河南省",
+      "city": "商丘市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "新野县白河滩公园",
+      "province": "河南省",
+      "city": "南阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "桐柏革命纪念馆",
+      "province": "河南省",
+      "city": "南阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "息县龙湖景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    },
+    {
+      "name": "新县西河毛铺景区",
+      "province": "河南省",
+      "city": "信阳市",
+      "rating": "4A",
+      "source_url": "https://hct.henan.gov.cn/2025/12-26/3278693.html",
+      "as_of": "2025-12-15"
+    }
+  ]
+}

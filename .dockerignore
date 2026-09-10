@@ -8,3 +8,6 @@ backups
 .env
 *.env
 tests
+deepseek.md
+.env.*
+IMPLEMENTATION_PLAN.md

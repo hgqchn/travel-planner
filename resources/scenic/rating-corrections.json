@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "retrieved_at": "2026-09-10",
+  "coverage_note": "针对已导入历史名录的已知等级变更修正。以下记录依据中国质量新闻网记者对安徽省文化和旅游厅2026年9月7日公告的完整报道；省厅原始公告当前未能直接读取，不应将报道来源标为已核验官方原文。修正仅针对所列城市和景区，不推断其他景区的现行等级。",
+  "items": [
+    {
+      "name": "玉博园",
+      "province": "安徽省",
+      "city": "六安市",
+      "aliases": ["金寨县大别山玉博园景区"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级；维基历史条目使用简称“玉博园”。"
+    },
+    {
+      "name": "小南京乡村旅游扶贫示范区",
+      "province": "安徽省",
+      "city": "六安市",
+      "aliases": ["小南京乡村旅游景区"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级；旧表名为小南京乡村旅游扶贫示范区，所在地为金寨县。"
+    },
+    {
+      "name": "桐城活海旅游区",
+      "province": "安徽省",
+      "city": "安庆市",
+      "aliases": ["桐城市活海欢乐水世界景区"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级；维基历史条目名为桐城活海旅游区。"
+    },
+    {
+      "name": "肥西县老母鸡家园",
+      "province": "安徽省",
+      "city": "合肥市",
+      "aliases": ["合肥市肥西老母鸡家园"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级。"
+    },
+    {
+      "name": "岱山湖旅游度假区",
+      "province": "安徽省",
+      "city": "合肥市",
+      "aliases": ["肥东县岱山湖旅游景区"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级；维基历史条目名为岱山湖旅游度假区。"
+    },
+    {
+      "name": "怀宁孔雀东南飞旅游景区",
+      "province": "安徽省",
+      "city": "安庆市",
+      "aliases": ["怀宁县孔雀东南飞景区"],
+      "action": "removed",
+      "effective_date": "2026-09-07",
+      "current_rating": "",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定取消该景区4A级旅游景区质量等级。"
+    },
+    {
+      "name": "安庆巨石山生态文化旅游区",
+      "province": "安徽省",
+      "city": "安庆市",
+      "aliases": ["安庆市宜秀区巨石山生态文化旅游区"],
+      "action": "downgraded",
+      "effective_date": "2026-09-07",
+      "current_rating": "3A",
+      "source_url": "https://www.cqn.com.cn/zj/content/2026-09/08/content_9171802.htm",
+      "source_name": "中国质量新闻网：安徽6家景区被取消4A等级",
+      "source_type": "reported_official",
+      "note": "报道转述省文旅厅决定将该景区由4A级降为3A级；本修正用于停止旧4A匹配，不将其视为未曾评级。"
+    }
+  ]
+}

@@ -25,6 +25,9 @@
 | `/opt/travel-planner/previous.env` | 上一个成功版本的镜像标签 |
 | `/etc/travel-planner/app.env` | 随机生成的初始项目口令、管理员密码及访问来源，仅 root 可读 |
 | `/var/lib/travel-planner` | 持久化 SQLite 数据，由容器 UID 10001 写入 |
+| `/var/lib/travel-planner/project-*.db` | 各独立项目数据库 |
+| `/var/lib/travel-planner/place_cache.db` | 同一部署共享的景点、美食资料缓存 |
+| `/var/lib/travel-planner/metro_maps` | 同一部署共享的在线线路图更新文件与元数据 |
 | `/var/backups/travel-planner` | SQLite 一致性备份 |
 
 在服务器 root 终端执行 `cat /etc/travel-planner/app.env` 可查看登录信息；不要发到 GitHub。`TRIP_PROJECT_CODE` 为初始项目口令，后台修改后以数据库为准；`TRIP_ADMIN_PASSWORD` 为管理员密码。
@@ -43,11 +46,33 @@
 /opt/travel-planner/deployment/update.sh origin/main
 ```
 
-脚本使用独占锁，依次获取代码、构建带提交标识的镜像、在线备份数据库、重建容器并等待健康检查。构建失败不会替换正在运行的容器。重建阶段会短暂中断。
+脚本使用独占锁，依次获取代码、构建带提交标识的镜像、检查镜像内模块导入和 JSON 资源、在线备份数据库、重建容器并等待健康检查。构建或镜像预检失败不会替换正在运行的容器。重建阶段会短暂中断。
 
 本次 Docker 配置由本机单独上传到 `/opt/travel-planner/deployment`；应用更新不会自动替换这套运维配置。修改 Dockerfile、Compose 或脚本后，需要显式同步该目录再发布，避免仓库变更意外改动生产挂载和端口。
 
+本版本上线前先备份运维目录，再从同一提交同步 `Dockerfile`、`deploy/update.sh` 和 `deploy/backup.sh`（后两个在运维目录中保留为 `update.sh`、`backup.sh`，权限 755）。保留现有 Compose 的端口、挂载和资源限制。首次从旧镜像升级时备份仍由旧镜像执行；成功升级后再运行一次备份，确认新的多数据库集合备份可用。不要复制本机 `data/` 或用配置示例覆盖服务器现有口令。
+
+### 城市与 AI 升级注意事项
+
+2026-09-10 的功能升级先在本地验收，上线前必须将本版本 `Dockerfile` 同步到运维目录；它新增了 `ai_service.py`、`city_catalog.py` 和 `city_catalog.json` 的复制，否则镜像缺少运行文件。前端 SVG 随 `public` 目录进入镜像。
+
+多项目与缓存版还新增 `place_cache.py`、`project_store.py` 和 `backup_all.py`。本次需同时同步 `Dockerfile` 和 `deploy/backup.sh` 到运维目录。新版备份脚本会备份默认项目、注册的全部子项目和共享缓存；运行中的旧镜像无集合备份脚本时，自动使用原单库备份。
+
+在服务器 `/etc/travel-planner/app.env` 增加 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash-vision-exp`（示例见 `deploy/app.env.example`）。配置文件保持仅 root 可读，不提交 Git、不打包进镜像。没有 Key 时 AI 入口显示未配置，城市和其他功能仍可使用。
+
+备份后执行更新脚本，默认城市会自动完成一次性补齐，保留原有内容。生成请求提交后立即返回任务 ID，浏览器轮询进度，Nginx 无需为了 AI 调整为长连接超时。仍只运行一个应用进程，以统一管理队列与调用额度。
+
 镜像和发布目录不会自动删除。确认不再需要回滚后按版本清理，避免对整台服务器执行全局 Docker 清理而影响其他项目。
+
+### 高清线路图升级与更新
+
+线路图版本还需将包含 `metro_maps.py`、`metro_sources.json` 的新 `Dockerfile` 同步到运维目录。内置图片与来源元数据位于仓库 `public/assets/metro`，随 `public` 复制进镜像，启动和查看已下载图不依赖外网。
+
+用户在交通页点击“检查并更新线路图”后，由服务器连接 Wikimedia Commons 检查指定源文件；下载结果写入容器 `/data/metro_maps`，对应宿主机 `/var/lib/travel-planner/metro_maps`。已有数据挂载可直接持久化该目录，无需新增宝塔网站、端口或入站规则；目录沿用应用 UID 10001 的写入权限。各项目共用更新文件，重建容器后仍可读取。
+
+如果服务器无法连接来源站，更新会提示失败并保留原图；可恢复出站网络后重试。按钮只检查 `metro_sources.json` 中登记的文件，源文件换名、迁移或需要改用另一张图时，应修改图源目录并重新发布代码。页面展示的是社区文件修订时间，运营信息仍以官方公告为准。
+
+SQLite 集合备份不包含线路图文件。内置图可从对应镜像恢复；需要保留在线下载的版本和来源记录时，应另行备份宿主机 `metro_maps` 整个目录。
 
 ## 查看状态与日志
 
@@ -74,6 +99,8 @@ systemctl list-timers travel-planner-backup.timer
 ```
 
 定时器每天北京时间 03:30 左右在线备份。备份暂不自动删除，需要定期下载到服务器以外并检查磁盘；更新前也会额外备份。服务运行时不能只复制 `trip.db`，因为最新事务可能仍在 WAL 中。
+
+新版本备份输出为 `trip-时间戳/` 目录，内含多份经过 SQLite 完整性检查的数据库。恢复时应保留整个目录中的项目库及 `place_cache.db`，不能仅恢复默认 `trip.db`；各项目备份时间相近但并非跨库同一时刻快照。
 
 回滚前检查新旧版本的数据库兼容性。无结构升级时可以使用 `previous.env` 的镜像重建；有结构升级时，应先停服务、保留当前数据库及 WAL/SHM，再恢复升级前的匹配备份。恢复旧备份会丢失备份之后的修改，因此脚本不会自动回滚数据库。
 

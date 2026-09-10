@@ -10,6 +10,14 @@
   --jade-dark: #07665e;
   --coral: #f05b3f;
   --coral-dark: #c9422a;
+  --category-ink: #9b3d25;
+  --category-tint: #fff0e8;
+  --category-line: #e3b7a7;
+  --label-ink: #355b81;
+  --label-tint: #f2f6fb;
+  --label-selected: #e2edf9;
+  --label-line: #bfcee0;
+  --district-ink: #6541a3;
   --sun: #f4c95d;
   --shadow: 0 12px 34px rgba(20, 48, 47, 0.11);
   --radius-lg: 22px;
@@ -21,6 +29,8 @@
   font-synthesis: none;
 }
 
+.site-subtitle { margin:0; padding:14px 20px 0; background:var(--paper); color:var(--ink-soft); font-size:14px; }
+.site-footer { padding:24px 20px; color:var(--ink-soft); font-size:12px; text-align:center; }
 .project-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 20px; background:white; }
 .project-toolbar > div { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .project-toolbar select, .admin-row input { font:inherit; padding:10px; border:1px solid var(--line); border-radius:10px; min-width:0; }
@@ -33,6 +43,12 @@
 .map-link { color:var(--jade-dark); font-weight:700; }
 .map-credit { font-size:14px; color:var(--ink-soft); }
 .card-footer { flex-wrap:wrap; gap:12px; }
+.place-link-actions { display:inline-flex; align-items:center; flex-wrap:wrap; gap:8px 14px; }
+.place-link-actions a { display:inline-flex; align-items:center; min-height:44px; }
+.food-search-actions { padding:0 18px 16px; }
+.food-search-actions button { min-height:44px; }
+.food-search-keyword { margin:2px 0 0; color:var(--ink-soft); font-size:12px; overflow-wrap:anywhere; user-select:text; -webkit-user-select:text; }
+.clipboard-helper { position:fixed; left:-9999px; top:0; }
 .admin-shell { max-width:850px; margin:auto; padding:24px 16px 60px; }
 .admin-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .admin-card { padding:24px; background:white; border:1px solid var(--line); border-radius:18px; margin:20px 0; }
@@ -404,6 +420,27 @@ main {
 .tag.is-accent {
   background: #fee6df;
   color: var(--coral-dark);
+}
+
+.tag.is-category {
+  border: 1px solid var(--category-ink);
+  border-radius: 7px;
+  background: var(--category-ink);
+  color: #fff;
+}
+
+.tag.is-place-label {
+  border: 1px solid var(--label-line);
+  background: var(--label-tint);
+  color: var(--label-ink);
+  font-weight: 500;
+}
+
+.tag.is-place-meta {
+  border: 1px solid var(--district-ink);
+  background: var(--district-ink);
+  color: #fff;
+  font-weight: 700;
 }
 
 .plan-card h3 {
@@ -801,6 +838,13 @@ dialog::backdrop {
   animation: sheet-in 180ms ease-out;
 }
 
+.export-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.export-options button { display: grid; gap: 8px; padding: 18px 12px; text-align: left; white-space: normal; }
+.export-options strong { font-size: 16px; }
+.export-options span, .export-note { color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
+.export-sheet #export-status { font-size: 14px; line-height: 1.7; }
+@media (max-width: 380px) { .export-options { grid-template-columns: 1fr; } }
+
 .sheet-handle {
   width: 42px;
   height: 5px;
@@ -972,6 +1016,48 @@ dialog::backdrop {
   font-size: 12px;
 }
 
+.linked-attraction-highlight {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: #e3f3eb;
+  color: #14674f;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.itinerary-attractions,
+.attraction-name-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.itinerary-attractions { margin-top: 12px; }
+.itinerary-attractions-label { width: 100%; color: var(--ink-soft); font-size: 12px; }
+.attraction-name-suggestions { max-height: 160px; overflow-y: auto; padding: 2px; }
+.linked-attraction-chip {
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #b9d8c9;
+  border-radius: 12px;
+  background: #f2f9f5;
+  color: #216750;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.linked-attraction-chip[aria-pressed="true"] { background: #216750; color: #fff; }
+.linked-attraction-chip:focus-visible { outline: 2px solid #216750; outline-offset: 2px; }
+.linked-attraction-chip:disabled { opacity: .55; cursor: default; }
+.tag.itinerary-status.is-scheduled { background: #e3f3eb; color: #216750; }
+.tag.itinerary-status.is-unscheduled { background: #f0f1f1; color: #69706e; }
+.itinerary-filter { display: grid; gap: 8px; margin-bottom: 10px; }
+.itinerary-filter > strong { color: var(--ink-soft); font-size: 12px; font-weight: 500; }
+.field > label { font-size: 14px; font-weight: 750; }
+
 .field input,
 .field textarea {
   width: 100%;
@@ -1134,6 +1220,14 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
+}
+
+.dialog-actions:has(#edit-return:not([hidden])) {
+  grid-template-columns: 0.7fr 0.8fr 1.3fr;
+}
+
+.dialog-actions:has(#edit-return:not([hidden])):has(#delete-button[hidden]) {
+  grid-template-columns: 1fr 1.5fr;
 }
 
 .danger-button {

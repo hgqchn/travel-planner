@@ -1,0 +1,378 @@
+{
+  "province": "海南省",
+  "source_name": "海南省旅游和文化广电体育厅 全省A级景区名录",
+  "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+  "as_of": "2026-09-07",
+  "coverage_note": "从官方现行全省A级景区名录（2026.9.7更新）HTML表格提取全部4A级条目，保留官方所在地及地址；未把地理邻近的省直辖县并入三亚等城市。",
+  "items": [
+    {
+      "name": "中国雷琼海口火山群世界地质公园",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市秀英区石山镇风景路火山口公园"
+    },
+    {
+      "name": "海南热带野生动植物园",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市秀英区东山镇琼东路688号"
+    },
+    {
+      "name": "*假日海滩旅游区",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市滨海大道"
+    },
+    {
+      "name": "*海口观澜湖旅游度假区",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市龙华区龙桥镇观澜湖大道1号"
+    },
+    {
+      "name": "*海南省博物馆",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市国兴大道76号"
+    },
+    {
+      "name": "海南长影奇幻乐园",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市秀英区椰海大道100号"
+    },
+    {
+      "name": "*海口骑楼建筑历史文化街区",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市龙华区长提路5-1号"
+    },
+    {
+      "name": "*海瑞文化公园",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市龙华区海垦街道汝贤街"
+    },
+    {
+      "name": "海口东寨港红树林旅游区",
+      "province": "海南省",
+      "city": "海口",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海口市美兰区演丰镇红林路"
+    },
+    {
+      "name": "亚龙湾热带天堂森林旅游区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "三亚市吉阳区亚龙湾国家旅游度假区"
+    },
+    {
+      "name": "*鹿回头风景区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "三亚市鹿岭路鹿回头风景区"
+    },
+    {
+      "name": "三亚西岛海洋文化旅游区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "三亚市天涯区肖旗港码头"
+    },
+    {
+      "name": "*三亚亚特兰蒂斯景区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海南省三亚市海棠区海棠北路36号"
+    },
+    {
+      "name": "*三亚红色娘子军演艺公园景区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "三亚市天涯区109乡道"
+    },
+    {
+      "name": "*三亚大东海旅游区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "三亚市吉阳区东海路大东海旅游区"
+    },
+    {
+      "name": "*三亚国际免税城旅游区",
+      "province": "海南省",
+      "city": "三亚",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海南省三亚市海棠区海棠北路118号"
+    },
+    {
+      "name": "海南儋州石花水洞地质公园",
+      "province": "海南省",
+      "city": "儋州",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "儋州市八一农场"
+    },
+    {
+      "name": "儋州东坡文化旅游区",
+      "province": "海南省",
+      "city": "儋州",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "儋州市中和镇城区东郊"
+    },
+    {
+      "name": "*五指山红峡谷文化旅游区",
+      "province": "海南省",
+      "city": "五指山",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "五指山市南圣镇"
+    },
+    {
+      "name": "*五指山革命根据地纪念园景区",
+      "province": "海南省",
+      "city": "五指山",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "五指山市毛阳镇五指山革命根据地纪念园"
+    },
+    {
+      "name": "海南铜鼓岭景区",
+      "province": "海南省",
+      "city": "文昌",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "文昌市龙楼镇铜鼓岭国际生态旅游区铜鼓北路铜鼓岭景区"
+    },
+    {
+      "name": "宋氏祖居景区",
+      "province": "海南省",
+      "city": "文昌",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "文昌市昌洒镇古路园村"
+    },
+    {
+      "name": "*椰子大观园",
+      "province": "海南省",
+      "city": "文昌",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "文昌市文清大道502号"
+    },
+    {
+      "name": "博鳌亚洲论坛永久会址景区",
+      "province": "海南省",
+      "city": "琼海",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "琼海市博鳌镇东屿岛远洋大道1号"
+    },
+    {
+      "name": "*中国（海南）南海博物馆",
+      "province": "海南省",
+      "city": "琼海",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "琼海市潭门镇博物馆路1号"
+    },
+    {
+      "name": "海南白石岭旅游区",
+      "province": "海南省",
+      "city": "琼海",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海市嘉积镇白石岭风景区白石岭大道"
+    },
+    {
+      "name": "世界热带水果之窗",
+      "province": "海南省",
+      "city": "琼海",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海南省琼海市大路镇湖仔村委会湖仔村010号"
+    },
+    {
+      "name": "兴隆热带植物园",
+      "province": "海南省",
+      "city": "万宁",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "万宁兴隆华侨农场兴隆热带植物园"
+    },
+    {
+      "name": "海南花梨谷文化旅游区",
+      "province": "海南省",
+      "city": "东方",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "东方市板桥镇花梨谷文化旅游区景区"
+    },
+    {
+      "name": "东方娥仙岭生态文化旅游区",
+      "province": "海南省",
+      "city": "东方",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "东方市东河镇娥仙岭生态文化旅游区"
+    },
+    {
+      "name": "海南文笔峰盘古文化旅游区",
+      "province": "海南省",
+      "city": "定安",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "定安县龙湖镇丁湖路文笔峰盘古文化旅游区（东线高速46公里居丁出口处西行3公里）"
+    },
+    {
+      "name": "*母瑞山红色文化旅游区",
+      "province": "海南省",
+      "city": "定安",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "定安县翰林镇中瑞农场"
+    },
+    {
+      "name": "屯昌梦幻香山旅游区",
+      "province": "海南省",
+      "city": "屯昌",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "屯昌县屯城镇加利坡村附近（中线高速公路旁）"
+    },
+    {
+      "name": "*福山咖啡文化风情镇旅游区",
+      "province": "海南省",
+      "city": "澄迈",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "澄迈县福山镇福山咖啡文化风情镇中心区"
+    },
+    {
+      "name": "*海南解放公园",
+      "province": "海南省",
+      "city": "临高",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "海南省临高县临城镇临高角风景区内"
+    },
+    {
+      "name": "*清水湾景区",
+      "province": "海南省",
+      "city": "陵水",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "陵水黎族自治县环岛东线高速英州出口"
+    },
+    {
+      "name": "南湾猴岛生态旅游区",
+      "province": "海南省",
+      "city": "陵水",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "陵水黎族自治县新村镇望海大道1号"
+    },
+    {
+      "name": "海南海洋欢乐世界",
+      "province": "海南省",
+      "city": "陵水",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "陵水黎族自治县黎安镇双湖大道1号"
+    },
+    {
+      "name": "七仙岭温泉国家森林公园",
+      "province": "海南省",
+      "city": "保亭",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "保亭黎族苗族自治县东北部9公里处"
+    },
+    {
+      "name": "海南神玉岛文化旅游区",
+      "province": "海南省",
+      "city": "保亭",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "保亭黎族苗族自治县响水镇"
+    },
+    {
+      "name": "海南百花岭热带雨林文化旅游区",
+      "province": "海南省",
+      "city": "琼中",
+      "rating": "4A",
+      "source_url": "https://lwt.hainan.gov.cn/hdjl/ywzsk/jq/202609/t20260907_4141941.html",
+      "as_of": "2026-09-07",
+      "address": "琼中黎族苗族自治县根营镇东南7公里处"
+    }
+  ]
+}

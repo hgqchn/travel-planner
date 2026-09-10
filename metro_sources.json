@@ -1,0 +1,466 @@
+{
+  "version": 1,
+  "scope_note": "按中国城市轨道交通协会2025年底运营城市名单核对，另收录港澳台可获得的城市轨道交通图。采用Wikimedia Commons上已核验可再分发的SVG或高清位图；图片为作者维护的示意图，源文件更新时间不等于全网已更新至当天，乘车以运营方公告为准。",
+  "sources": [
+    {
+      "id": "beijing",
+      "name": "北京",
+      "aliases": [
+        "北京市"
+      ],
+      "commons_title": "File:Beijing Subway System Map zh.svg"
+    },
+    {
+      "id": "shanghai",
+      "name": "上海",
+      "aliases": [
+        "上海市"
+      ],
+      "commons_title": "File:Shanghai Metro Linemap.svg"
+    },
+    {
+      "id": "shenzhen",
+      "name": "深圳",
+      "aliases": [
+        "深圳市"
+      ],
+      "commons_title": "File:Shenzhen Metro (Rapid Transit) System Map.svg",
+      "official_url": "https://www.szmc.net/"
+    },
+    {
+      "id": "guangzhou",
+      "name": "广州",
+      "aliases": [
+        "广州市"
+      ],
+      "commons_title": "File:Guangzhou-Foshan Metro Diagram by Tim.svg"
+    },
+    {
+      "id": "xian",
+      "name": "西安",
+      "aliases": [
+        "西安市"
+      ],
+      "commons_title": "File:Xi'an metro map 2025.png",
+      "official_url": "https://www.xianrail.com/"
+    },
+    {
+      "id": "luoyang",
+      "name": "洛阳",
+      "aliases": [
+        "洛阳市"
+      ],
+      "commons_title": "File:System Map of Luoyang Metro.png"
+    },
+    {
+      "id": "changsha",
+      "name": "长沙",
+      "aliases": [
+        "长沙市"
+      ],
+      "commons_title": "File:Changsha Metro Linemap.svg"
+    },
+    {
+      "id": "chongqing",
+      "name": "重庆",
+      "aliases": [
+        "重庆市"
+      ],
+      "commons_title": "File:重庆轨道交通线路图（2024.12）.svg"
+    },
+    {
+      "id": "chengdu",
+      "name": "成都",
+      "aliases": [
+        "成都市"
+      ],
+      "commons_title": "File:Chengdu Rail Transit Network en.png",
+      "official_url": "https://www.chengdurail.com/"
+    },
+    {
+      "id": "hohhot",
+      "name": "呼和浩特",
+      "aliases": [
+        "呼和浩特市",
+        "呼市"
+      ],
+      "commons_title": "File:Hohhot Metro Linemap.svg"
+    },
+    {
+      "id": "tianjin",
+      "name": "天津",
+      "aliases": [
+        "天津市"
+      ],
+      "commons_title": "File:Tianjin Metro System Map 2021.svg"
+    },
+    {
+      "id": "wuhan",
+      "name": "武汉",
+      "aliases": [
+        "武汉市"
+      ],
+      "commons_title": "File:Wuhan Metro System Map zh.svg"
+    },
+    {
+      "id": "nanjing",
+      "name": "南京",
+      "aliases": [
+        "南京市"
+      ],
+      "commons_title": "File:Nanjing Metro Network.png"
+    },
+    {
+      "id": "shenyang",
+      "name": "沈阳",
+      "aliases": [
+        "沈阳市"
+      ],
+      "commons_title": "File:Shenyang Metro System Map.svg"
+    },
+    {
+      "id": "changchun",
+      "name": "长春",
+      "aliases": [
+        "长春市"
+      ],
+      "commons_title": "File:Changchun Rapid Transit System Map.svg"
+    },
+    {
+      "id": "dalian",
+      "name": "大连",
+      "aliases": [
+        "大连市"
+      ],
+      "commons_title": "File:Dalian Metro System Map.svg"
+    },
+    {
+      "id": "harbin",
+      "name": "哈尔滨",
+      "aliases": [
+        "哈尔滨市"
+      ],
+      "commons_title": "File:Harbin Metro Diagram.png"
+    },
+    {
+      "id": "suzhou",
+      "name": "苏州",
+      "aliases": [
+        "苏州市"
+      ],
+      "commons_title": "File:Suzhou Metro Network.png"
+    },
+    {
+      "id": "zhengzhou",
+      "name": "郑州",
+      "aliases": [
+        "郑州市"
+      ],
+      "commons_title": "File:Zhengzhou Metro Network.png"
+    },
+    {
+      "id": "kunming",
+      "name": "昆明",
+      "aliases": [
+        "昆明市"
+      ],
+      "commons_title": "File:Kunming Metro System Map.svg"
+    },
+    {
+      "id": "hangzhou",
+      "name": "杭州",
+      "aliases": [
+        "杭州市"
+      ],
+      "commons_title": "File:Hangzhou Metro Simplified Map.svg"
+    },
+    {
+      "id": "foshan",
+      "name": "佛山",
+      "aliases": [
+        "佛山市"
+      ],
+      "commons_title": "File:Guangzhou-Foshan Metro Diagram by Tim.svg"
+    },
+    {
+      "id": "ningbo",
+      "name": "宁波",
+      "aliases": [
+        "宁波市"
+      ],
+      "commons_title": "File:Ningbo Rail Transit System Map zh-hans.svg"
+    },
+    {
+      "id": "wuxi",
+      "name": "无锡",
+      "aliases": [
+        "无锡市"
+      ],
+      "commons_title": "File:Wuxi Metro Network.png"
+    },
+    {
+      "id": "nanchang",
+      "name": "南昌",
+      "aliases": [
+        "南昌市"
+      ],
+      "commons_title": "File:Nanchang Metro Route Map.svg"
+    },
+    {
+      "id": "lanzhou",
+      "name": "兰州",
+      "aliases": [
+        "兰州市"
+      ],
+      "commons_title": "File:Lanzhou Metro Map.svg"
+    },
+    {
+      "id": "qingdao",
+      "name": "青岛",
+      "aliases": [
+        "青岛市"
+      ],
+      "commons_title": "File:Qingdao Metro Map zh.svg"
+    },
+    {
+      "id": "fuzhou",
+      "name": "福州",
+      "aliases": [
+        "福州市"
+      ],
+      "commons_title": "File:Map of Fuzhou Metro.svg"
+    },
+    {
+      "id": "dongguan",
+      "name": "东莞",
+      "aliases": [
+        "东莞市"
+      ],
+      "commons_title": "File:Dongguan Rail Transit System Map.svg"
+    },
+    {
+      "id": "nanning",
+      "name": "南宁",
+      "aliases": [
+        "南宁市"
+      ],
+      "commons_title": "File:Nanning Rail Transit Diagram.png"
+    },
+    {
+      "id": "hefei",
+      "name": "合肥",
+      "aliases": [
+        "合肥市"
+      ],
+      "commons_title": "File:合肥轨道交通2024年运营线网图.svg",
+      "note": "当前可用图源为2024年运营线网，可能尚未包含此后新线；请结合运营方公告。"
+    },
+    {
+      "id": "shijiazhuang",
+      "name": "石家庄",
+      "aliases": [
+        "石家庄市"
+      ],
+      "commons_title": "File:Shijiazhuang Metro System Map.svg"
+    },
+    {
+      "id": "guiyang",
+      "name": "贵阳",
+      "aliases": [
+        "贵阳市"
+      ],
+      "commons_title": "File:Guiyang Urban Rail Transit Map.png"
+    },
+    {
+      "id": "xiamen",
+      "name": "厦门",
+      "aliases": [
+        "厦门市"
+      ],
+      "commons_title": "File:Xiamen AMTR Linemap.svg"
+    },
+    {
+      "id": "urumqi",
+      "name": "乌鲁木齐",
+      "aliases": [
+        "乌鲁木齐市"
+      ],
+      "commons_title": "File:Urumqi Metro System Map 2025.svg"
+    },
+    {
+      "id": "wenzhou",
+      "name": "温州",
+      "aliases": [
+        "温州市"
+      ],
+      "commons_title": "File:The Wenzhou Rail Transit System Map 2025.svg"
+    },
+    {
+      "id": "jinan",
+      "name": "济南",
+      "aliases": [
+        "济南市"
+      ],
+      "commons_title": "File:济南地铁线路图2025.12.png"
+    },
+    {
+      "id": "changzhou",
+      "name": "常州",
+      "aliases": [
+        "常州市"
+      ],
+      "commons_title": "File:Changzhou Metro System Map 2025.svg"
+    },
+    {
+      "id": "xuzhou",
+      "name": "徐州",
+      "aliases": [
+        "徐州市"
+      ],
+      "commons_title": "File:Xuzhou Metro System Map.png"
+    },
+    {
+      "id": "tianshui",
+      "name": "天水",
+      "aliases": [
+        "天水市"
+      ],
+      "commons_title": "File:Tianshui Tram network map.svg",
+      "note": "当前可用图源为早期有轨电车示意图，可能尚未包含2025年延伸段。"
+    },
+    {
+      "id": "taiyuan",
+      "name": "太原",
+      "aliases": [
+        "太原市"
+      ],
+      "commons_title": "File:Taiyuan Metro System Map 2025.svg"
+    },
+    {
+      "id": "shaoxing",
+      "name": "绍兴",
+      "aliases": [
+        "绍兴市"
+      ],
+      "commons_title": "File:Shaoxing Metro Simplified Map.svg"
+    },
+    {
+      "id": "wuhu",
+      "name": "芜湖",
+      "aliases": [
+        "芜湖市"
+      ],
+      "commons_title": "File:芜湖轨交运营线网.svg"
+    },
+    {
+      "id": "nantong",
+      "name": "南通",
+      "aliases": [
+        "南通市"
+      ],
+      "commons_title": "File:Nantong Rail Transit System Map.svg"
+    },
+    {
+      "id": "taizhou",
+      "name": "台州",
+      "aliases": [
+        "台州市"
+      ],
+      "commons_title": "File:Taizhou Rail Transit System Map.svg"
+    },
+    {
+      "id": "chuzhou",
+      "name": "滁州",
+      "aliases": [
+        "滁州市"
+      ],
+      "commons_title": "File:Nanjing Metro Line S4 Map.svg",
+      "note": "滁宁城际（南京地铁S4号线）线路图。"
+    },
+    {
+      "id": "hongkong",
+      "name": "香港",
+      "aliases": [
+        "香港特别行政区",
+        "香港特別行政區"
+      ],
+      "commons_title": "File:Hong Kong Railway Route Map zh-hans.svg"
+    },
+    {
+      "id": "macau",
+      "name": "澳门",
+      "aliases": [
+        "澳门特别行政区",
+        "澳門",
+        "澳門特別行政區"
+      ],
+      "commons_title": "File:MLRT Route Map Current.svg"
+    },
+    {
+      "id": "taipei",
+      "name": "台北",
+      "aliases": [
+        "台北市",
+        "臺北",
+        "臺北市"
+      ],
+      "commons_title": "File:Taipei Metro official map optimised.png",
+      "official_url": "https://www.metro.taipei/"
+    },
+    {
+      "id": "newtaipei",
+      "name": "新北",
+      "aliases": [
+        "新北市"
+      ],
+      "commons_title": "File:Taipei Metro official map optimised.png",
+      "official_url": "https://www.metro.taipei/"
+    },
+    {
+      "id": "taichung",
+      "name": "台中",
+      "aliases": [
+        "台中市",
+        "臺中",
+        "臺中市"
+      ],
+      "commons_title": "File:Taichung Metro Green Line Map.svg"
+    },
+    {
+      "id": "kaohsiung",
+      "name": "高雄",
+      "aliases": [
+        "高雄市"
+      ],
+      "commons_title": "File:Kaohsiung Metro Line Map-Have Water (Text Image).svg"
+    },
+    {
+      "id": "xuchang",
+      "name": "许昌",
+      "aliases": [
+        "许昌市"
+      ],
+      "commons_title": "File:Zhengzhou Metro Network.png",
+      "note": "郑州与许昌共用区域线网图；图中右下角为郑许线和许昌各站。"
+    },
+    {
+      "id": "taoyuan",
+      "name": "桃园",
+      "aliases": [
+        "桃园市",
+        "桃園",
+        "桃園市"
+      ],
+      "commons_title": "File:Taoyuan International Airport Access MRT System Map in operation.svg",
+      "note": "机场捷运早期运营图；此源尚未包含2023年老街溪站延伸段，出行前请查询运营方。"
+    }
+  ],
+  "coverage_notes": [
+    "运营城市基准：中国城市轨道交通协会《2025年中国内地城轨交通线路概况》，截至2025年12月31日58城：https://infosharingp2-oss.camet.org.cn/resources/manual/2026/01/04/759313381470277.pdf 。此名单包含地铁、轻轨、市域快轨、有轨电车以及智轨等多种制式，不包括香港、澳门和台湾。",
+    "当前默认城市中的呼伦贝尔、阿尔山、满洲里、鄂尔多斯不在上述已运营城轨城市名单内，本目录不为这些城市套用其他城市的线路图。",
+    "各城市选用已核验来源中可获得的运营图；同一城市线网可能跨行政区，因此广州和佛山、台北和新北、郑州和许昌分别共用相应一张整网图。滁州采用滁宁城际S4号线图。",
+    "暂未收录完整且可明确再分发的高清整网图：淮安、三亚、株洲、宜宾、嘉兴、文山州、南平、金华、黄石、盐城、红河州。缺图不表示当地没有城市轨道交通。",
+    "部分图源反映较早的运营范围（如合肥2024年、天水早期线路）；本地下载和检查更新只核对源文件的版本，不代替运营方实时运营信息。",
+    "桃园机场捷运图源为早期运营版本，尚未包含2023年老街溪站延伸段；已在对应图源备注标明。"
+  ]
+}

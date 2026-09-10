@@ -18,13 +18,29 @@ import sys
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+import unicodedata
+from datetime import datetime, timedelta, timezone
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
+
+from city_catalog import (
+    CATALOG_MIGRATION_KEY,
+    city_metadata,
+    find_catalog_city,
+    load_catalog,
+    normalize_city_name,
+)
+from metro_maps import MetroMapError, MetroMapStore
+from scenic_catalog import RATINGS, enrich_attraction, get_catalog as get_scenic_catalog, rated_payload
+from itinerary_export import MIME_TYPES as EXPORT_MIME_TYPES, build_docx, build_xlsx, filename as export_filename
+import itinerary_links
+import project_itinerary
+import travel_guidance
+from place_taxonomy import TAXONOMY, normalize_place, migrate_project
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -33,8 +49,9 @@ DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 SEED_PATH = PROJECT_ROOT / "seed_data.json"
 MAX_BODY_BYTES = 64 * 1024
 MAX_ITEMS_PER_KIND = 250
+MAX_ITEMS_TOTAL = int(os.environ.get("TRIP_MAX_ITEMS_TOTAL", "50000"))
 MAX_USERS = 1000
-MAX_CITIES = 50
+MAX_CITIES = 500
 MAX_SESSIONS_PER_USER = 20
 PROJECT_ACCESS_MAX_AGE = 30 * 24 * 60 * 60
 ADMIN_SESSION_MAX_AGE = 12 * 60 * 60
@@ -52,6 +69,7 @@ FIELD_RULES: dict[str, dict[str, tuple[int, bool]]] = {
         "name": (60, True),
         "district": (30, False),
         "category": (30, False),
+        "scenic_rating": (2, False),
         "description": (600, False),
         "duration": (40, False),
         "transport": (160, False),
@@ -69,6 +87,7 @@ FIELD_RULES: dict[str, dict[str, tuple[int, bool]]] = {
     "food": {
         "name": (60, True),
         "category": (30, False),
+        "cuisine": (40, False),
         "description": (500, False),
         "where_to_try": (120, False),
         "tip": (220, False),
@@ -267,6 +286,9 @@ CREATE TABLE IF NOT EXISTS activity (
 
 CREATE INDEX IF NOT EXISTS idx_activity_revision
 ON activity(revision DESC);
+
+CREATE INDEX IF NOT EXISTS idx_activity_city_revision
+ON activity(city_id, revision DESC);
 
 CREATE TABLE IF NOT EXISTS project_settings (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -492,6 +514,39 @@ def ensure_project_records(db: sqlite3.Connection, initial_project_code: str) ->
         )
 
 
+def apply_city_catalog_upgrade(db: sqlite3.Connection, *, fresh: bool = False) -> None:
+    """Append missing defaults once, preserving existing IDs, names and content."""
+    if db.execute("SELECT 1 FROM meta WHERE key = ?", (CATALOG_MIGRATION_KEY,)).fetchone():
+        return
+    existing = db.execute("SELECT id, name FROM cities").fetchall()
+    existing_ids = {row["id"] for row in existing}
+    represented = {
+        match["id"]
+        for row in existing
+        for match in [find_catalog_city(row["name"])]
+        if match is not None
+    }
+    position = db.execute("SELECT COALESCE(MAX(position), 0) FROM cities").fetchone()[0]
+    timestamp = utc_now()
+    added = 0
+    for candidate in load_catalog():
+        if candidate["id"] in represented or len(existing_ids) >= MAX_CITIES:
+            continue
+        city_id = candidate["id"]
+        while city_id in existing_ids:
+            city_id = uuid.uuid4().hex[:12]
+        position += 1
+        db.execute(
+            "INSERT INTO cities(id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (city_id, candidate["name"], position, timestamp, timestamp),
+        )
+        existing_ids.add(city_id)
+        added += 1
+    db.execute("INSERT INTO meta(key, value) VALUES (?, 1)", (CATALOG_MIGRATION_KEY,))
+    if added and not fresh:
+        db.execute("UPDATE meta SET value = value + 1 WHERE key = 'revision'")
+
+
 def xiaohongshu_search_url(keyword: str) -> str:
     return (
         "https://www.xiaohongshu.com/search_result?keyword="
@@ -542,7 +597,7 @@ def apply_v3_content_upgrade(
             (DEFAULT_CITY_ID, kind),
         ).fetchone()[0]
         for candidate in seed.get(kind, []):
-            validated = validate_payload(kind, candidate)
+            validated = validate_payload(kind, normalize_place(kind, candidate, legacy=True))
             name = validated["name"]
             if name.casefold() in existing_names:
                 continue
@@ -576,6 +631,8 @@ def init_database(
     db_path: Path,
     initial_project_code: str,
     seed_path: Path = SEED_PATH,
+    *,
+    empty_project: bool = False,
 ) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with connect_db(db_path) as db:
@@ -594,7 +651,10 @@ def init_database(
             migrate_v2_to_v3(db, initial_project_code)
             version = 3
         db.executescript(SCHEMA_V3_SQL)
+        itinerary_links.ensure_schema(db)
+        travel_guidance.ensure_schema(db)
         ensure_project_records(db, initial_project_code)
+        apply_city_catalog_upgrade(db, fresh=version == 0)
         if version == 0:
             db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         seeded = db.execute("SELECT value FROM meta WHERE key = 'seeded'").fetchone()["value"]
@@ -607,9 +667,9 @@ def init_database(
                     entry["link"] = xiaohongshu_search_url("上海 " + entry["name"])
         if seeded == 0:
             timestamp = utc_now()
-            for kind in KINDS:
+            for kind in (() if empty_project else KINDS):
                 for position, payload in enumerate(seed.get(kind, []), start=1):
-                    validated = validate_payload(kind, payload)
+                    validated = validate_payload(kind, normalize_place(kind, payload, legacy=True))
                     db.execute(
                         """
                         INSERT INTO items(
@@ -630,7 +690,106 @@ def init_database(
             db.execute("UPDATE meta SET value = 1 WHERE key = 'seeded'")
         elif upgraded_to_v3:
             apply_v3_content_upgrade(db, extra if seed_path == SEED_PATH else seed)
+        migrate_project(db, utc_now())
         db.execute("PRAGMA optimize")
+    import place_cache
+    place_cache.prepare(db_path, mark_existing_cities=not empty_project)
+    apply_curated_cities_upgrade(db_path)
+    backfill_itinerary_links(db_path)
+    with connect_db(db_path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        if travel_guidance.recover_imports(db):
+            next_revision(db)
+
+
+def apply_curated_cities_upgrade(db_path: Path) -> None:
+    """Archive cities removed from the default list once; later manual cities stay."""
+    with connect_db(db_path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        if db.execute("SELECT 1 FROM meta WHERE key='curated_cities_v2'").fetchone():
+            return
+        db.execute("CREATE TABLE IF NOT EXISTS archived_cities (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, archived_at TEXT NOT NULL)")
+        removed = 0
+        for city in db.execute("SELECT * FROM cities").fetchall():
+            if find_catalog_city(city['name']):
+                continue
+            records = [dict(row) for row in db.execute("SELECT * FROM items WHERE city_id=?", (city['id'],))]
+            history = [dict(row) for row in db.execute("SELECT * FROM activity WHERE city_id=?", (city['id'],))]
+            db.execute("INSERT OR REPLACE INTO archived_cities VALUES(?,?,?,?)", (city['id'], city['name'], json.dumps({'city': dict(city), 'items': records, 'activity': history}, ensure_ascii=False), utc_now()))
+            db.execute("DELETE FROM items WHERE city_id=?", (city['id'],))
+            db.execute("DELETE FROM activity WHERE city_id=?", (city['id'],))
+            db.execute("DELETE FROM city_cache_imports WHERE city_id=?", (city['id'],))
+            db.execute("DELETE FROM cities WHERE id=?", (city['id'],))
+            removed += 1
+        # The old 100-city migration may already be marked complete.
+        present = {find_catalog_city(row['name'])['id'] for row in db.execute('SELECT name FROM cities') if find_catalog_city(row['name'])}
+        added = 0
+        for city in load_catalog():
+            if city['id'] not in present:
+                insert_city(db, city['name'], utc_now())
+                added += 1
+        db.execute("INSERT INTO meta VALUES('curated_cities_v2',1)")
+        if removed or added:
+            next_revision(db)
+
+
+def queue_cached_place(db: sqlite3.Connection, city_id: str, kind: str, payload: dict, timestamp: str) -> None:
+    if kind not in {'attraction', 'food'}:
+        return
+    import place_cache
+    city = db.execute('SELECT name FROM cities WHERE id=?', (city_id,)).fetchone()
+    if city:
+        place_cache.enqueue(db, city['name'], kind, payload, timestamp)
+
+
+def flush_place_cache(db_path: Path) -> None:
+    import place_cache
+    try:
+        place_cache.flush(db_path)
+    except (OSError, sqlite3.Error):
+        # The durable outbox is committed with the item and retried on later reads.
+        print('城市资料缓存暂时不可用，待同步内容已保留。', file=sys.stderr)
+
+
+def hydrate_city_cache(db_path: Path, city_id: str) -> None:
+    """Copy cached places only once, so project deletions stay deleted."""
+    import place_cache
+    with connect_db(db_path) as db:
+        city = db.execute('SELECT name FROM cities WHERE id=?', (city_id,)).fetchone()
+        if not city or db.execute('SELECT 1 FROM city_cache_imports WHERE city_id=?', (city_id,)).fetchone():
+            return
+    cached = place_cache.load_city(db_path, city['name'])
+    with connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        current = db.execute('SELECT name FROM cities WHERE id=?', (city_id,)).fetchone()
+        if not current or current['name'] != city['name'] or db.execute('SELECT 1 FROM city_cache_imports WHERE city_id=?', (city_id,)).fetchone():
+            return
+        seen = {(row['kind'], ''.join(unicodedata.normalize('NFKC', json.loads(row['payload'])['name']).casefold().split())) for row in db.execute("SELECT kind,payload FROM items WHERE city_id=? AND kind IN ('attraction','food')", (city_id,))}
+        counts = {kind: db.execute('SELECT COUNT(*) FROM items WHERE city_id=? AND kind=?', (city_id,kind)).fetchone()[0] for kind in ('attraction','food')}
+        total_count = db.execute('SELECT COUNT(*) FROM items').fetchone()[0]
+        omitted = {'attraction': 0, 'food': 0}
+        timestamp = utc_now()
+        for entry in cached:
+            kind, payload = entry['kind'], validate_payload(entry['kind'], entry['payload'])
+            payload = rated_payload(kind, payload, current['name'])
+            signature = (kind, ''.join(unicodedata.normalize('NFKC', payload['name']).casefold().split()))
+            if signature in seen:
+                continue
+            if counts[kind] >= MAX_ITEMS_PER_KIND or total_count >= MAX_ITEMS_TOTAL:
+                omitted[kind] += 1
+                continue
+            ensure_item_capacity(db, city_id, kind)
+            item_id = uuid.uuid4().hex[:12]
+            position = db.execute('SELECT COALESCE(MAX(position),0)+1 FROM items WHERE city_id=? AND kind=?', (city_id,kind)).fetchone()[0]
+            db.execute("INSERT INTO items VALUES(?,?,?,?,?,1,?,?,'城市资料库','城市资料库')", (item_id,city_id,kind,position,json.dumps(payload,ensure_ascii=False),timestamp,timestamp))
+            revision = next_revision(db)
+            db.execute("INSERT INTO activity(revision,action,item_id,city_id,kind,item_name,user_id,happened_at) VALUES(?,'create',?,?,?,?,'城市资料库',?)", (revision,item_id,city_id,kind,payload['name'],timestamp))
+            seen.add(signature)
+            counts[kind] += 1
+            total_count += 1
+        for kind, count in omitted.items():
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)', (f'cache_omitted:{city_id}:{kind}', count))
+        db.execute('INSERT INTO city_cache_imports VALUES(?,?)', (city_id,timestamp))
 
 
 def validate_user_id(value: Any) -> str:
@@ -653,12 +812,12 @@ def validate_url(value: str) -> str:
     return value
 
 
-def validate_payload(kind: str, value: Any) -> dict[str, str]:
+def validate_payload(kind: str, value: Any) -> dict[str, Any]:
     if kind not in KINDS:
         raise ApiError(HTTPStatus.NOT_FOUND, "未知内容类型。")
     if not isinstance(value, dict):
         raise ApiError(HTTPStatus.BAD_REQUEST, "内容格式不正确。")
-    cleaned: dict[str, str] = {}
+    cleaned: dict[str, Any] = {}
     for field, (limit, required) in FIELD_RULES[kind].items():
         raw = value.get(field, "")
         if not isinstance(raw, str):
@@ -670,6 +829,8 @@ def validate_payload(kind: str, value: Any) -> dict[str, str]:
             raise ApiError(HTTPStatus.BAD_REQUEST, f"{field} 最多 {limit} 个字符。")
         if field in {"link", "navigation_link"}:
             item = validate_url(item)
+        if field == "scenic_rating" and item not in RATINGS:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "景区级别请选择 4A、5A 或留空自动匹配。")
         if field == "color" and not HEX_COLOR_PATTERN.fullmatch(item):
             raise ApiError(HTTPStatus.BAD_REQUEST, "线路颜色必须为六位十六进制颜色。")
         if field == "date":
@@ -682,6 +843,16 @@ def validate_payload(kind: str, value: Any) -> dict[str, str]:
         if field == "start_time" and item and not TIME_PATTERN.fullmatch(item):
             raise ApiError(HTTPStatus.BAD_REQUEST, "行程时间格式必须为 HH:MM。")
         cleaned[field] = item
+    if kind == 'itinerary':
+        try:
+            cleaned['attraction_names'] = itinerary_links.normalize_attraction_names(value.get('attraction_names', []))
+        except ValueError as exc:
+            raise ApiError(400, str(exc)) from None
+    if kind in ("attraction", "food"):
+        try:
+            cleaned = normalize_place(kind, dict(cleaned, tags=value.get("tags", [])))
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, str(exc)) from None
     return cleaned
 
 
@@ -689,8 +860,8 @@ def item_label(kind: str, payload: dict[str, Any]) -> str:
     return str(payload["title"] if kind == "itinerary" else payload["name"])
 
 
-def row_to_item(row: sqlite3.Row) -> dict[str, Any]:
-    return {
+def row_to_item(row: sqlite3.Row, city: str | dict[str, Any] | None = None) -> dict[str, Any]:
+    item = {
         "id": row["id"],
         "city_id": row["city_id"],
         "kind": row["kind"],
@@ -700,11 +871,34 @@ def row_to_item(row: sqlite3.Row) -> dict[str, Any]:
         "updated_at": row["updated_at"],
         "created_by": row["created_by"],
         "updated_by": row["updated_by"],
-        **json.loads(row["payload"]),
+        **normalize_place(row["kind"], json.loads(row["payload"]), legacy=True),
     }
+    return enrich_attraction(item, city) if row['kind'] == 'attraction' else item
 
 
-def snapshot(db_path: Path) -> dict[str, Any]:
+def item_with_links(db, row, city: str) -> dict[str, Any]:
+    """Keep mutation responses consistent with the annotated snapshot API."""
+    item = row_to_item(row, city)
+    if row['kind'] not in ('itinerary', 'attraction'):
+        return item
+    links = [dict(link) for link in db.execute(
+        "SELECT * FROM itinerary_attractions WHERE itinerary_id=? OR attraction_id=? ORDER BY position",
+        (row['id'], row['id']))]
+    grouped = {kind: [] for kind in KINDS}
+    grouped[row['kind']].append(item)
+    ids = {link['attraction_id'] if row['kind'] == 'itinerary' else link['itinerary_id'] for link in links}
+    for related_id in ids:
+        related = db.execute("SELECT * FROM items WHERE id=? AND city_id=?", (related_id, row['city_id'])).fetchone()
+        if related:
+            grouped[related['kind']].append(row_to_item(related, city))
+    itinerary_links.annotate_items(grouped, links)
+    return item
+
+
+def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
+    flush_place_cache(db_path)
+    if city_id:
+        hydrate_city_cache(db_path, city_id)
     with connect_db(db_path) as db:
         db.execute("BEGIN")
         revision = db.execute("SELECT value FROM meta WHERE key = 'revision'").fetchone()["value"]
@@ -714,26 +908,118 @@ def snapshot(db_path: Path) -> dict[str, Any]:
         city_rows = db.execute(
             "SELECT id, name, position FROM cities ORDER BY position, name COLLATE NOCASE"
         ).fetchall()
+        if city_id is not None and (
+            not isinstance(city_id, str) or not any(row["id"] == city_id for row in city_rows)
+        ):
+            raise ApiError(HTTPStatus.NOT_FOUND, "城市已不存在，请重新选择城市。")
+        city_filter = " WHERE city_id = ?" if city_id is not None else ""
+        parameters = (city_id,) if city_id is not None else ()
         rows = db.execute(
-            "SELECT * FROM items ORDER BY city_id, kind, position, created_at, id"
+            "SELECT * FROM items" + city_filter + " ORDER BY city_id, kind, position, created_at, id",
+            parameters,
         ).fetchall()
         activity_rows = db.execute(
             """
             SELECT revision, action, item_id, city_id, kind, item_name, user_id, happened_at
-            FROM activity ORDER BY revision DESC LIMIT 30
-            """
+            FROM activity
+            """ + city_filter + " ORDER BY revision DESC LIMIT 30",
+            parameters,
         ).fetchall()
+        links = [dict(row) for row in db.execute(
+            "SELECT l.* FROM itinerary_attractions l JOIN items i ON i.id=l.itinerary_id"
+            + (" WHERE i.city_id=?" if city_id is not None else "")
+            + " ORDER BY l.itinerary_id,l.position", parameters)]
+        omitted = {}
+        guidance = travel_guidance.read(db, city_id)
+        project_plan = project_itinerary.overview(
+            db.execute("SELECT id, city_id, payload, version FROM items WHERE kind='itinerary'").fetchall(),
+            {row['id']: row['name'] for row in city_rows},
+        )
+        for kind in ('attraction', 'food'):
+            row = db.execute('SELECT value FROM meta WHERE key=?', (f'cache_omitted:{city_id}:{kind}',)).fetchone()
+            omitted[kind] = int(row['value']) if row else 0
     grouped = {kind: [] for kind in KINDS}
+    city_names = {row['id']: row['name'] for row in city_rows}
     for row in rows:
-        grouped[row["kind"]].append(row_to_item(row))
+        grouped[row["kind"]].append(row_to_item(row, city_names.get(row['city_id'])))
+    itinerary_links.annotate_items(grouped, links)
     return {
         "revision": revision,
         "project": {"name": project["project_name"]},
-        "cities": [dict(row) for row in city_rows],
+        "cities": [city_metadata(row) for row in city_rows],
+        "city_id": city_id,
         "items": grouped,
         "activity": [dict(row) for row in activity_rows],
+        "cache_info": {"omitted": omitted},
+        "taxonomy": TAXONOMY,
+        "travel_guidance": guidance,
+        "project_itinerary": project_plan,
+        "scenic_catalog_version": get_scenic_catalog().fingerprint,
         "server_time": utc_now(),
     }
+
+
+def guidance_state(db_path: Path, city_id: str) -> dict[str, Any]:
+    with connect_db(db_path) as db:
+        db.execute('BEGIN')
+        groups = travel_guidance.states(db, city_id)
+        if not groups:
+            raise ApiError(404, '城市已不存在，请重新选择城市。')
+        return groups[0]
+
+
+def change_guidance(db_path: Path, data: Any, user_id: str, *, delete=False) -> dict[str, Any]:
+    if not isinstance(data, dict) or not isinstance(data.get('city_id'), str) or not data['city_id']:
+        raise ApiError(400, '请选择有效的城市。')
+    if not isinstance(data.get('version'), str) or not re.fullmatch(r'[a-f0-9]{24}', data['version']):
+        raise ApiError(400, '提示版本无效，请重新打开编辑窗口。')
+    summary, notices = '', []
+    if not delete:
+        notices = data.get('notices')
+        if not isinstance(notices, list) or len(notices) > 12 or any(
+                not isinstance(value, str) or len(value) > 500 for value in notices):
+            raise ApiError(400, '最多填写 12 条提示，每条不超过 500 字。')
+        notices = list(dict.fromkeys(value.strip() for value in notices if value.strip()))
+        if not notices:
+            raise ApiError(400, '请填写至少一条出行建议；不需要时可点击删除。')
+    with connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        if not db.execute('SELECT 1 FROM users WHERE user_id=?', (user_id,)).fetchone():
+            raise ApiError(401, '用户身份已失效，请重新选择 ID。')
+        groups = travel_guidance.states(db, data['city_id'])
+        if not groups:
+            raise ApiError(404, '城市已不存在，请重新选择城市。')
+        current = groups[0]
+        if current['version'] != data['version']:
+            raise ApiError(409, '出行提示已更新，你的草稿已保留，请载入最新版后再修改。', {'current': current})
+        group = travel_guidance.write(db, data['city_id'], summary, notices, user_id, utc_now(), deleted=delete)
+        return {'guidance': group, 'revision': next_revision(db)}
+
+
+def itinerary_export_snapshot(db_path: Path, city_id: str | None) -> dict[str, Any]:
+    """Read just saved itineraries in one transaction, without hydrating caches."""
+    with connect_db(db_path) as db:
+        db.execute("BEGIN")
+        project = db.execute("SELECT project_name FROM project_settings WHERE singleton=1").fetchone()
+        cities = {row['id']: row['name'] for row in db.execute("SELECT id, name FROM cities")}
+        if city_id is not None and city_id not in cities:
+            raise ApiError(404, "城市已不存在，请重新选择城市。")
+        rows = db.execute(
+            "SELECT * FROM items WHERE kind='itinerary'" + (" AND city_id=?" if city_id is not None else ""),
+            (city_id,) if city_id is not None else (),
+        ).fetchall()
+        # Export only travel content, never collaborator identities or credentials.
+        items = [{**json.loads(row['payload']), 'city_name': cities[row['city_id']],
+                  'position': row['position'], 'id': row['id']} for row in rows]
+        itinerary_cities = {row['city_id'] for row in rows}
+        guidance = [group for group in travel_guidance.read(db, city_id) if group['city_id'] in itinerary_cities]
+    if not items:
+        raise ApiError(400, "所选范围还没有已保存的行程，请先添加行程或导入 AI 规划结果。")
+    items.sort(key=lambda item: (item['date'], item.get('start_time') or '99:99',
+                                 item['city_name'], item['position'], item['id']))
+    return {'project_name': project['project_name'], 'scope_name': cities[city_id] if city_id is not None else '全部城市',
+            'items': items, 'travel_guidance': guidance,
+            'exported_at': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S UTC+08:00')}
 
 
 def list_users(db_path: Path) -> list[dict[str, str]]:
@@ -764,6 +1050,59 @@ def validate_city_name(value: Any) -> str:
     if not city_name or len(city_name) > 30:
         raise ApiError(HTTPStatus.BAD_REQUEST, "城市名称需为 1–30 个字符。")
     return city_name
+
+
+def find_existing_city(
+    db: sqlite3.Connection, name: str, *, excluding_id: str | None = None
+) -> sqlite3.Row | None:
+    candidate = find_catalog_city(name)
+    normalized = normalize_city_name(name)
+    for row in db.execute("SELECT id, name, position FROM cities ORDER BY position"):
+        if row["id"] == excluding_id:
+            continue
+        match = find_catalog_city(row["name"])
+        if normalize_city_name(row["name"]) == normalized or (
+            candidate and match and candidate["id"] == match["id"]
+        ):
+            return row
+    return None
+
+
+def insert_city(db: sqlite3.Connection, name: str, now: str) -> dict[str, Any]:
+    """Shared by regular-user and administrator creation, inside a write transaction."""
+    existing = find_existing_city(db, name)
+    if existing:
+        raise ApiError(HTTPStatus.CONFLICT, "城市已存在，请选择已有城市。", {"city": city_metadata(existing)})
+    if db.execute("SELECT COUNT(*) FROM cities").fetchone()[0] >= MAX_CITIES:
+        raise ApiError(HTTPStatus.INSUFFICIENT_STORAGE, "城市数量已达上限，请先整理现有城市。")
+    candidate = find_catalog_city(name)
+    city_id = candidate["id"] if candidate else uuid.uuid4().hex[:12]
+    while db.execute("SELECT 1 FROM cities WHERE id = ?", (city_id,)).fetchone():
+        city_id = uuid.uuid4().hex[:12]
+    name = candidate["name"] if candidate else name
+    db.execute(
+        "INSERT INTO cities(id, name, position, created_at, updated_at) "
+        "VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM cities), ?, ?)",
+        (city_id, name, now, now),
+    )
+    row = db.execute("SELECT id, name, position FROM cities WHERE id = ?", (city_id,)).fetchone()
+    return city_metadata(row)
+
+
+def create_city(db_path: Path, data: Any, user_id: str) -> dict[str, Any]:
+    """Add a city for an already authenticated project participant."""
+    if not isinstance(data, dict):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "内容格式不正确。")
+    name = validate_city_name(data.get("name"))
+    with connect_db(db_path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not isinstance(user_id, str) or not db.execute(
+            "SELECT 1 FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone():
+            raise ApiError(HTTPStatus.UNAUTHORIZED, "请先选择用户 ID。")
+        city = insert_city(db, name, utc_now())
+        revision = next_revision(db)
+    return {"revision": revision, "city": city}
 
 
 def project_auth_record(db_path: Path) -> sqlite3.Row:
@@ -880,6 +1219,70 @@ def next_revision(db: sqlite3.Connection) -> int:
     return revision
 
 
+def ensure_item_capacity(
+    db: sqlite3.Connection, city_id: str, kind: str, amount: int = 1
+) -> None:
+    """Check both quotas within the same write transaction as the insertion."""
+    item_count = db.execute(
+        "SELECT COUNT(*) FROM items WHERE city_id = ? AND kind = ?", (city_id, kind)
+    ).fetchone()[0]
+    if item_count + amount > MAX_ITEMS_PER_KIND:
+        raise ApiError(HTTPStatus.INSUFFICIENT_STORAGE, "当前城市这一分类的条目已达上限，请先整理现有内容。")
+    total_count = db.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    if total_count + amount > MAX_ITEMS_TOTAL:
+        raise ApiError(HTTPStatus.INSUFFICIENT_STORAGE, "项目条目总量已达上限，请先整理现有内容。")
+
+
+def sync_itinerary_attractions(db, row, city_name: str, user_id: str, now: str, *, allow_create: bool = True) -> int:
+    def create_attraction(name):
+        ensure_item_capacity(db, row['city_id'], 'attraction')
+        payload = rated_payload('attraction', validate_payload('attraction', {'name': name}), city_name)
+        item_id = uuid.uuid4().hex[:12]
+        position = db.execute("SELECT COALESCE(MAX(position),0)+1 FROM items WHERE city_id=? AND kind='attraction'", (row['city_id'],)).fetchone()[0]
+        db.execute("INSERT INTO items(id,city_id,kind,position,payload,version,created_at,updated_at,created_by,updated_by) VALUES(?,?,'attraction',?,?,1,?,?,?,?)",
+                   (item_id, row['city_id'], position, json.dumps(payload, ensure_ascii=False), now, now, user_id, user_id))
+        revision = next_revision(db)
+        db.execute("INSERT INTO activity(revision,action,item_id,city_id,kind,item_name,user_id,happened_at) VALUES(?,'create',?,?,'attraction',?,?,?)",
+                   (revision, item_id, row['city_id'], name, user_id, now))
+        # Name-only itinerary additions stay local until a normal edit enriches
+        # them. They must not overwrite useful shared-city cache descriptions.
+        return dict(payload, id=item_id)
+    return itinerary_links.sync_itinerary(db, row, city_name, create_attraction, allow_create=allow_create)
+
+
+def relink_city_itineraries(db, city_id: str, city_name: str, user_id: str, now: str) -> None:
+    for row in db.execute("SELECT * FROM items WHERE city_id=? AND kind='itinerary'", (city_id,)).fetchall():
+        sync_itinerary_attractions(db, row, city_name, user_id, now, allow_create=False)
+
+
+def backfill_itinerary_links(db_path: Path) -> None:
+    """One upgrade pass; reads/restarts never recreate explicitly deleted places."""
+    with connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        if db.execute("SELECT 1 FROM meta WHERE key='itinerary_links_v1'").fetchone():
+            return
+        now = utc_now()
+        rows = db.execute("SELECT i.*,c.name AS city_name FROM items i JOIN cities c ON c.id=i.city_id WHERE i.kind='itinerary' ORDER BY i.position,i.id").fetchall()
+        linked = False
+        for row in rows:
+            # An already-full city should still start. Existing sights link;
+            # missing ones can be added after space is freed and the plan saved.
+            db.execute('SAVEPOINT itinerary_backfill')
+            try:
+                sync_itinerary_attractions(db, row, row['city_name'], row['updated_by'], now)
+            except ApiError as exc:
+                db.execute('ROLLBACK TO itinerary_backfill')
+                if exc.status != HTTPStatus.INSUFFICIENT_STORAGE:
+                    raise
+                sync_itinerary_attractions(db, row, row['city_name'], row['updated_by'], now, allow_create=False)
+            finally:
+                db.execute('RELEASE itinerary_backfill')
+            linked = True
+        if linked:
+            next_revision(db)
+        db.execute("INSERT INTO meta VALUES('itinerary_links_v1',1)")
+
+
 def create_item(db_path: Path, kind: str, data: Any, user_id: str) -> dict[str, Any]:
     payload = validate_payload(kind, data)
     city_id = data.get("city_id", DEFAULT_CITY_ID)
@@ -887,16 +1290,14 @@ def create_item(db_path: Path, kind: str, data: Any, user_id: str) -> dict[str, 
     item_id = uuid.uuid4().hex[:12]
     with connect_db(db_path) as db:
         db.execute("BEGIN IMMEDIATE")
-        if not isinstance(city_id, str) or not db.execute("SELECT 1 FROM cities WHERE id = ?", (city_id,)).fetchone():
+        city = db.execute("SELECT name FROM cities WHERE id = ?", (city_id,)).fetchone() if isinstance(city_id, str) else None
+        if not city:
             raise ApiError(400, "请选择有效城市。")
-        item_count = db.execute(
-            "SELECT COUNT(*) AS count FROM items WHERE kind = ?", (kind,)
-        ).fetchone()["count"]
-        if item_count >= MAX_ITEMS_PER_KIND:
-            raise ApiError(HTTPStatus.INSUFFICIENT_STORAGE, "这一分类的条目已达上限，请先整理现有内容。")
+        payload = rated_payload(kind, payload, city['name'])
+        ensure_item_capacity(db, city_id, kind)
         position = db.execute(
-            "SELECT COALESCE(MAX(position), 0) + 1 AS position FROM items WHERE kind = ?",
-            (kind,),
+            "SELECT COALESCE(MAX(position), 0) + 1 AS position FROM items WHERE city_id = ? AND kind = ?",
+            (city_id, kind),
         ).fetchone()["position"]
         db.execute(
             """
@@ -925,8 +1326,15 @@ def create_item(db_path: Path, kind: str, data: Any, user_id: str) -> dict[str, 
             """,
             (revision, item_id, city_id, kind, item_label(kind, payload), user_id, now),
         )
+        queue_cached_place(db, city_id, kind, payload, now)
         row = db.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
-    return {"revision": revision, "item": row_to_item(row)}
+        added = sync_itinerary_attractions(db, row, city['name'], user_id, now) if kind == 'itinerary' else 0
+        if kind == 'attraction':
+            relink_city_itineraries(db, city_id, city['name'], user_id, now)
+        revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
+        result_item = item_with_links(db, row, city['name'])
+    flush_place_cache(db_path)
+    return {"revision": revision, "item": result_item, "auto_added_attractions": added}
 
 
 def update_item(
@@ -946,12 +1354,14 @@ def update_item(
         ).fetchone()
         if not current:
             raise ApiError(HTTPStatus.NOT_FOUND, "这条内容已不存在。")
+        city = db.execute("SELECT name FROM cities WHERE id=?", (current['city_id'],)).fetchone()
         if current["version"] != version:
             raise ApiError(
                 HTTPStatus.CONFLICT,
                 "这条内容刚被其他人更新，请核对后再保存。",
-                {"current": row_to_item(current)},
+                {"current": row_to_item(current, city['name'])},
             )
+        payload = rated_payload(kind, payload, city['name'])
         new_version = version + 1
         db.execute(
             """
@@ -977,8 +1387,15 @@ def update_item(
             """,
             (revision, item_id, current["city_id"], kind, item_label(kind, payload), user_id, now),
         )
+        queue_cached_place(db, current['city_id'], kind, payload, now)
         row = db.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
-    return {"revision": revision, "item": row_to_item(row)}
+        added = sync_itinerary_attractions(db, row, city['name'], user_id, now) if kind == 'itinerary' else 0
+        if kind == 'attraction':
+            relink_city_itineraries(db, current['city_id'], city['name'], user_id, now)
+        revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
+        result_item = item_with_links(db, row, city['name'])
+    flush_place_cache(db_path)
+    return {"revision": revision, "item": result_item, "auto_added_attractions": added}
 
 
 def delete_item(
@@ -1002,6 +1419,7 @@ def delete_item(
                 {"current": row_to_item(current)},
             )
         current_item = row_to_item(current)
+        db.execute('INSERT OR IGNORE INTO city_cache_imports VALUES(?,?)', (current['city_id'], now))
         db.execute("DELETE FROM items WHERE id = ?", (item_id,))
         revision = next_revision(db)
         db.execute(
@@ -1012,6 +1430,133 @@ def delete_item(
             (revision, item_id, current["city_id"], kind, item_label(kind, current_item), user_id, now),
         )
     return {"revision": revision, "deleted_id": item_id}
+
+
+def change_city_itinerary(db_path: Path, data: Any, user_id: str, *, delete=False) -> dict[str, Any]:
+    """Shift or remove all itinerary rows of one city in a single transaction."""
+    if not isinstance(data, dict) or not isinstance(data.get('city_id'), str):
+        raise ApiError(400, '请选择要编辑的城市。')
+    city_id = data['city_id']
+    if not isinstance(data.get('version'), str) or not data['version']:
+        raise ApiError(400, '请重新打开城市编辑窗口。')
+    if delete and data.get('confirm_delete') is not True:
+        raise ApiError(400, '请确认移除该城市的全部行程。')
+    start = None
+    if not delete:
+        raw_start = data.get('start_date')
+        if not isinstance(raw_start, str) or not DATE_PATTERN.fullmatch(raw_start):
+            raise ApiError(400, '请输入有效的开始日期。')
+        try:
+            start = datetime.strptime(raw_start, '%Y-%m-%d').date()
+        except ValueError:
+            raise ApiError(400, '请输入有效的开始日期。') from None
+    now = utc_now()
+    with connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        city = db.execute('SELECT name FROM cities WHERE id=?', (city_id,)).fetchone()
+        if not city:
+            raise ApiError(404, '该城市已不存在，请刷新后重试。')
+        if not db.execute('SELECT 1 FROM users WHERE user_id=?', (user_id,)).fetchone():
+            raise ApiError(401, '身份已失效，请重新选择用户 ID。')
+        rows = db.execute("SELECT * FROM items WHERE city_id=? AND kind='itinerary' ORDER BY id", (city_id,)).fetchall()
+        if not rows or data['version'] != project_itinerary.version(rows, city_id, city['name']):
+            raise ApiError(409, '该城市的行程已被修改，本次未作任何更改。请载入最新版后重试。')
+        payloads = [json.loads(row['payload']) for row in rows]
+        offset = 0
+        if not delete:
+            first = min(datetime.strptime(payload['date'], '%Y-%m-%d').date() for payload in payloads)
+            offset = (start - first).days
+            try:
+                for payload in payloads:
+                    original = datetime.strptime(payload['date'], '%Y-%m-%d').date()
+                    payload['date'] = (original + timedelta(days=offset)).isoformat()
+            except (ValueError, OverflowError):
+                raise ApiError(400, '调整后部分行程日期超出有效范围，请更换开始日期。') from None
+        revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
+        if delete or offset:
+            for row, payload in zip(rows, payloads):
+                if delete:
+                    db.execute('DELETE FROM items WHERE id=?', (row['id'],))
+                else:
+                    db.execute('UPDATE items SET payload=?,version=version+1,updated_at=?,updated_by=? WHERE id=?',
+                               (json.dumps(payload, ensure_ascii=False), now, user_id, row['id']))
+                revision = next_revision(db)
+                db.execute('''INSERT INTO activity(revision,action,item_id,city_id,kind,item_name,user_id,happened_at)
+                              VALUES(?,?,?,?,'itinerary',?,?,?)''',
+                           (revision, 'delete' if delete else 'update', row['id'], city_id,
+                            item_label('itinerary', payload), user_id, now))
+    return {'revision': revision, 'city_id': city_id, 'changed': len(rows) if delete or offset else 0,
+            'deleted': delete, 'offset_days': offset}
+
+
+def batch_delete_items(
+    db_path: Path, kind: str, data: Any, user_id: str
+) -> dict[str, Any]:
+    """Delete one city's selected items atomically in this project only."""
+    if kind not in ("attraction", "food"):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "仅支持批量删除景点或美食。")
+    if not isinstance(data, dict):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "内容格式不正确。")
+    city_id = data.get("city_id")
+    if not isinstance(city_id, str) or not city_id or len(city_id) > 100:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "请选择有效城市。")
+    selections = data.get("items")
+    if not isinstance(selections, list) or not 1 <= len(selections) <= 250:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "请勾选 1–250 条景点或美食。")
+    selected_ids = set()
+    for selection in selections:
+        if not isinstance(selection, dict):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "所选内容格式不正确。")
+        item_id, version = selection.get("id"), selection.get("version")
+        if not isinstance(item_id, str) or not re.fullmatch(r"[a-f0-9]{12}", item_id):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "所选内容 ID 无效。")
+        if type(version) is not int or version < 1:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "版本号无效。")
+        if item_id in selected_ids:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "同一条内容不能重复勾选。")
+        selected_ids.add(item_id)
+
+    now = utc_now()
+    with connect_db(db_path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM cities WHERE id = ?", (city_id,)).fetchone():
+            raise ApiError(HTTPStatus.NOT_FOUND, "这座城市已不存在，请刷新后重试。")
+        rows = []
+        for selection in selections:
+            current = db.execute(
+                "SELECT * FROM items WHERE id = ? AND city_id = ? AND kind = ?",
+                (selection["id"], city_id, kind),
+            ).fetchone()
+            if current is None:
+                raise ApiError(
+                    HTTPStatus.NOT_FOUND,
+                    "部分内容已不存在或不属于当前城市和分类，本次未删除任何内容，请刷新后重试。",
+                )
+            if current["version"] != selection["version"]:
+                raise ApiError(
+                    HTTPStatus.CONFLICT,
+                    "部分内容刚被其他人更新，本次未删除任何内容，请刷新后重新勾选。",
+                    {"current": row_to_item(current)},
+                )
+            rows.append(current)
+        db.execute('INSERT OR IGNORE INTO city_cache_imports VALUES(?,?)', (city_id, now))
+        for current in rows:
+            db.execute("DELETE FROM items WHERE id = ?", (current["id"],))
+            revision = next_revision(db)
+            db.execute(
+                """
+                INSERT INTO activity(revision, action, item_id, city_id, kind, item_name, user_id, happened_at)
+                VALUES (?, 'delete', ?, ?, ?, ?, ?, ?)
+                """,
+                (revision, current["id"], city_id, kind,
+                 item_label(kind, row_to_item(current)), user_id, now),
+            )
+    return {
+        "revision": revision,
+        "deleted_ids": [selection["id"] for selection in selections],
+        "deleted_count": len(rows),
+        "city_id": city_id,
+    }
 
 
 def admin_state(db_path: Path) -> dict[str, Any]:
@@ -1056,31 +1601,35 @@ def admin_change(db_path: Path, method: str, resource: str, data: Any) -> dict[s
                     for column in ("created_by", "updated_by"):
                         db.execute(f"UPDATE items SET {column}=? WHERE {column}=? COLLATE NOCASE", (new, old))
                     db.execute("UPDATE activity SET user_id=? WHERE user_id=? COLLATE NOCASE", (new, old))
+                    # AI is optional: preserve drafts and idempotency receipts
+                    # when its tables exist, without creating them on rename.
+                    for table in ("ai_jobs", "ai_import_batches"):
+                        if db.execute(
+                            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+                        ).fetchone():
+                            db.execute(f"UPDATE {table} SET user_id=? WHERE user_id=? COLLATE NOCASE", (new, old))
                 db.execute("DELETE FROM users WHERE user_id=?", (old,))
             else:
                 raise ApiError(405, "操作不支持。")
         elif resource == "cities":
             if method == "POST":
                 name = validate_city_name(data.get("name"))
-                if db.execute("SELECT COUNT(*) FROM cities").fetchone()[0] >= MAX_CITIES:
-                    raise ApiError(400, "城市数量已达上限。")
-                if db.execute("SELECT 1 FROM cities WHERE name=?", (name,)).fetchone():
-                    raise ApiError(409, "城市已存在。")
-                db.execute("INSERT INTO cities VALUES (?, ?, (SELECT COALESCE(MAX(position),0)+1 FROM cities), ?, ?)", (uuid.uuid4().hex[:12], name, now, now))
+                insert_city(db, name, now)
             elif method in {"PUT", "DELETE"}:
                 city_id = data.get("id")
                 if not isinstance(city_id, str) or not db.execute("SELECT 1 FROM cities WHERE id=?", (city_id,)).fetchone():
                     raise ApiError(404, "城市不存在。")
                 if method == "PUT":
                     name = validate_city_name(data.get("name"))
-                    if db.execute("SELECT 1 FROM cities WHERE name=? AND id<>?", (name, city_id)).fetchone():
-                        raise ApiError(409, "城市已存在。")
+                    if find_existing_city(db, name, excluding_id=city_id):
+                        raise ApiError(409, "城市已存在，请使用不同的城市名称。")
                     db.execute("UPDATE cities SET name=?, updated_at=? WHERE id=?", (name, now, city_id))
                 else:
                     if db.execute("SELECT COUNT(*) FROM cities").fetchone()[0] <= 1:
                         raise ApiError(409, "至少保留一个城市。")
                     if db.execute("SELECT 1 FROM items WHERE city_id=?", (city_id,)).fetchone():
                         raise ApiError(409, "城市中仍有内容，请先整理后再删除。")
+                    db.execute("DELETE FROM city_cache_imports WHERE city_id=?", (city_id,))
                     db.execute("DELETE FROM cities WHERE id=?", (city_id,))
             else:
                 raise ApiError(405, "操作不支持。")
@@ -1115,6 +1664,169 @@ class SlidingWindowLimiter:
             return True
 
 
+def ai_context(db_path: Path, city_id: str) -> dict[str, Any]:
+    current = snapshot(db_path, city_id=city_id)
+    city = next((entry for entry in current["cities"] if entry["id"] == city_id), None)
+    if city is None:
+        raise ApiError(404, "这个城市已不存在，请重新选择。")
+    # Business fields inform the plan. IDs and versions stay in the local task
+    # context and protect replacement without being sent to the AI provider.
+    existing = {}
+    for kind in ("attraction", "food", "itinerary"):
+        keys = ("date", "start_time", "title", "location", "category", "notes") if kind == "itinerary" else (
+            ("name", "category", "tags", "description", "duration", "in_itinerary") if kind == 'attraction' else ("name",))
+        existing[kind] = [{key: item.get(key, "") for key in keys}
+                          for item in current["items"][kind]][:250]
+        for source, target in zip(current['items'][kind], existing[kind]):
+            if kind == 'itinerary':
+                target['attraction_names'] = [item['name'] for item in source['linked_attractions']]
+            elif kind == 'attraction':
+                target['itinerary_dates'] = sorted({item['date'] for item in source['itinerary_refs']})
+    return {"city": city, "existing": existing,
+            "itinerary_snapshot": [{"id": item["id"], "version": item["version"], "date": item["date"]}
+                                   for item in current["items"]["itinerary"]]}
+
+
+def ai_replacement_rows(db: sqlite3.Connection, city_id: str, job: sqlite3.Row | None,
+                        cleaned: list[tuple[str, dict[str, str]]]) -> tuple[str, list[sqlite3.Row]]:
+    """Validate a task's saved replacement scope in the import write transaction."""
+    if job is None or 'request_json' not in job.keys():
+        return 'append', []
+    request = json.loads(job['request_json'])
+    mode = request.get('planning_mode', 'append')
+    if mode == 'append':
+        return mode, []
+    if mode not in ('replace_all', 'replace_day'):
+        raise ApiError(409, '这份任务的规划模式无效，请重新生成。')
+    context = json.loads(job['context_json'])
+    replacement = context.get('replacement')
+    target_date = request.get('target_date', '')
+    if (not isinstance(replacement, dict) or replacement.get('planning_mode') != mode
+            or replacement.get('target_date', '') != target_date
+            or not isinstance(replacement.get('items'), list)):
+        raise ApiError(409, '这份任务缺少原行程快照，请重新生成后再替换。')
+    if request.get('kinds') != ['itinerary'] or any(kind != 'itinerary' for kind, _ in cleaned):
+        raise ApiError(400, '重新规划只能替换行程，不能修改景点、美食或交通。')
+    try:
+        start = datetime.strptime(request['start_date'], '%Y-%m-%d').date()
+        days = request['days']
+        if type(days) is not int or not 1 <= days <= 7:
+            raise ValueError('invalid days')
+        expected_dates = {(start + timedelta(days=offset)).isoformat() for offset in range(days)}
+    except (KeyError, TypeError, ValueError, OverflowError) as error:
+        raise ApiError(400, '重新规划的日期范围无效，请重新生成。') from error
+    if mode == 'replace_day' and (days != 1 or target_date != start.isoformat()):
+        raise ApiError(400, '单日重新规划只能替换指定日期。')
+    if {payload['date'] for _, payload in cleaned} != expected_dates:
+        raise ApiError(400, '请为重新规划范围内的每一天至少保留一项行程，且不要加入其他日期。')
+    expected = {}
+    for item in replacement['items']:
+        if (not isinstance(item, dict) or not isinstance(item.get('id'), str)
+                or not re.fullmatch(r'[0-9a-f]{12}', item['id'])
+                or type(item.get('version')) is not int or item['version'] < 1
+                or item['id'] in expected):
+            raise ApiError(409, '原行程快照无效，请重新生成后再替换。')
+        expected[item['id']] = item['version']
+    rows = db.execute("SELECT * FROM items WHERE city_id=? AND kind='itinerary' ORDER BY position,id",
+                      (city_id,)).fetchall()
+    if mode == 'replace_day':
+        rows = [row for row in rows if json.loads(row['payload']).get('date') == target_date]
+    if {row['id']: row['version'] for row in rows} != expected:
+        raise ApiError(409, '生成后，要替换的行程已被修改、新增或删除。原行程保持不变，请刷新并重新生成。',
+                       {'code': 'ITINERARY_CHANGED'})
+    return mode, rows
+
+
+def import_ai_items(db_path: Path, city_id: str, user_id: str,
+                    items: list[dict[str, Any]], job_id: str) -> dict[str, Any]:
+    if not isinstance(items, list) or not 1 <= len(items) <= 60:
+        raise ApiError(400, "每次请选择 1–60 条内容导入。")
+    cleaned = []
+    for item in items:
+        if not isinstance(item, dict) or item.get("kind") not in {"attraction", "food", "itinerary"}:
+            raise ApiError(400, "AI 导入的内容类别无效。")
+        cleaned.append((item["kind"], validate_payload(item["kind"], item.get("data"))))
+
+    def signature(kind: str, payload: dict[str, str]) -> tuple[str, ...]:
+        keys = ("date", "start_time", "title") if kind == "itinerary" else ("name",)
+        return (kind,) + tuple("".join(unicodedata.normalize("NFKC", payload.get(key, "")).casefold().split()) for key in keys)
+
+    with connect_db(db_path) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS ai_import_batches (job_id TEXT PRIMARY KEY, city_id TEXT NOT NULL, user_id TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL)")
+        db.execute("BEGIN IMMEDIATE")
+        prior = db.execute("SELECT * FROM ai_import_batches WHERE job_id = ?", (job_id,)).fetchone()
+        if prior:
+            if prior["city_id"] != city_id or prior["user_id"] != user_id:
+                raise ApiError(403, "无法访问这个导入批次。")
+            return json.loads(prior["result"])
+        if not db.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,)).fetchone():
+            raise ApiError(401, "用户身份已失效，请重新选择 ID。")
+        current_city = db.execute("SELECT name FROM cities WHERE id = ?", (city_id,)).fetchone()
+        if not current_city:
+            raise ApiError(404, "这个城市已被删除，无法导入。")
+        job = None
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ai_jobs'").fetchone():
+            job = db.execute("SELECT * FROM ai_jobs WHERE id = ?", (job_id,)).fetchone()
+            if job:
+                from ai_service import city_identity
+                if city_identity(job["city_name"]) != city_identity(current_city["name"]):
+                    raise ApiError(409, "本次 AI 任务的城市已被修改，请为当前城市重新生成。")
+                if 'city_id' in job.keys() and (job['city_id'] != city_id or job['user_id'] != user_id):
+                    raise ApiError(403, '这份 AI 任务不属于当前城市或用户。')
+        mode, replaced_rows = ai_replacement_rows(db, city_id, job, cleaned)
+        now = utc_now()
+        # Deletions, inserts, activity and receipt all commit together. Any error
+        # rolls the entire change back; a retry reads the receipt before deleting.
+        for row in replaced_rows:
+            db.execute('DELETE FROM items WHERE id=?', (row['id'],))
+            revision = next_revision(db)
+            db.execute("INSERT INTO activity(revision,action,item_id,city_id,kind,item_name,user_id,happened_at) VALUES(?,'delete',?,?,'itinerary',?,?,?)",
+                       (revision, row['id'], city_id, item_label('itinerary', json.loads(row['payload'])), user_id, now))
+        seen = {signature(row["kind"], json.loads(row["payload"])): row['id'] for row in
+                db.execute("SELECT id,kind,payload FROM items WHERE city_id = ?", (city_id,))}
+        created, skipped, item_ids = 0, 0, []
+        selected_item_ids = []
+        revision = int(db.execute("SELECT value FROM meta WHERE key = 'revision'").fetchone()["value"])
+        for kind, payload in cleaned:
+            payload = rated_payload(kind, payload, current_city['name'])
+            key = signature(kind, payload)
+            if key in seen:
+                skipped += 1
+                selected_item_ids.append(seen[key])
+                continue
+            ensure_item_capacity(db, city_id, kind)
+            position = db.execute("SELECT COALESCE(MAX(position),0)+1 FROM items WHERE city_id=? AND kind=?", (city_id, kind)).fetchone()[0]
+            item_id = uuid.uuid4().hex[:12]
+            db.execute("INSERT INTO items(id,city_id,kind,position,payload,version,created_at,updated_at,created_by,updated_by) VALUES(?,?,?,?,?,1,?,?,?,?)",
+                       (item_id, city_id, kind, position, json.dumps(payload, ensure_ascii=False), now, now, user_id, user_id))
+            revision = next_revision(db)
+            db.execute("INSERT INTO activity(revision,action,item_id,city_id,kind,item_name,user_id,happened_at) VALUES(?,'create',?,?,?,?,?,?)",
+                       (revision, item_id, city_id, kind, item_label(kind, payload), user_id, now))
+            queue_cached_place(db, city_id, kind, payload, now)
+            seen[key] = item_id
+            selected_item_ids.append(item_id)
+            item_ids.append(item_id)
+            created += 1
+        # All selected full attraction records are present before itinerary
+        # linking; no empty auto-created record can displace a selected one.
+        relink_city_itineraries(db, city_id, current_city['name'], user_id, now)
+        auto_added = 0
+        for item_id in item_ids:
+            row = db.execute("SELECT * FROM items WHERE id=? AND kind='itinerary'", (item_id,)).fetchone()
+            if row:
+                auto_added += sync_itinerary_attractions(db, row, current_city['name'], user_id, now)
+        if travel_guidance.save(db, job, selected_item_ids, now):
+            next_revision(db)
+        revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
+        result = {"created": created, "skipped": skipped, "item_ids": item_ids, "city_id": city_id, "revision": revision,
+                  "auto_added_attractions": auto_added}
+        if mode != 'append':
+            result.update(deleted=len(replaced_rows), planning_mode=mode)
+        db.execute("INSERT INTO ai_import_batches VALUES(?,?,?,?,?)", (job_id, city_id, user_id, json.dumps(result), now))
+    flush_place_cache(db_path)
+    return result
+
+
 class TripHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -1133,6 +1845,13 @@ class TripHTTPServer(ThreadingHTTPServer):
         admin_password: str = "",
     ):
         self._worker_slots = threading.BoundedSemaphore(self.max_worker_threads)
+        self.ai_service = None
+        self.metro_store = None
+        self.project_store = None
+        self._ai_services = {}
+        self._ai_lock = threading.Lock()
+        self._ai_api_key = ''
+        self._ai_model = ''
         super().__init__(server_address, handler)
         self.db_path = db_path
         self.cookie_secure = cookie_secure
@@ -1140,6 +1859,44 @@ class TripHTTPServer(ThreadingHTTPServer):
         self.admin_password = admin_password
         self.public_origin = public_origin.rstrip("/")
         self.rate_limiter = SlidingWindowLimiter()
+
+    def server_close(self) -> None:
+        if self.metro_store:
+            self.metro_store.close()
+        for service in set(self._ai_services.values()) | ({self.ai_service} if self.ai_service else set()):
+            service.close()
+        super().server_close()
+
+    def project_ai(self, project_id: str) -> Any:
+        with self.project_store.lock:
+            try:
+                path = self.project_store.resolve(project_id)
+            except KeyError as error:
+                raise ApiError(404, '项目已删除或不存在。') from error
+            if project_id == 'main':
+                return self.ai_service
+            if not self._ai_api_key:
+                return None
+            with self._ai_lock:
+                if project_id not in self._ai_services:
+                    from ai_service import AIService
+                    self._ai_services[project_id] = AIService(path, api_key=self._ai_api_key, model=self._ai_model,
+                        get_context=partial(ai_context,path), normalize_item=validate_payload, import_items=partial(import_ai_items,path))
+                return self._ai_services[project_id]
+
+    def delete_project(self, project_id: str, confirm_name: str) -> dict:
+        # AI submission/import and deletion share this lock: a job cannot be
+        # queued after the deletion guard checked the project's durable jobs.
+        with self.project_store.lock:
+            result = self.project_store.delete(project_id, confirm_name)
+            with self._ai_lock:
+                if project_id == 'main':
+                    service, self.ai_service = self.ai_service, None
+                else:
+                    service = self._ai_services.pop(project_id, None)
+                if service:
+                    service.close()
+            return result
 
     def process_request(self, request: Any, client_address: Any) -> None:
         self._worker_slots.acquire()
@@ -1164,19 +1921,39 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        self.send_header(
-            "Content-Security-Policy",
+        policy = (
             "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
             "script-src 'self'; connect-src 'self'; base-uri 'none'; "
-            "frame-ancestors 'none'; form-action 'self'",
+            "frame-ancestors 'none'; form-action 'self'"
         )
+        if urlparse(self.path).path.lower().endswith('.svg'):
+            policy = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+        self.send_header("Content-Security-Policy", policy)
         if not urlparse(self.path).path.startswith("/api/"):
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     @property
     def db_path(self) -> Path:
-        return self.server.db_path  # type: ignore[attr-defined]
+        project_id = self.project_id
+        if self.server.project_store is None and project_id == 'main':
+            return self.server.db_path
+        try:
+            return self.server.project_store.resolve(project_id)
+        except KeyError as error:
+            raise ApiError(404, '项目不存在，请检查项目链接。') from error
+
+    @property
+    def project_id(self) -> str:
+        project_id = self.headers.get('X-Trip-Project') or parse_qs(urlparse(self.path).query).get('project', ['main'])[0]
+        if not re.fullmatch(r'main|[0-9a-f]{16}', project_id):
+            raise ApiError(404, '项目不存在，请检查项目链接。')
+        return project_id
+
+    def scoped_cookie_name(self, base_name: str) -> str:
+        if base_name in {'trip_session', 'trip_project'} and self.project_id != 'main':
+            return f'{base_name}_{self.project_id}'
+        return base_name
 
     def setup(self) -> None:
         super().setup()
@@ -1223,7 +2000,14 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             raise ApiError(HTTPStatus.BAD_REQUEST, "JSON 内容格式不正确。") from exc
 
     def handle_api_error(self, error: Exception) -> None:
+        if isinstance(error, MetroMapError):
+            self.send_json(error.status, {"error": error.message})
+            return
         if isinstance(error, ApiError):
+            self.send_json(error.status, {"error": error.message, **error.extra})
+            return
+        from ai_service import AIError
+        if isinstance(error, AIError):
             self.send_json(error.status, {"error": error.message, **error.extra})
             return
         print(f"Unhandled API error: {error}", file=sys.stderr)
@@ -1235,8 +2019,11 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             if not path.startswith("/api/"):
                 super().do_GET()
                 return
+            if path.startswith('/api/metro-maps/image/'):
+                self.serve_metro_image(path)
+                return
             if path == "/api/health":
-                with connect_db(self.db_path) as db:
+                with connect_db(self.server.db_path) as db:
                     revision = db.execute(
                         "SELECT value FROM meta WHERE key = 'revision'"
                     ).fetchone()["value"]
@@ -1259,11 +2046,55 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 return
             if path.startswith("/api/admin/"):
                 self.require_admin_access()
+                if path == '/api/admin/projects':
+                    self.send_json(200, {'projects': self.server.project_store.list_projects(), 'current_project_id': self.project_id})
+                    return
                 if path != "/api/admin/state":
                     raise ApiError(404, "接口不存在。")
                 self.send_json(200, admin_state(self.db_path))
                 return
             self.require_project_access()
+            if path == '/api/travel-guidance':
+                authenticate(self.db_path, self.session_token())
+                city_id = parse_qs(urlparse(self.path).query).get('city_id', [''])[0]
+                self.send_json(200, {'guidance': guidance_state(self.db_path, city_id)})
+                return
+            if path == '/api/itinerary/export':
+                query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+                file_format = query.get('format', [''])[0]
+                scope = query.get('scope', ['city'])[0]
+                city_id = query.get('city_id', [''])[0]
+                if file_format not in EXPORT_MIME_TYPES or scope not in {'city', 'all'}:
+                    raise ApiError(400, '请选择 Word 或 Excel，以及有效的导出范围。')
+                if scope == 'city' and not city_id:
+                    raise ApiError(400, '请选择要导出的城市。')
+                data = itinerary_export_snapshot(self.db_path, city_id if scope == 'city' else None)
+                body = (build_docx if file_format == 'docx' else build_xlsx)(data)
+                name = export_filename(data, file_format)
+                self.send_response(200)
+                self.send_header('Content-Type', EXPORT_MIME_TYPES[file_format])
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Content-Disposition', f'attachment; filename="itinerary.{file_format}"; filename*=UTF-8\'\'{quote(name, safe="")}')
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if path == '/api/metro-map':
+                city_id = parse_qs(urlparse(self.path).query).get('city_id', [''])[0]
+                city = self.metro_city(city_id)
+                self.send_json(200, self.server.metro_store.describe(city['id'], city['name']))
+                return
+            if path == "/api/ai/config":
+                self.db_path  # Validate the requested project before creating a worker.
+                service = self.server.project_ai(self.project_id)
+                self.send_json(200, {"enabled": bool(service and service.enabled),
+                                     "model": service.model if service else os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash-vision-exp")})
+                return
+            ai_match = re.fullmatch(r"/api/ai/jobs/([a-zA-Z0-9_-]+)", path)
+            if ai_match:
+                service, user_id, device_key = self.ai_request_context()
+                self.send_json(200, service.get_job(user_id, device_key, ai_match.group(1)))
+                return
             if path == "/api/users":
                 self.send_json(HTTPStatus.OK, {"users": list_users(self.db_path)})
                 return
@@ -1272,8 +2103,13 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.OK, {"user_id": user_id})
                 return
             if path == "/api/snapshot":
-                state = snapshot(self.db_path)
-                etag = f'"revision-{state["revision"]}"'
+                city_id = parse_qs(urlparse(self.path).query).get("city_id", [None])[0]
+                state = snapshot(self.db_path, city_id=city_id)
+                city_key = hashlib.sha256((city_id or "all").encode()).hexdigest()[:16]
+                etag = f'"revision-{state["revision"]}-{city_key}"' if city_id else f'"revision-{state["revision"]}"'
+                etag = etag[:-1] + '-scenic-' + state['scenic_catalog_version'] + '"'
+                if self.project_id != 'main':
+                    etag = etag[:-1] + '-' + self.project_id + '"'
                 if self.headers.get("If-None-Match") == etag:
                     self.send_json(HTTPStatus.NOT_MODIFIED, etag=etag)
                     return
@@ -1312,8 +2148,30 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 return
 
             self.require_project_access()
+            if path == "/api/ai/jobs":
+                data = self.read_json()
+                with self.server.project_store.lock:
+                    service, user_id, device_key = self.ai_request_context()
+                    result = service.create_job(user_id, device_key, data)
+                self.send_json(202, result)
+                return
+            ai_match = re.fullmatch(r"/api/ai/jobs/([a-zA-Z0-9_-]+)/import", path)
+            if ai_match:
+                data = self.read_json()
+                with self.server.project_store.lock:
+                    service, user_id, device_key = self.ai_request_context()
+                    result = service.import_job(user_id, device_key, ai_match.group(1), data)
+                self.send_json(200, result)
+                return
             self.enforce_rate_limit("session" if path == "/api/session" else "write")
             data = self.read_json()
+            if path == '/api/metro-map/update':
+                authenticate(self.db_path, self.session_token())
+                if not isinstance(data, dict) or set(data) != {'city_id'}:
+                    raise ApiError(400, '请仅提供要更新线路图的城市。')
+                city = self.metro_city(data['city_id'])
+                self.send_json(202, self.server.metro_store.request_update(city['id'], city['name']))
+                return
             if path == "/api/session":
                 identity = claim_identity(self.db_path, data, self.session_token())
                 self.send_json(
@@ -1326,6 +2184,16 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                     },
                 )
                 return
+            if path == "/api/cities":
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(201, create_city(self.db_path, data, user_id))
+                return
+            bulk_match = re.fullmatch(r"/api/items/(attraction|food)/batch-delete", path)
+            if bulk_match:
+                user_id = authenticate(self.db_path, self.session_token())
+                result = batch_delete_items(self.db_path, bulk_match.group(1), data, user_id)
+                self.send_json(HTTPStatus.OK, result)
+                return
             match = re.fullmatch(r"/api/items/(attraction|transit|food|itinerary)", path)
             if not match:
                 raise ApiError(HTTPStatus.NOT_FOUND, "接口不存在。")
@@ -1334,6 +2202,33 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.CREATED, result)
         except Exception as error:
             self.handle_api_error(error)
+
+    def metro_city(self, city_id: Any) -> dict:
+        if not isinstance(city_id, str) or not city_id or len(city_id) > 100:
+            raise ApiError(400, '请选择当前项目中的城市。')
+        with connect_db(self.db_path) as db:
+            city = db.execute('SELECT id, name FROM cities WHERE id = ?', (city_id,)).fetchone()
+        if not city:
+            raise ApiError(404, '当前项目中没有该城市。')
+        return dict(city)
+
+    def serve_metro_image(self, path: str) -> None:
+        match = re.fullmatch(r'/api/metro-maps/image/([a-z0-9][a-z0-9-]{0,63})/([a-f0-9]{64})\.(svg|png|jpg)', path)
+        asset = self.server.metro_store.asset_path(*match.groups()) if match else None
+        if asset is None:
+            raise ApiError(404, '线路图文件不存在。')
+        etag = '"' + match.group(2) + '"'
+        unchanged = self.headers.get('If-None-Match') == etag
+        self.send_response(304 if unchanged else 200)
+        self.send_header('ETag', etag)
+        self.send_header('Cache-Control', 'public, max-age=86400, immutable')
+        if not unchanged:
+            self.send_header('Content-Type', {'svg': 'image/svg+xml', 'png': 'image/png', 'jpg': 'image/jpeg'}[match.group(3)])
+            self.send_header('Content-Length', str(asset.stat().st_size))
+        self.end_headers()
+        if not unchanged:
+            with asset.open('rb') as stream:
+                self.copyfile(stream, self.wfile)
 
     def do_PUT(self) -> None:  # noqa: N802
         try:
@@ -1344,6 +2239,14 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.require_project_access()
             self.enforce_rate_limit("write")
             path = urlparse(self.path).path
+            if path == '/api/project-itinerary':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, change_city_itinerary(self.db_path, self.read_json(), user_id))
+                return
+            if path == '/api/travel-guidance':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, change_guidance(self.db_path, self.read_json(), user_id))
+                return
             match = re.fullmatch(
                 r"/api/items/(attraction|transit|food|itinerary)/([a-f0-9]{12})", path
             )
@@ -1382,6 +2285,14 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.require_project_access()
             self.enforce_rate_limit("write")
+            if path == '/api/project-itinerary':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, change_city_itinerary(self.db_path, self.read_json(), user_id, delete=True))
+                return
+            if path == '/api/travel-guidance':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, change_guidance(self.db_path, self.read_json(), user_id, delete=True))
+                return
             match = re.fullmatch(
                 r"/api/items/(attraction|transit|food|itinerary)/([a-f0-9]{12})", path
             )
@@ -1403,6 +2314,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
         print(f"{self.address_string()} [{self.log_date_time_string()}] {fmt % args}", file=sys.stderr)
 
     def cookie_value(self, base_name: str) -> str:
+        base_name = self.scoped_cookie_name(base_name)
         raw_cookie = self.headers.get("Cookie", "")
         cookie = http.cookies.SimpleCookie()
         try:
@@ -1416,6 +2328,13 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
 
     def session_token(self) -> str:
         return self.cookie_value("trip_session")
+
+    def ai_request_context(self) -> tuple[Any, str, str]:
+        user_id = authenticate(self.db_path, self.session_token())
+        service = self.server.project_ai(self.project_id)
+        if service is None or not service.enabled:
+            raise ApiError(503, "AI 暂未配置，请联系项目管理员。")
+        return service, user_id, token_hash(self.project_access_token())
 
     def project_access_token(self) -> str:
         return self.cookie_value("trip_project")
@@ -1449,7 +2368,38 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(200, {"authenticated": False}, extra_headers={"Set-Cookie": self.clear_cookie("trip_admin")})
             return
         self.require_admin_access()
-        self.send_json(200, admin_change(self.db_path, method, path.removeprefix("/api/admin/"), data))
+        if path == '/api/admin/projects' and method == 'POST':
+            if not isinstance(data, dict):
+                raise ApiError(400, '项目资料格式不正确。')
+            name = validate_project_name(data.get('name'))
+            try:
+                code = validate_project_code(data.get('project_code'))
+                import place_cache
+                with self.server.project_store.lock:
+                    for project in self.server.project_store.list_projects():
+                        place_cache.flush(self.server.project_store.resolve(project['id']))
+                    project = self.server.project_store.create(name, code)
+            except ValueError as error:
+                raise ApiError(400, str(error)) from error
+            self.send_json(201, {'project': project})
+            return
+        delete_match = re.fullmatch(r'/api/admin/projects/([^/]+)', path)
+        if delete_match and method == 'DELETE':
+            if not isinstance(data, dict):
+                raise ApiError(400, '删除确认资料格式不正确。')
+            try:
+                result = self.server.delete_project(delete_match.group(1), data.get('confirm_name'))
+            except KeyError as error:
+                raise ApiError(404, '项目已删除或不存在。') from error
+            except ValueError as error:
+                raise ApiError(409, str(error)) from error
+            except sqlite3.Error as error:
+                raise ApiError(503, '项目资料暂时无法归档，请稍后重试。') from error
+            self.send_json(200, result)
+            return
+        with self.server.project_store.lock:
+            result = admin_change(self.db_path, method, path.removeprefix("/api/admin/"), data)
+        self.send_json(200, result)
 
     def require_project_access(self) -> None:
         if not self.has_project_access():
@@ -1460,6 +2410,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             )
 
     def build_cookie(self, base_name: str, value: str, max_age: int) -> str:
+        base_name = self.scoped_cookie_name(base_name)
         secure = self.server.cookie_secure  # type: ignore[attr-defined]
         cookie_name = f"__Host-{base_name}" if secure else base_name
         cookie = (
@@ -1468,6 +2419,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
         return cookie + ("; Secure" if secure else "")
 
     def clear_cookie(self, base_name: str) -> str:
+        base_name = self.scoped_cookie_name(base_name)
         secure = self.server.cookie_secure  # type: ignore[attr-defined]
         cookie_name = f"__Host-{base_name}" if secure else base_name
         cookie = (
@@ -1541,12 +2493,16 @@ def create_server(
     project_code: str,
     public_origin: str = "",
     admin_password: str = "",
+    ai_api_key: str = "",
+    ai_model: str = "deepseek-v4-flash-vision-exp",
 ) -> TripHTTPServer:
     project_code = validate_project_code(project_code)
     db_path = data_dir / "trip.db"
     init_database(db_path, project_code)
+    from project_store import ProjectStore
+    projects = ProjectStore(db_path, init_database)
     handler = partial(TripRequestHandler, directory=str(public_dir))
-    return TripHTTPServer(
+    httpd = TripHTTPServer(
         (host, port),
         handler,
         db_path,
@@ -1555,6 +2511,23 @@ def create_server(
         public_origin=public_origin,
         admin_password=admin_password,
     )
+    httpd.project_store = projects
+    httpd.metro_store = MetroMapStore(data_dir / 'metro_maps', bundled_dir=public_dir / 'assets' / 'metro')
+    httpd._ai_api_key = ai_api_key
+    httpd._ai_model = ai_model
+    if ai_api_key and any(project['id'] == 'main' for project in projects.list_projects()):
+        from ai_service import AIService
+        try:
+            httpd.ai_service = AIService(
+                db_path, api_key=ai_api_key, model=ai_model,
+                get_context=partial(ai_context, db_path),
+                normalize_item=validate_payload,
+                import_items=partial(import_ai_items, db_path),
+            )
+        except Exception:
+            httpd.server_close()
+            raise
+    return httpd
 
 
 def create_backup(db_path: Path, destination: Path) -> Path:
@@ -1661,6 +2634,8 @@ def main() -> None:
         project_code=project_code,
         public_origin=public_origin,
         admin_password=admin_password,
+        ai_api_key=os.environ.get("DEEPSEEK_API_KEY", ""),
+        ai_model=os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash-vision-exp"),
     )
     print(f"旅游规划运行在 http://{args.host}:{server.server_port}", flush=True)
     try:

@@ -1,0 +1,508 @@
+{
+  "province": "江苏省",
+  "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+  "as_of": "分条注明：2021-12-06 / 2025-01-09",
+  "coverage_note": "部分覆盖，非江苏省4A级完整名录。仅含省文旅厅2021年复核通报中40家复核达标及5家整改达标景区，以及省政府门户2025-01-09报道的9家正式新增景区。每项保留其原始快照日期，不代表2025年对旧条目的重新确认。省厅当前完整目录访问返回521验证，未取得完整表。未纳入2021年延期复核或未达标条目，未纳入协会三免参与表；不得据未收录判断未评级。",
+  "sources": [
+    {
+      "url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "title": "关于2021年江苏省4A级及以上旅游景区复核情况的通报",
+      "as_of": "2021-12-06",
+      "count": 45
+    },
+    {
+      "url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "title": "江苏新添9家4A级景区",
+      "as_of": "2025-01-09",
+      "count": 9
+    }
+  ],
+  "items": [
+    {
+      "name": "南京市雨花台风景区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "南京市金牛湖景区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "南京市汤山紫清湖旅游区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "南京市牛首山文化旅游区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡宜兴市善卷风景区",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡宜兴市龙背山森林公园",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡宜兴市团氿风景区",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡宜兴市竹海风景区",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡江阴市江苏学政文化旅游区",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡江阴市滨江要塞旅游区",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡博物院",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡动物园·太湖欢乐园",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡市中国吴文化博物馆·鸿山遗址博物馆",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡市阖闾城遗址博物馆",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "无锡市薛福成故居",
+      "province": "江苏省",
+      "city": "无锡市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "徐州市凤鸣海景区",
+      "province": "江苏省",
+      "city": "徐州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市甪直古镇",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市七里山塘景区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市平江历史街区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州张家港市凤凰山风景区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市太湖国家湿地公园",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州常熟市蒋巷乡村旅游景区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州张家港市暨阳湖生态旅游区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市苏州湾黄金湖岸旅游区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市大阳山国家森林公园",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "淮安市古淮河文化生态景区",
+      "province": "江苏省",
+      "city": "淮安市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "淮安市淮安府署景区",
+      "province": "江苏省",
+      "city": "淮安市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "淮安市涟水县五岛湖旅游区",
+      "province": "江苏省",
+      "city": "淮安市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "盐城市新四军纪念馆",
+      "province": "江苏省",
+      "city": "盐城市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "盐城市丹顶鹤湿地生态旅游区",
+      "province": "江苏省",
+      "city": "盐城市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "盐城市东台黄海森林公园景区",
+      "province": "江苏省",
+      "city": "盐城市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "扬州市大明寺景区",
+      "province": "江苏省",
+      "city": "扬州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "扬州市茱萸湾景区",
+      "province": "江苏省",
+      "city": "扬州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "扬州市宋夹城景区",
+      "province": "江苏省",
+      "city": "扬州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "镇江市西津渡历史文化街区",
+      "province": "江苏省",
+      "city": "镇江市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "镇江市镇江醋文化博物馆景区",
+      "province": "江苏省",
+      "city": "镇江市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "镇江市江苏茶博园景区",
+      "province": "江苏省",
+      "city": "镇江市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "泰州市溱潼古镇",
+      "province": "江苏省",
+      "city": "泰州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "泰州市口岸雕花楼景区",
+      "province": "江苏省",
+      "city": "泰州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "宿迁市泗阳中国杨树博物馆景区",
+      "province": "江苏省",
+      "city": "宿迁市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "南京市周园景区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "徐州市水月禅寺景区",
+      "province": "江苏省",
+      "city": "徐州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "苏州市梅李聚沙园景区",
+      "province": "江苏省",
+      "city": "苏州市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "宿迁市龙王庙行宫景区",
+      "province": "江苏省",
+      "city": "宿迁市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "宿迁市雪枫公园景区",
+      "province": "江苏省",
+      "city": "宿迁市",
+      "rating": "4A",
+      "source_url": "https://wlt.jiangsu.gov.cn/art/2021/12/6/art_48959_10168387.html",
+      "source_name": "江苏省文化和旅游厅：2021年复核情况通报",
+      "as_of": "2021-12-06"
+    },
+    {
+      "name": "南京市河西南京眼旅游区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "南京市水墨大埝旅游区",
+      "province": "江苏省",
+      "city": "南京市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "刘邦故里文化景区",
+      "province": "江苏省",
+      "city": "徐州市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "奇妙农场景区",
+      "province": "江苏省",
+      "city": "南通市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "苏中四分区反“清乡”斗争纪念馆景区",
+      "province": "江苏省",
+      "city": "南通市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "汤沟酒生态文化旅游区",
+      "province": "江苏省",
+      "city": "连云港市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "建湖县淮剧小镇景区",
+      "province": "江苏省",
+      "city": "盐城市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "高邮市文游台景区",
+      "province": "江苏省",
+      "city": "扬州市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    },
+    {
+      "name": "兴化市沙沟古镇景区",
+      "province": "江苏省",
+      "city": "泰州市",
+      "rating": "4A",
+      "source_url": "https://www.jiangsu.gov.cn/art/2025/1/9/art_60095_11466706.html",
+      "source_name": "江苏省人民政府门户网站（来源：新华日报）",
+      "as_of": "2025-01-09"
+    }
+  ]
+}

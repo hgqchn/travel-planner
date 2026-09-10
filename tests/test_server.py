@@ -112,8 +112,8 @@ class ApiTests(unittest.TestCase):
         self.admin("session", "POST", {"password": TEST_ADMIN_PASSWORD})
         self.admin("users", "POST", {"user_id": "旅客甲"})
         self.claim("旅客甲")
-        result = self.admin("cities", "POST", {"name": "杭州"})
-        city = next(city for city in result["cities"] if city["name"] == "杭州")
+        result = self.admin("cities", "POST", {"name": "测试杭州"})
+        city = next(city for city in result["cities"] if city["name"] == "测试杭州")
         _, result, _ = json_request(self.opener, self.running.base_url, "/api/items/attraction", method="POST", payload={"name": "西湖", "city_id": city["id"], "navigation_link": "https://uri.amap.com/search?keyword=西湖"})
         item = result["item"]
         self.assertEqual(item["city_id"], city["id"])
@@ -121,15 +121,15 @@ class ApiTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.admin("cities", "DELETE", {"id": city["id"]})
         self.assertEqual(error.exception.code, 409)
-        self.admin("cities", "PUT", {"id": city["id"], "name": "杭州市"})
+        self.admin("cities", "PUT", {"id": city["id"], "name": "测试杭州市"})
         self.admin("users", "PUT", {"user_id": "旅客甲", "new_user_id": "旅客乙"})
         self.claim("旅客乙")
         with server.connect_db(self.running.httpd.db_path) as db:
             self.assertEqual(db.execute("SELECT created_by FROM items WHERE id=?", (item["id"],)).fetchone()[0], "旅客乙")
         self.admin("users", "DELETE", {"user_id": "旅客乙"})
         self.assertNotIn("旅客乙", [u["user_id"] for u in self.admin("state")["users"]])
-        result = self.admin("cities", "POST", {"name": "苏州"})
-        empty = next(city for city in result["cities"] if city["name"] == "苏州")
+        result = self.admin("cities", "POST", {"name": "测试苏州"})
+        empty = next(city for city in result["cities"] if city["name"] == "测试苏州")
         self.admin("cities", "DELETE", {"id": empty["id"]})
         with self.assertRaises(server.ApiError):
             server.validate_payload("attraction", {"name": "坏链接", "navigation_link": "javascript:alert(1)"})
@@ -163,11 +163,11 @@ class ApiTests(unittest.TestCase):
         self.assertGreaterEqual(len(snapshot["items"]["food"]), 8)
         self.assertEqual(snapshot["items"]["itinerary"], [])
         self.assertEqual(snapshot["revision"], 0)
-        self.assertEqual(response.headers["ETag"], '"revision-0"')
+        self.assertEqual(response.headers["ETag"], f'"revision-0-scenic-{snapshot["scenic_catalog_version"]}"')
 
         conditional = urllib.request.Request(
             self.running.base_url + "/api/snapshot",
-            headers={"If-None-Match": '"revision-0"'},
+            headers={"If-None-Match": response.headers["ETag"]},
         )
         with self.assertRaises(urllib.error.HTTPError) as unchanged:
             self.opener.open(conditional, timeout=3)
@@ -199,7 +199,7 @@ class ApiTests(unittest.TestCase):
         payload = {
             "name": "测试景点",
             "district": "徐汇区",
-            "category": "散步",
+            "category": "城市观景",
             "description": "只作为自动测试。",
             "duration": "1 小时",
             "transport": "地铁测试站",

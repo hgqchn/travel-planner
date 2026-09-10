@@ -9,10 +9,10 @@ const CATEGORY = {
     accent: "#315ca8",
   },
   attraction: {
-    title: "景点",
+    title: "地点",
     kicker: "一起挑选",
     description: "地点信息和攻略链接都可以共同修改。",
-    addLabel: "添加景点",
+    addLabel: "添加地点",
     accent: "#f05b3f",
   },
   transit: {
@@ -41,8 +41,13 @@ const FIELDS = {
     { key: "date", label: "日期", required: true, maxlength: 10, type: "date" },
     { key: "start_time", label: "开始时间", maxlength: 5, type: "time" },
     { key: "title", label: "安排名称", required: true, maxlength: 80, placeholder: "例如：外滩日落散步" },
-    { key: "category", label: "类型", maxlength: 30, placeholder: "例如：景点 / 用餐 / 交通" },
+    { key: "category", label: "类型", maxlength: 30, placeholder: "例如：地点 / 用餐 / 交通" },
     { key: "location", label: "地点", maxlength: 120, placeholder: "例如：外滩观景平台" },
+    {
+      key: "attraction_names", label: "关联地点", attractionNames: true, multiline: true, maxlength: 1000,
+      placeholder: "例如：故宫博物院、景山公园",
+      help: "用顿号、逗号或换行分隔，最多 12 个地点。留空时按地点自动识别游览地点；路口、普通街道、路线等不会自动收录。可点选已有地点，或明确填写历史街区等游览目的地；保存后缺少的地点会自动加入清单。",
+    },
     {
       key: "notes",
       label: "备注",
@@ -61,9 +66,15 @@ const FIELDS = {
   ],
   attraction: [
     { key: "navigation_link", label: "导航链接", maxlength: 500, type: "url", placeholder: "留空时按名称打开高德地图" },
-    { key: "name", label: "景点名称", required: true, maxlength: 60, placeholder: "例如：外滩风景区" },
-    { key: "district", label: "所在区域", maxlength: 30, placeholder: "例如：黄浦区" },
-    { key: "category", label: "类型", maxlength: 30, placeholder: "例如：城市漫步" },
+    { key: "name", label: "地点名称", required: true, maxlength: 60, placeholder: "例如：外滩风景区" },
+    {
+      key: "scenic_rating", label: "景区级别", type: "select",
+      options: [{ value: "", label: "自动匹配 / 待核实" }, { value: "4A", label: "4A" }, { value: "5A", label: "5A" }],
+      help: "保存后按地点名称与城市匹配官方名录。手动填写但未匹配的级别仅作为待核实备注；没有匹配不代表未评级。",
+    },
+    { key: "district", label: "所在区县", maxlength: 30, placeholder: "例如：黄浦区" },
+    { key: "category", label: "主分类", categoryKind: "attraction" },
+    { key: "tags", label: "标签", tagsKind: "attraction", multiline: true, maxlength: 1000, placeholder: "例如：皇家，亲子，夜景" },
     {
       key: "description",
       label: "简介",
@@ -102,7 +113,7 @@ const FIELDS = {
       label: "重点连接",
       maxlength: 220,
       multiline: true,
-      placeholder: "机场、火车站、景点或重要换乘点",
+      placeholder: "机场、火车站、地点或重要换乘点",
     },
     {
       key: "service_note",
@@ -121,7 +132,9 @@ const FIELDS = {
   ],
   food: [
     { key: "name", label: "美食名称", required: true, maxlength: 60, placeholder: "例如：生煎馒头" },
-    { key: "category", label: "类别", maxlength: 30, placeholder: "例如：街头小吃" },
+    { key: "category", label: "主分类", categoryKind: "food" },
+    { key: "cuisine", label: "菜系", maxlength: 40, placeholder: "例如：本帮菜、川菜、粤菜", help: "特色菜肴请填写具体菜系，也可用 AI 补充；不确定时留空。" },
+    { key: "tags", label: "标签", tagsKind: "food", multiline: true, maxlength: 1000, placeholder: "例如：早餐，夜宵，伴手礼" },
     {
       key: "description",
       label: "风味简介",
@@ -153,16 +166,21 @@ const FIELDS = {
 };
 
 const state = {
-  cityId: "shanghai",
+  projectId: window.TripProject.id,
+  cityId: window.TripUI.initialCity(),
   cities: [],
   projectName: "旅游规划",
   tab: ["itinerary", "attraction", "transit", "food", "activity"].includes(location.hash.slice(1))
     ? location.hash.slice(1)
     : "itinerary",
   items: { itinerary: [], attraction: [], transit: [], food: [] },
+  cacheInfo: null,
+  travelGuidance: [],
+  projectItinerary: null,
   activity: [],
   users: [],
   revision: null,
+  snapshotEtag: null,
   userId: "",
   projectUnlocked: false,
   currentEdit: null,
@@ -218,6 +236,7 @@ const dom = {
   conflictLoad: document.querySelector("#conflict-load"),
   conflictOverwrite: document.querySelector("#conflict-overwrite"),
   editClose: document.querySelector("#edit-close"),
+  editReturn: document.querySelector("#edit-return"),
   deleteButton: document.querySelector("#delete-button"),
   saveButton: document.querySelector("#save-button"),
   confirmDialog: document.querySelector("#confirm-dialog"),
@@ -278,10 +297,10 @@ async function requestJson(url, options = {}) {
     cache: "no-store",
     credentials: "same-origin",
     ...options,
-    headers: {
+    headers: window.TripProject.headers({
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
-    },
+    }),
   });
   let data = null;
   if (response.status !== 204 && response.status !== 304) {
@@ -300,12 +319,13 @@ async function requestJson(url, options = {}) {
 async function fetchSnapshot(force = false, quiet = false) {
   if (!state.projectUnlocked || !state.userId) return;
   const requestId = ++state.snapshotRequestId;
+  const requestedCity = state.cityId;
   if (!quiet) setSyncStatus("syncing", "正在同步");
   try {
     const headers = {};
-    if (!force && state.revision !== null) headers["If-None-Match"] = `"revision-${state.revision}"`;
-    const { response, data } = await requestJson("/api/snapshot", { headers });
-    if (requestId !== state.snapshotRequestId || !state.projectUnlocked || !state.userId) return;
+    if (!force && state.snapshotEtag) headers["If-None-Match"] = state.snapshotEtag;
+    const { response, data } = await requestJson(`/api/snapshot?city_id=${encodeURIComponent(requestedCity)}`, { headers });
+    if (requestId !== state.snapshotRequestId || requestedCity !== state.cityId || !state.projectUnlocked || !state.userId) return;
     if (
       response.status !== 304 &&
       data &&
@@ -314,9 +334,14 @@ async function fetchSnapshot(force = false, quiet = false) {
       const hadRevision = state.revision !== null;
       const changedRemotely = hadRevision && data.revision > state.revision;
       state.revision = data.revision;
+      state.snapshotEtag = response.headers.get("ETag");
       state.cities = data.cities || [];
       state.projectName = data.project?.name || "旅游规划";
-      if (!state.cities.some((city) => city.id === state.cityId)) state.cityId = state.cities[0]?.id || "";
+      window.TripTaxonomy.configure(data.taxonomy);
+      if (!state.cities.some((city) => city.id === state.cityId)) {
+        await window.TripUI.switchCity(state.cities[0]?.id || "");
+        return;
+      }
       state.items = {
         itinerary: [],
         attraction: [],
@@ -324,7 +349,10 @@ async function fetchSnapshot(force = false, quiet = false) {
         food: [],
         ...(data.items || {}),
       };
-      state.activity = data.activity;
+      state.activity = data.activity || [];
+      state.cacheInfo = data.cache_info || null;
+      state.travelGuidance = data.travel_guidance || [];
+      state.projectItinerary = data.project_itinerary || null;
       render();
       if (changedRemotely && quiet && !dom.editDialog.open) showToast("计划里有新的修改");
     }
@@ -336,6 +364,17 @@ async function fetchSnapshot(force = false, quiet = false) {
     }
   } catch (error) {
     if (requestId !== state.snapshotRequestId) return;
+    if (error.status === 404 && requestedCity) {
+      state.cityId = "";
+      state.snapshotEtag = null;
+      state.revision = null;
+      state.items = { itinerary: [], attraction: [], transit: [], food: [] };
+      state.cacheInfo = null;
+      state.activity = [];
+      render();
+      await fetchSnapshot(true, quiet);
+      return;
+    }
     if (error.data?.code === "PROJECT_LOCKED") {
       showProjectGate("项目访问已过期，请重新输入口令。", true);
       return;
@@ -346,9 +385,11 @@ async function fetchSnapshot(force = false, quiet = false) {
   }
 }
 
-function addTag(container, text, accent = false) {
+function addTag(container, text, accent = false, variant = "") {
   if (!text) return;
-  const tag = element("span", `tag${accent ? " is-accent" : ""}`, text);
+  const tag = element("span", `tag${accent ? " is-accent" : ""}${variant ? ` ${variant}` : ""}`, text);
+  if (variant === "is-category") tag.setAttribute("aria-label", `类别：${text}`);
+  if (variant === "is-place-meta") tag.setAttribute("aria-label", `所在区县：${text}`);
   container.append(tag);
 }
 
@@ -382,6 +423,24 @@ function formatItineraryDate(value) {
   }).format(date);
 }
 
+function appendAttractionHighlights(container, value, links) {
+  const text = typeof value === "string" ? value : "";
+  const names = [...new Set(links.flatMap(link => [link.matched_name, link.name]).filter(name => typeof name === "string" && name.length))]
+    .sort((a, b) => b.length - a.length);
+  let cursor = 0;
+  while (cursor < text.length) {
+    let offset = text.length, match = "";
+    for (const name of names) {
+      const index = text.indexOf(name, cursor);
+      if (index >= 0 && index < offset) { offset = index; match = name; }
+    }
+    if (!match) { container.append(document.createTextNode(text.slice(cursor))); break; }
+    if (offset > cursor) container.append(document.createTextNode(text.slice(cursor, offset)));
+    container.append(element("mark", "linked-attraction-highlight", match));
+    cursor = offset + match.length;
+  }
+}
+
 function itineraryCard(item) {
   const card = element("article", "plan-card itinerary-card");
   card.style.setProperty("--card-accent", CATEGORY.itinerary.accent);
@@ -391,13 +450,37 @@ function itineraryCard(item) {
   const tags = element("div", "tags");
   addTag(tags, item.start_time || "时间待定", true);
   addTag(tags, item.category);
-  heading.append(tags, element("h3", "", item.title));
+  const links = Array.isArray(item.linked_attractions) ? item.linked_attractions.filter(link => link && link.id && typeof link.name === "string") : [];
+  const title = element("h3");
+  appendAttractionHighlights(title, item.title, links);
+  heading.append(tags, title);
   top.append(heading, editButton("itinerary", item));
   body.append(top);
   if (item.notes) body.append(element("p", "card-description", item.notes));
   const details = element("dl", "details");
-  addDetail(details, "地点", item.location);
+  if (item.location) {
+    const row = element("div", "detail-row"), location = element("dd");
+    appendAttractionHighlights(location, item.location, links);
+    row.append(element("dt", "", "地点"), location);
+    details.append(row);
+  }
   body.append(details);
+  if (links.length) {
+    const related = element("div", "itinerary-attractions");
+    related.append(element("span", "itinerary-attractions-label", "已关联地点"));
+    for (const link of links) {
+      const button = element("button", "linked-attraction-chip", link.name);
+      button.type = "button";
+      button.setAttribute("aria-label", `查看并编辑地点：${link.name}`);
+      button.addEventListener("click", () => {
+        const attraction = (state.items.attraction || []).find(candidate => candidate.id === link.id && candidate.city_id === item.city_id);
+        if (attraction) openEditor("attraction", attraction);
+        else showToast("地点已发生变化，请刷新后重试。");
+      });
+      related.append(button);
+    }
+    body.append(related);
+  }
   card.append(body);
   appendFooter(card, item, "打开链接");
   return card;
@@ -430,22 +513,47 @@ function attractionCard(item) {
   const top = element("div", "card-topline");
   const heading = element("div");
   const tags = element("div", "tags");
-  addTag(tags, item.district, true);
-  addTag(tags, item.category);
+  addTag(tags, item.category, false, "is-category");
+  addTag(tags, item.district, false, "is-place-meta");
+  const ratingBadge = scenicRatingBadge(item);
+  if (ratingBadge) tags.append(ratingBadge);
+  const itineraryRefs = Array.isArray(item.itinerary_refs) ? item.itinerary_refs : [];
+  const scheduled = item.in_itinerary === true || itineraryRefs.length > 0;
+  tags.append(element("span", `tag itinerary-status ${scheduled ? "is-scheduled" : "is-unscheduled"}`, scheduled ? "已排行程" : "未排行程"));
+  for (const tag of window.TripTaxonomy.effectiveTags(item)) addTag(tags, tag, false, "is-place-label");
   heading.append(tags, element("h3", "", item.name));
   top.append(heading, editButton("attraction", item));
   body.append(top);
   if (item.description) body.append(element("p", "card-description", item.description));
   const details = element("dl", "details");
+  if (scheduled) {
+    const dates = [...new Set(itineraryRefs.map(ref => ref.date).filter(date => typeof date === "string" && date))].sort();
+    addDetail(details, "行程安排", `${itineraryRefs.length ? `${itineraryRefs.length} 次` : "已安排"}${dates.length ? ` · ${dates.join("、")}` : ""}`);
+  }
   addDetail(details, "建议时长", item.duration);
   addDetail(details, "到达方式", item.transport);
   body.append(details);
   card.append(body);
   appendFooter(card, item, "打开攻略");
-  const city = state.cities.find((entry) => entry.id === item.city_id)?.name || "上海";
-  const navigation = externalAnchor("导航 ↗", item.navigation_link || amapUrl(city, item.name));
-  card.lastElementChild.append(navigation);
+  const city = itemCity(item);
+  const navigation = appExternalAnchor("高德导航 ↗", window.TripLinks.attractionUrl(item, city));
+  const actions = element("span", "place-link-actions");
+  actions.append(navigation);
+  card.lastElementChild.append(actions);
   return card;
+}
+
+function scenicRatingState(item) {
+  const rating = ["4A", "5A"].includes(item?.scenic_rating) ? item.scenic_rating : "";
+  const info = item?.scenic_rating_info || {};
+  const verified = Boolean(rating && ["catalog", "reference"].includes(info.status));
+  return { rating, info, verified, label: verified ? `${rating} 景区` : rating ? `${rating} · 待核实` : "" };
+}
+
+function scenicRatingBadge(item) {
+  const { rating, verified, label } = scenicRatingState(item);
+  if (!rating) return null;
+  return element("span", `tag scenic-rating ${verified ? "is-verified" : "is-unverified"}`, label);
 }
 
 function externalAnchor(label, url) {
@@ -456,34 +564,23 @@ function externalAnchor(label, url) {
   return link;
 }
 
-function amapUrl(city, keyword = "地铁站") {
-  return `https://uri.amap.com/search?keyword=${encodeURIComponent(keyword)}&city=${encodeURIComponent(city)}&view=map&src=travelplanner&callnative=0`;
+function appExternalAnchor(label, url) {
+  const link = externalAnchor(label, url);
+  if (window.TripLinks.isMobile(window.navigator)) link.target = "_self";
+  return link;
+}
+
+function itemCity(item) {
+  const cityId = item.city_id || state.cityId;
+  return state.cities.find((city) => city.id === cityId) || { name: "" };
+}
+
+function amapUrl(city, keyword, options) {
+  return window.TripLinks.amapSearch(city, keyword, options);
 }
 
 function renderTransport() {
-  const city = state.cities.find((entry) => entry.id === state.cityId);
-  const panel = element("section", "transport-panel");
-  if (!city) { dom.cards.replaceChildren(panel); return; }
-  const links = element("div", "map-actions");
-  links.append(externalAnchor("高德地图 ↗", amapUrl(city.name)), externalAnchor("百度地图 ↗", `https://api.map.baidu.com/place/search?query=${encodeURIComponent("地铁站")}&region=${encodeURIComponent(city.name)}&output=html&src=webapp.travel.planner`));
-  panel.append(links);
-  if (city.id === "shanghai" || /^上海市?$/.test(city.name)) {
-    panel.append(element("h3", "", "上海轨道交通线路图"));
-    const full = element("a", "");
-    full.href = "/assets/shanghai-metro.png";
-    full.target = "_blank";
-    full.rel = "noopener noreferrer";
-    const img = element("img", "metro-image");
-    img.src = "/assets/shanghai-metro.png";
-    img.alt = "上海轨道交通线路图，点击打开大图";
-    img.loading = "lazy";
-    full.append(img);
-    panel.append(full, element("p", "", "点击图片查看大图。示意图仅供规划，运营调整请查询官方最新版。"));
-    panel.append(externalAnchor("上海地铁官方最新版 ↗", "https://service.shmetro.com/awltcz/index.htm"));
-    panel.append(element("p", "map-credit", "线路图：Yveltal，2025-12-27 版本；PNG 预览，未改图。"));
-    panel.append(externalAnchor("图片来源", "https://commons.wikimedia.org/wiki/File:Shanghai_Metro_Linemap.svg"), document.createTextNode(" · "), externalAnchor("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"));
-  } else panel.append(element("p", "", "该城市暂未配置线路图，可通过上方地图查询公共交通。"));
-  dom.cards.replaceChildren(panel);
+  window.TripUI.renderTransport();
 }
 
 function transitCard(item) {
@@ -515,18 +612,53 @@ function foodCard(item) {
   const top = element("div", "card-topline");
   const heading = element("div");
   const tags = element("div", "tags");
-  addTag(tags, item.category, true);
+  addTag(tags, item.category, false, "is-category");
+  for (const tag of window.TripTaxonomy.effectiveTags(item)) addTag(tags, tag, false, "is-place-label");
   heading.append(tags, element("h3", "", item.name));
   top.append(heading, editButton("food", item));
   body.append(top);
   if (item.description) body.append(element("p", "card-description", item.description));
   const details = element("dl", "details");
+  if (item.category === "特色菜肴") addDetail(details, "菜系", item.cuisine || "待补充，可在编辑中使用 AI 补充");
   addDetail(details, "推荐体验", item.where_to_try);
   addDetail(details, "点单提示", item.tip);
   body.append(details);
   card.append(body);
   appendFooter(card, item, "参考资料");
+  const searchText = window.TripLinks.foodSearchText(itemCity(item), item);
+  const actions = element("div", "food-search-actions");
+  const links = element("div", "place-link-actions");
+  const copy = element("button", "link-button", "复制搜索词");
+  copy.type = "button";
+  copy.setAttribute("aria-label", `复制美食搜索词：${searchText}`);
+  copy.addEventListener("click", () => copyFoodSearch(searchText));
+  links.append(copy);
+  actions.append(links, element("p", "food-search-keyword", `搜索词：${searchText}`));
+  card.append(actions);
   return card;
+}
+
+async function copyFoodSearch(value) {
+  try {
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      // LAN HTTP previews may not expose the Clipboard API. Keep a synchronous
+      // copy fallback inside the user's click, and leave visible selectable text.
+      const input = element("textarea", "clipboard-helper");
+      input.value = value;
+      input.readOnly = true;
+      input.setAttribute("aria-label", "待复制的美食搜索词");
+      const focused = document.activeElement;
+      document.body.append(input);
+      try {
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+        if (!document.execCommand("copy")) throw new Error("Copy unavailable");
+      } finally { input.remove(); focused?.focus(); }
+    }
+    showToast("搜索词已复制，可粘贴到美团等应用的搜索栏");
+  } catch { showToast("未能自动复制，请长按卡片上的搜索词复制"); }
 }
 
 function renderItinerary(items) {
@@ -547,6 +679,14 @@ function renderItinerary(items) {
         element("span", "day-marker", String(groups.length + 1).padStart(2, "0")),
         element("h3", "", formatItineraryDate(currentDate)),
       );
+      if (/^\d{4}-\d{2}-\d{2}$/.test(currentDate)) {
+        const date = currentDate;
+        const replan = element("button", "link-button ai-replan-day", "AI 重新规划这一天");
+        replan.type = "button";
+        replan.setAttribute("aria-label", `AI 重新规划 ${date} 这一天`);
+        replan.addEventListener("click", () => window.TripUI.openReplan("replace_day", date));
+        heading.append(replan);
+      }
       group.append(heading);
       groups.push(group);
     }
@@ -577,7 +717,7 @@ function renderActivity() {
     return;
   }
   const actionLabel = { create: "添加了", update: "更新了", delete: "删除了" };
-  const kindLabel = { itinerary: "行程", attraction: "景点", transit: "线路", food: "美食" };
+  const kindLabel = { itinerary: "行程", attraction: "地点", transit: "线路", food: "美食" };
   for (const activity of state.activity.filter((entry) => entry.city_id === state.cityId)) {
     const item = element("li");
     const avatar = element("span", "activity-avatar", activity.user_id.slice(0, 1).toUpperCase());
@@ -599,17 +739,23 @@ function renderActivity() {
 }
 
 function render() {
-  const citySelect = document.querySelector("#city-select");
-  citySelect.replaceChildren(...state.cities.map((city) => { const option = element("option", "", city.name); option.value = city.id; return option; }));
-  citySelect.value = state.cityId;
+  window.TripExport?.sync();
+  window.TripEditorAI?.sync();
+  window.TripTypeFilter?.render();
+  window.TripBatch.renderToolbar();
+  window.TripUI.renderCity();
+  window.TripUI.renderCacheNotice();
+  window.TripGuidance?.render();
+  window.TripCities?.render();
   document.querySelector("#project-name").textContent = state.projectName;
   const focusedEditId = document.activeElement?.dataset?.editId;
+  const focusedBatchId = document.activeElement?.dataset?.batchId;
   const meta = CATEGORY[state.tab];
   dom.sectionKicker.textContent = meta.kicker;
   dom.sectionTitle.textContent = meta.title;
   dom.sectionDescription.textContent = meta.description;
   const count = (kind) => state.items[kind].filter((item) => item.city_id === state.cityId).length;
-  dom.tripStats.textContent = `${count("itinerary")} 项行程 · ${count("attraction")} 个景点 · ${count("food")} 种美食`;
+  dom.tripStats.textContent = `${count("itinerary")} 项行程 · ${count("attraction")} 个地点 · ${count("food")} 种美食`;
   document.querySelector(".eyebrow").textContent = `共享旅行清单 · ${state.cities.find((city) => city.id === state.cityId)?.name || "选择城市"}`;
   dom.identityLabel.textContent = state.userId || "设置 ID";
 
@@ -621,6 +767,7 @@ function render() {
   });
 
   const showingActivity = state.tab === "activity";
+  document.getElementById("ai-replan-all").hidden = state.tab !== "itinerary";
   dom.cards.hidden = showingActivity;
   dom.cards.classList.toggle("is-itinerary", state.tab === "itinerary");
   dom.activityPanel.hidden = !showingActivity;
@@ -633,9 +780,10 @@ function render() {
   dom.addButton.lastElementChild.textContent = meta.addLabel;
   if (state.tab === "transit") { renderTransport(); return; }
   dom.cards.setAttribute("aria-busy", "false");
-  const items = (state.items[state.tab] || []).filter((item) => item.city_id === state.cityId);
+  const cityItems = (state.items[state.tab] || []).filter((item) => item.city_id === state.cityId);
+  const items = window.TripTypeFilter?.filter(cityItems) || cityItems;
   if (!items.length) {
-    dom.cards.replaceChildren(emptyState(state.tab));
+    dom.cards.replaceChildren(window.TripTypeFilter?.emptyState() || emptyState(state.tab));
     return;
   }
   if (state.tab === "itinerary") {
@@ -643,39 +791,105 @@ function render() {
     return;
   }
   const factories = { attraction: attractionCard, transit: transitCard, food: foodCard };
-  dom.cards.replaceChildren(...items.map((item) => factories[state.tab](item)));
+  dom.cards.replaceChildren(...items.map((item) => window.TripBatch.decorate(factories[state.tab](item), state.tab, item)));
   if (focusedEditId) {
     dom.cards.querySelector(`[data-edit-id="${focusedEditId}"]`)?.focus({ preventScroll: true });
+  }
+  if (focusedBatchId) {
+    dom.cards.querySelector(`[data-batch-id="${CSS.escape(focusedBatchId)}"]`)?.focus({ preventScroll: true });
   }
 }
 
 function selectTab(tab) {
-  if (!CATEGORY[tab]) return;
+  if (!CATEGORY[tab] || !window.TripBatch.canNavigate()) return;
   state.tab = tab;
   history.replaceState(null, "", `#${tab}`);
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function makeField(definition, value) {
-  const label = element("label", "field");
-  const title = element("span", "", `${definition.label}${definition.required ? " *" : ""}`);
-  const input = definition.multiline ? document.createElement("textarea") : document.createElement("input");
+function parseAttractionNames(value) {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[、,，;；\r\n]+/) : [];
+  return [...new Set(values.filter(name => typeof name === "string").map(name => name.trim()).filter(Boolean))];
+}
+
+function attractionNamesError(value) {
+  const names = parseAttractionNames(value);
+  if (names.length > 12) return "每项行程最多关联 12 个地点。";
+  if (names.some(name => [...name].length > 60)) return "每个关联地点名称不能超过 60 个字。";
+  if (names.some(name => /[\u0000-\u001f\u007f]/.test(name))) return "关联地点名称不能包含控制字符。";
+  return "";
+}
+
+function enhanceAttractionNames(wrapper, input, cityId) {
+  const suggestions = element("div", "attraction-name-suggestions");
+  suggestions.setAttribute("role", "group");
+  suggestions.setAttribute("aria-label", "点选已有地点");
+  const names = [...new Set((state.items.attraction || []).filter(item => item.city_id === cityId).map(item => item.name).filter(name => typeof name === "string" && name.trim()))];
+  const refresh = () => {
+    input.setCustomValidity(attractionNamesError(input.value));
+    const selected = new Set(parseAttractionNames(input.value));
+    for (const button of suggestions.querySelectorAll("button")) button.setAttribute("aria-pressed", String(selected.has(button.dataset.attractionName)));
+  };
+  for (const name of names) {
+    const button = element("button", "linked-attraction-chip", name);
+    button.type = "button";
+    button.dataset.attractionName = name;
+    button.addEventListener("click", () => {
+      if (input.disabled || state.saving) return;
+      const selected = parseAttractionNames(input.value);
+      input.value = (selected.includes(name) ? selected.filter(value => value !== name) : [...selected, name]).join("、");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    suggestions.append(button);
+  }
+  input.addEventListener("input", refresh);
+  input.addEventListener("change", refresh);
+  refresh();
+  if (names.length) {
+    wrapper.append(element("small", "", "点选已有地点（可多选）"), suggestions);
+  }
+}
+
+function makeField(definition, value, context = {}) {
+  const interactive = definition.tagsKind || definition.attractionNames;
+  const label = element(interactive ? "div" : "label", "field");
+  const title = element(interactive ? "label" : "span", "", `${definition.label}${definition.required ? " *" : ""}`);
+  const options = definition.categoryKind ? window.TripTaxonomy.categoryOptions(definition.categoryKind) : definition.options;
+  const isSelect = Array.isArray(options);
+  const input = document.createElement(isSelect ? "select" : definition.multiline ? "textarea" : "input");
   input.name = definition.key;
   input.id = `field-${definition.key}`;
+  if (definition.categoryKind) input.className = "place-category-select";
   const today = new Date();
   const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 10);
-  input.value = value ?? definition.defaultValue ?? (definition.key === "date" ? localDate : "");
+  if (isSelect) {
+    for (const choice of options) {
+      const option = element("option", "", choice.label);
+      option.value = choice.value;
+      input.append(option);
+    }
+    input.value = options.some((choice) => choice.value === value) ? value : definition.defaultValue ?? "";
+  } else input.value = definition.attractionNames ? parseAttractionNames(value).join("、") : definition.tagsKind ? window.TripTaxonomy.formatTags(value) : value ?? definition.defaultValue ?? (definition.key === "date" ? localDate : "");
   input.required = Boolean(definition.required);
   if (definition.maxlength) input.maxLength = definition.maxlength;
   if (definition.placeholder) input.placeholder = definition.placeholder;
-  if (definition.type) input.type = definition.type;
+  if (definition.type && !isSelect) input.type = definition.type;
   if (definition.type === "url") input.inputMode = "url";
   label.htmlFor = input.id;
   label.append(title, input);
+  if (definition.tagsKind) {
+    title.htmlFor = input.id;
+    window.TripTaxonomy.enhanceTags(label, input, definition.tagsKind);
+  }
   if (definition.help) label.append(element("small", "", definition.help));
+  if (definition.attractionNames) {
+    title.htmlFor = input.id;
+    enhanceAttractionNames(label, input, context.cityId || state.currentEdit?.item?.city_id || state.cityId);
+  }
   return label;
 }
 
@@ -686,6 +900,7 @@ function requireIdentity() {
 }
 
 function openEditor(kind, item = null) {
+  if (!window.TripBatch.canNavigate()) return;
   if (!requireIdentity()) return;
   state.currentEdit = { kind, item: item ? { ...item } : null, conflict: null };
   state.editorDirty = false;
@@ -694,6 +909,7 @@ function openEditor(kind, item = null) {
   dom.editTitle.textContent = `${isNew ? "添加" : "编辑"}${kind === "itinerary" ? "行程" : CATEGORY[kind].title}`;
   dom.saveButton.textContent = isNew ? "添加到计划" : "保存修改";
   dom.deleteButton.hidden = isNew;
+  dom.editReturn.hidden = !["attraction", "food"].includes(kind);
   dom.editError.textContent = "";
   dom.editConflict.hidden = true;
   dom.conflictDetails.replaceChildren();
@@ -701,7 +917,8 @@ function openEditor(kind, item = null) {
     ...FIELDS[kind].map((definition) => makeField(definition, item?.[definition.key])),
   );
   dom.editDialog.showModal();
-  requestAnimationFrame(() => dom.editFields.querySelector("input, textarea")?.focus());
+  window.TripEditorAI?.open();
+  requestAnimationFrame(() => dom.editFields.querySelector("input, textarea, select")?.focus());
 }
 
 function closeEditor(force = false) {
@@ -710,13 +927,14 @@ function closeEditor(force = false) {
     return;
   }
   if (!force && state.editorDirty && !window.confirm("放弃还没有保存的修改吗？")) return;
+  window.TripEditorAI?.close();
   state.editorDirty = false;
   state.currentEdit = null;
   dom.editDialog.close();
 }
 
 function summarizeValue(value) {
-  const text = value || "（空）";
+  const text = (Array.isArray(value) ? value.join("、") : value) || "（空）";
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 }
 
@@ -724,8 +942,9 @@ function showConflict(remoteItem) {
   if (!state.currentEdit?.item) return;
   const baseline = state.currentEdit.item;
   state.currentEdit.conflict = { ...remoteItem };
+  window.TripEditorAI?.invalidate("发现同时编辑，请先处理冲突，再补充基本信息。");
   const changedFields = FIELDS[state.currentEdit.kind].filter(
-    (field) => (baseline[field.key] || "") !== (remoteItem[field.key] || ""),
+    (field) => JSON.stringify(baseline[field.key] || "") !== JSON.stringify(remoteItem[field.key] || ""),
   );
   dom.conflictDetails.replaceChildren();
   if (!changedFields.length) {
@@ -756,6 +975,7 @@ function loadRemoteConflict() {
   dom.conflictDetails.replaceChildren();
   dom.editError.textContent = "已载入最新内容，你可以继续编辑。";
   state.editorDirty = false;
+  window.TripEditorAI?.open();
 }
 
 function keepLocalConflict() {
@@ -767,19 +987,29 @@ function keepLocalConflict() {
   dom.conflictDetails.replaceChildren();
   dom.editError.textContent = "已保留你的表单。再次点击保存将以这份内容覆盖最新版本。";
   state.editorDirty = true;
+  window.TripEditorAI?.open();
 }
 
 async function saveEditor(event) {
   event.preventDefault();
   if (!state.currentEdit || !requireIdentity()) return;
   const editContext = state.currentEdit;
+  window.TripEditorAI?.invalidate("正在保存，当前 AI 结果不再填入。");
   const { kind, item } = editContext;
   const payload = Object.fromEntries(new FormData(dom.editForm).entries());
+  if (kind === "attraction" || kind === "food") payload.tags = window.TripTaxonomy.parseTags(payload.tags);
+  if (kind === "itinerary") {
+    const error = attractionNamesError(payload.attraction_names);
+    if (error) { dom.editError.textContent = error; return; }
+    payload.attraction_names = parseAttractionNames(payload.attraction_names);
+  }
   payload.city_id = item?.city_id || state.cityId;
   if (item) payload.version = item.version;
   state.saving = true;
+  window.TripEditorAI?.sync();
   dom.saveButton.disabled = true;
   dom.editClose.disabled = true;
+  dom.editReturn.disabled = true;
   dom.deleteButton.disabled = true;
   dom.editError.textContent = "";
   try {
@@ -811,7 +1041,7 @@ async function saveEditor(event) {
     } else {
       dom.editError.textContent = `${error.message} 你的表单内容仍保留。`;
       if ([400, 413].includes(error.status)) {
-        dom.editFields.querySelectorAll("input, textarea").forEach((field) => {
+        dom.editFields.querySelectorAll("input, textarea, select").forEach((field) => {
           field.setAttribute("aria-invalid", "true");
           field.setAttribute("aria-describedby", "edit-error");
         });
@@ -819,8 +1049,10 @@ async function saveEditor(event) {
     }
   } finally {
     state.saving = false;
+    window.TripEditorAI?.sync();
     dom.saveButton.disabled = false;
     dom.editClose.disabled = false;
+    dom.editReturn.disabled = false;
     dom.deleteButton.disabled = false;
   }
 }
@@ -831,7 +1063,7 @@ function askDelete() {
     kind: state.currentEdit.kind,
     item: { ...state.currentEdit.item },
   };
-  dom.confirmMessage.textContent = `删除“${itemName(state.pendingDelete.kind, state.pendingDelete.item)}”后，其他人也会看不到这条内容。`;
+  dom.confirmMessage.textContent = `删除“${itemName(state.pendingDelete.kind, state.pendingDelete.item)}”后，当前项目的同行者也会看不到这条内容。${["attraction", "food"].includes(state.pendingDelete.kind) ? "只从当前项目移除，不影响其他项目和全局缓存。" : ""}`;
   dom.confirmDialog.showModal();
 }
 
@@ -898,16 +1130,19 @@ async function loadUsers() {
 }
 
 function openIdentity(switching) {
+  if (!window.TripBatch.canNavigate()) return;
   if (!state.projectUnlocked) {
     showProjectGate();
     return;
   }
+  window.TripEditorAI?.invalidate("请确认用户身份后重新补充。");
   dom.identityError.textContent = "";
   dom.userIdInput.value = switching ? "" : state.userId;
   dom.identityCancel.hidden = !state.userId;
   dom.identityTitle.textContent = state.userId ? "切换用户 ID" : "选择你的用户 ID";
   renderUserChoices();
   if (!dom.identityDialog.open) dom.identityDialog.showModal();
+  window.TripEditorAI?.sync();
   const focusTarget = state.users.length ? dom.userChoiceList.querySelector("button") : dom.userIdInput;
   requestAnimationFrame(() => focusTarget?.focus());
 }
@@ -920,6 +1155,7 @@ function startSyncPolling() {
 }
 
 async function activateIdentity(userId) {
+  if (!window.TripBatch.canNavigate()) return;
   const buttons = dom.identityDialog.querySelectorAll("button");
   buttons.forEach((button) => {
     button.disabled = true;
@@ -930,7 +1166,9 @@ async function activateIdentity(userId) {
       method: "POST",
       body: JSON.stringify({ user_id: userId }),
     });
+    if (state.userId && state.userId !== data.user_id) window.TripUI.reset();
     state.userId = data.user_id;
+    window.TripEditorAI?.sync();
     dom.identityLabel.textContent = state.userId;
     await loadUsers();
     dom.identityDialog.close();
@@ -983,9 +1221,14 @@ function resetProjectState() {
   state.cities = [];
   state.projectName = "旅游规划";
   state.items = { itinerary: [], attraction: [], transit: [], food: [] };
+  state.cacheInfo = null;
+  state.travelGuidance = [];
+  state.projectItinerary = null;
   state.activity = [];
   state.revision = null;
+  state.snapshotEtag = null;
   state.snapshotRequestId += 1;
+  window.TripUI.reset();
   render();
   dom.identityLabel.textContent = "选择用户";
   dom.tripStats.textContent = "项目尚未解锁";
@@ -1008,7 +1251,10 @@ function restoreLockedDraft() {
   openEditor(draft.kind, draft.item);
   for (const [name, value] of Object.entries(draft.values)) {
     const field = dom.editForm.elements.namedItem(name);
-    if (field && "value" in field) field.value = value;
+    if (field && "value" in field) {
+      field.value = value;
+      if (name === "tags") field.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   }
   state.editorDirty = true;
   dom.editError.textContent = "项目已重新解锁，未保存的表单内容已恢复。";
@@ -1085,6 +1331,7 @@ async function submitProject(event) {
 }
 
 async function lockProject() {
+  if (!window.TripBatch.canNavigate()) return;
   if (state.editorDirty && !window.confirm("退出项目会放弃尚未保存的修改，确定退出吗？")) return;
   dom.projectLockButton.disabled = true;
   try {
@@ -1102,7 +1349,7 @@ async function lockProject() {
 
 async function sharePlan() {
   const shareData = {
-    title: "旅游规划",
+    title: "即刻出发",
     text: "一起编辑这份旅行清单",
     url: location.href.split("#")[0],
   };
@@ -1139,7 +1386,7 @@ function registerWebMcpTools() {
         {
           name: "get_trip_plan_snapshot",
           title: "读取旅行计划",
-          description: "读取当前共享项目中的行程、景点、公共交通和美食条目。",
+          description: "读取当前共享项目中的行程、地点、公共交通和美食条目。",
           inputSchema: { type: "object", properties: {}, additionalProperties: false },
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute() {
@@ -1160,14 +1407,16 @@ function registerWebMcpTools() {
       context.registerTool(
         {
           name: "add_attraction_to_trip_plan",
-          title: "添加当前城市景点",
-          description: "以当前用户身份向共享计划添加一个景点，并刷新可见列表。",
+          title: "添加当前城市地点",
+          description: "以当前用户身份向共享计划添加一个地点，并刷新可见列表。",
           inputSchema: {
             type: "object",
             properties: {
               name: { type: "string", minLength: 1, maxLength: 60 },
+              scenic_rating: { type: "string", enum: ["", "4A", "5A"] },
               district: { type: "string", maxLength: 30 },
               category: { type: "string", maxLength: 30 },
+              tags: { type: "array", maxItems: 30, items: { type: "string", maxLength: 24 } },
               description: { type: "string", maxLength: 600 },
               duration: { type: "string", maxLength: 40 },
               transport: { type: "string", maxLength: 160 },
@@ -1182,6 +1431,7 @@ function registerWebMcpTools() {
             if (!state.userId) throw new Error("请先在页面中选择用户 ID。");
             const payload = { city_id: state.cityId };
             for (const field of FIELDS.attraction) payload[field.key] = input[field.key] || "";
+            payload.tags = window.TripTaxonomy.parseTags(input.tags);
             const { data } = await requestJson("/api/items/attraction", {
               method: "POST",
               body: JSON.stringify(payload),
@@ -1207,6 +1457,7 @@ function registerWebMcpTools() {
               title: { type: "string", minLength: 1, maxLength: 80 },
               category: { type: "string", maxLength: 30 },
               location: { type: "string", maxLength: 120 },
+              attraction_names: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 60 }, description: "本项行程游览的地点名称，留空自动识别；不包含路口、普通街道或交通路线。" },
               notes: { type: "string", maxLength: 600 },
               link: { type: "string", maxLength: 500 },
             },
@@ -1219,6 +1470,7 @@ function registerWebMcpTools() {
             if (!state.userId) throw new Error("请先在页面中选择用户 ID。");
             const payload = { city_id: state.cityId };
             for (const field of FIELDS.itinerary) payload[field.key] = input[field.key] || "";
+            payload.attraction_names = parseAttractionNames(input.attraction_names);
             const { data } = await requestJson("/api/items/itinerary", {
               method: "POST",
               body: JSON.stringify(payload),
@@ -1241,7 +1493,6 @@ function registerWebMcpTools() {
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => selectTab(button.dataset.tab));
 });
-document.querySelector("#city-select").addEventListener("change", (event) => { state.cityId = event.target.value; render(); });
 dom.addButton.addEventListener("click", () => openEditor(state.tab));
 dom.identityButton.addEventListener("click", () => openIdentity(true));
 dom.projectForm.addEventListener("submit", submitProject);
@@ -1263,7 +1514,8 @@ dom.identityDialog.addEventListener("cancel", (event) => {
   if (!state.userId) event.preventDefault();
 });
 dom.editForm.addEventListener("submit", saveEditor);
-dom.editForm.addEventListener("input", () => {
+dom.editForm.addEventListener("input", (event) => {
+  if (event.target.closest("#editor-ai")) return;
   state.editorDirty = true;
   dom.editForm.querySelectorAll('[aria-invalid="true"]').forEach((field) => {
     field.removeAttribute("aria-invalid");
@@ -1271,6 +1523,7 @@ dom.editForm.addEventListener("input", () => {
   });
 });
 dom.editClose.addEventListener("click", () => closeEditor());
+dom.editReturn.addEventListener("click", () => closeEditor());
 dom.editDialog.addEventListener("cancel", (event) => {
   if (state.saving) {
     event.preventDefault();
@@ -1300,6 +1553,7 @@ dom.shareButton.addEventListener("click", sharePlan);
 window.addEventListener("hashchange", () => {
   const tab = location.hash.slice(1);
   if (CATEGORY[tab]) {
+    if (!window.TripBatch.canNavigate()) { history.replaceState(null, "", `#${state.tab}`); return; }
     state.tab = tab;
     render();
   }
@@ -1323,12 +1577,19 @@ async function start() {
     const { data } = await requestJson("/api/project-session", { signal: controller.signal });
     setProjectGateChecking(false);
     if (data.unlocked) await enterUnlockedProject();
-  } catch {
+  } catch (error) {
     setProjectGateChecking(false);
-    dom.projectError.textContent = "暂时无法连接项目，请稍后重试。";
+    dom.projectError.textContent = error.status === 404 ? error.message : "暂时无法连接项目，请稍后重试。";
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
+window.TripProject.initLinks();
+window.TripBatch.init();
+window.TripUI.init();
+window.TripEditorAI?.init();
+window.TripExport?.init();
+window.TripCities?.init();
+window.TripCityEditor?.init();
 start();

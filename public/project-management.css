@@ -1,0 +1,32 @@
+.admin-heading > div { min-width: 0; }
+#admin-current-project { overflow-wrap: anywhere; }
+.admin-card > p { color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
+.admin-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-card-heading h2 { margin-bottom: 0; }
+.admin-card-heading button { min-height: 40px; padding: 8px 12px; font-size: 13px; }
+.admin-project-list { display: grid; gap: 10px; margin-top: 18px; }
+.admin-project-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.admin-project-row.is-current { border-color: #a7c9b8; background: #f1f7f3; }
+.admin-project-name { display: grid; gap: 5px; min-width: 0; }
+.admin-project-name strong { overflow-wrap: anywhere; }
+.admin-project-name small { color: var(--ink-soft); font-size: 12px; }
+.admin-project-links { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; flex-shrink: 0; }
+.admin-project-links a { color: var(--jade-dark); font-size: 13px; text-underline-offset: 4px; }
+.admin-project-delete { min-height: 36px; padding: 7px 10px; font-size: 13px; }
+.admin-project-empty { margin: 0; padding: 18px; background: #f6f8f6; border-radius: 12px; color: var(--ink-soft); line-height: 1.7; }
+.project-created { margin-top: 16px; padding: 14px; border: 1px solid #a7c9b8; background: #f1f7f3; border-radius: 12px; font-size: 14px; }
+.project-created p { margin: 0 0 10px; line-height: 1.7; overflow-wrap: anywhere; }
+.project-created a { color: var(--jade-dark); font-weight: 600; }
+.project-created a + a { margin-left: 18px; }
+.project-delete-dialog { width: min(calc(100% - 30px), 500px); max-height: calc(100dvh - 30px); padding: 24px; border: 0; border-radius: 20px; background: white; box-shadow: var(--shadow); }
+.project-delete-dialog h2 { margin: 0 0 16px; }
+.project-delete-target { overflow-wrap: anywhere; }
+#project-delete-impact { font-size: 14px; line-height: 1.8; color: var(--ink-soft); }
+#project-delete-impact ul { padding-left: 20px; margin-bottom: 20px; }
+.project-delete-error { min-height: 20px; font-size: 14px; color: var(--coral-dark); line-height: 1.6; }
+.project-delete-dialog .confirm-actions { margin-top: 16px; }
+@media (max-width: 619px) {
+  .admin-card { padding: 18px; }
+  .admin-project-row { align-items: flex-start; flex-direction: column; }
+  .admin-heading a { flex-shrink: 0; font-size: 13px; }
+}

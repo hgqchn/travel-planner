@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "description": "精选旅行城市目录：北京、上海等九座城市及内蒙古五座旅游城市。仅完整名称与明确别名用于去重；拼音与首字母用于搜索，不包含未核实坐标。",
+  "sources": ["https://www.gov.cn/guoqing/", "https://sjfw.mct.gov.cn/site/dataservice/culture", "https://lyfw.mct.gov.cn/site/special/details?id=1513"],
+  "cities": [
+    {"id":"shanghai","name":"上海","province":"上海","pinyin":"shanghai","initials":"sh","aliases":["上海市"],"map_query":"上海市"},
+    {"id":"beijing","name":"北京","province":"北京","pinyin":"beijing","initials":"bj","aliases":["北京市"],"map_query":"北京市"},
+    {"id":"shenzhen","name":"深圳","province":"广东","pinyin":"shenzhen","initials":"sz","aliases":["深圳市"],"map_query":"广东省深圳市"},
+    {"id":"guangzhou","name":"广州","province":"广东","pinyin":"guangzhou","initials":"gz","aliases":["广州市"],"map_query":"广东省广州市"},
+    {"id":"xian","name":"西安","province":"陕西","pinyin":"xian","initials":"xa","aliases":["西安市"],"map_query":"陕西省西安市"},
+    {"id":"luoyang","name":"洛阳","province":"河南","pinyin":"luoyang","initials":"ly","aliases":["洛阳市"],"map_query":"河南省洛阳市"},
+    {"id":"changsha","name":"长沙","province":"湖南","pinyin":"changsha","initials":"cs","aliases":["长沙市"],"map_query":"湖南省长沙市"},
+    {"id":"chongqing","name":"重庆","province":"重庆","pinyin":"chongqing","initials":"cq","aliases":["重庆市"],"map_query":"重庆市"},
+    {"id":"chengdu","name":"成都","province":"四川","pinyin":"chengdu","initials":"cd","aliases":["成都市"],"map_query":"四川省成都市"},
+    {"id":"hohhot","name":"呼和浩特","province":"内蒙古","pinyin":"huhehaote","initials":"hhht","aliases":["呼和浩特市","呼市"],"map_query":"内蒙古自治区呼和浩特市"},
+    {"id":"hulunbuir","name":"呼伦贝尔","province":"内蒙古","pinyin":"hulunbeier","initials":"hlbe","aliases":["呼伦贝尔市"],"map_query":"内蒙古自治区呼伦贝尔市"},
+    {"id":"arxan","name":"阿尔山","province":"内蒙古","pinyin":"aershan","initials":"aes","aliases":["阿尔山市"],"map_query":"内蒙古自治区兴安盟阿尔山市"},
+    {"id":"manzhouli","name":"满洲里","province":"内蒙古","pinyin":"manzhouli","initials":"mzl","aliases":["满洲里市"],"map_query":"内蒙古自治区满洲里市"},
+    {"id":"ordos","name":"鄂尔多斯","province":"内蒙古","pinyin":"eerduosi","initials":"eeds","aliases":["鄂尔多斯市"],"map_query":"内蒙古自治区鄂尔多斯市"}
+  ]
+}

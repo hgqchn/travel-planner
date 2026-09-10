@@ -15,6 +15,10 @@ install -d -m 755 "$release"
 git archive "$commit" | tar -x -C "$release"
 chmod -R a+rX "$release"
 docker build -f "$base/deployment/Dockerfile" -t "travel-planner:$tag" "$release"
+# Verify packaged imports and seed/catalog files before touching the live app.
+docker run --rm --network none --read-only --tmpfs /tmp \
+    --entrypoint python "travel-planner:$tag" -c \
+    'import server, ai_service, project_store, place_cache, backup_all; import json; from pathlib import Path; [json.loads(p.read_text()) for p in Path("/app").rglob("*.json")]; print("Image preflight passed")'
 
 previous=''
 if [ -f "$base/current.env" ]; then
