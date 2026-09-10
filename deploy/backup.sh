@@ -9,4 +9,4 @@ docker compose --env-file "$base/current.env" -f "$base/deployment/compose.yaml"
         else
             exec python server.py --backup "/backups/trip-$1.db"
         fi
-    ' sh "$stamp"
+    ' sh "$stamp" </dev/null
