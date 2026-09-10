@@ -46,6 +46,8 @@
 /opt/travel-planner/deployment/update.sh origin/main
 ```
 
+服务器无法直连 GitHub 时，可在已经推送的本地仓库执行 `git bundle create /tmp/travel-planner.bundle main`，通过 Workbench 上传到服务器，随后运行 `TRIP_GIT_BUNDLE=/tmp/travel-planner.bundle /opt/travel-planner/deployment/update.sh origin/main`。脚本验证并导入 Git 对象，仍按提交构建、备份和验收；不会更改 GitHub 远程地址。请仅上传已核对并推送的提交，完成后按需移走临时 bundle。
+
 脚本使用独占锁，依次获取代码、构建带提交标识的镜像、检查镜像内模块导入和 JSON 资源、在线备份数据库、重建容器并等待健康检查。构建或镜像预检失败不会替换正在运行的容器。重建阶段会短暂中断。
 
 本次 Docker 配置由本机单独上传到 `/opt/travel-planner/deployment`；应用更新不会自动替换这套运维配置。修改 Dockerfile、Compose 或脚本后，需要显式同步该目录再发布，避免仓库变更意外改动生产挂载和端口。

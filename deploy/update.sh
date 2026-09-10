@@ -6,7 +6,12 @@ base=/opt/travel-planner
 exec 9>"$base/deploy.lock"
 flock -n 9 || { echo 'Another deployment is running.' >&2; exit 1; }
 cd "$base/repo"
-git fetch --prune origin
+if [ -n "${TRIP_GIT_BUNDLE:-}" ]; then
+    git bundle verify "$TRIP_GIT_BUNDLE"
+    git fetch "$TRIP_GIT_BUNDLE" main:refs/remotes/origin/main
+else
+    git -c http.connectTimeout=15 -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=30 fetch --prune origin
+fi
 ref=${1:-origin/HEAD}
 commit=$(git rev-parse --verify "${ref}^{commit}")
 tag="$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:12}"
