@@ -88,16 +88,16 @@ function render(data) {
   document.querySelector("#admin-return-project").hidden = false;
   document.querySelector("#admin-current-project").textContent = `当前项目 · ${data.project.name}`;
   document.querySelector("#project-settings").elements.name.value = data.project.name;
-  for (const [kind, records] of [["cities", data.cities], ["users", data.users]]) {
-    const list = document.querySelector(`#admin-${kind}`);
+  {
+    const list = document.querySelector("#admin-users");
     list.replaceChildren();
-    for (const entry of records) {
+    for (const entry of data.users) {
       const row = node("div");
       row.className = "admin-row";
-      const label = kind === "cities" ? entry.name : entry.user_id;
+      const label = entry.user_id;
       const input = node("input");
       input.value = label;
-      input.maxLength = kind === "cities" ? 30 : 20;
+      input.maxLength = 20;
       input.setAttribute("aria-label", `修改${label}`);
       const save = node("button", "改名");
       save.className = "secondary-button";
@@ -105,9 +105,9 @@ function render(data) {
       const remove = node("button", "删除");
       remove.className = "danger-button";
       remove.disabled = busy;
-      save.onclick = () => perform(async () => render(await api(kind, "PUT", kind === "cities" ? { id: entry.id, name: input.value } : { user_id: entry.user_id, new_user_id: input.value })));
+      save.onclick = () => perform(async () => render(await api("users", "PUT", { user_id: entry.user_id, new_user_id: input.value })));
       remove.onclick = () => {
-        if (confirm(`确定从当前项目删除“${label}”吗？${kind === "users" ? "历史内容和署名会保留。" : "只有空城市可以删除。"}`)) perform(async () => render(await api(kind, "DELETE", kind === "cities" ? { id: entry.id } : { user_id: entry.user_id })));
+        if (confirm(`确定从当前项目删除“${label}”吗？历史内容和署名会保留。`)) perform(async () => render(await api("users", "DELETE", { user_id: entry.user_id })));
       };
       row.append(input, save, remove);
       list.append(row);
@@ -237,16 +237,14 @@ document.querySelector("#project-create").onsubmit = (event) => {
 };
 
 document.querySelector("#projects-refresh").onclick = () => perform(async () => renderProjects(await api("projects")));
-for (const [selector, kind] of [["#city-add", "cities"], ["#user-add", "users"]]) {
-  document.querySelector(selector).onsubmit = (event) => {
+  document.querySelector("#user-add").onsubmit = (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     perform(async () => {
-      render(await api(kind, "POST", Object.fromEntries(new FormData(form))));
+      render(await api("users", "POST", Object.fromEntries(new FormData(form))));
       form.reset();
     });
   };
-}
 document.querySelector("#admin-logout").onclick = () => perform(async () => {
   await api("session", "DELETE", {});
   content.hidden = true;

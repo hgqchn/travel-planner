@@ -886,7 +886,7 @@ function openEditor(kind, item = null) {
   dom.editConflict.hidden = true;
   dom.conflictDetails.replaceChildren();
   dom.editFields.replaceChildren(
-    ...FIELDS[kind].map((definition) => makeField(definition, item?.[definition.key])),
+    ...FIELDS[kind].map((definition) => makeField(definition, !item && kind === "itinerary" && definition.key === "date" ? (window.TripDaily?.selectedDate?.() || undefined) : item?.[definition.key])),
   );
   syncEditorTimeLock();
   dom.editDialog.showModal();

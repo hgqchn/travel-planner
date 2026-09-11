@@ -12,6 +12,7 @@ window.TripDaily = (() => {
   const scope = () => JSON.stringify([state.projectId, state.cityId, state.userId, state.projectUnlocked]);
   let dialog, content, status, current, activeScope, generation = 0, busy = false, dragged = null;
   let dayMutation = false, dateDraft = null;
+  const selectedDates = new Map();
   const e = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
   const button = (text, fn, cls = "secondary-button") => { const n = e("button", cls, text); n.type = "button"; n.addEventListener("click", fn); return n; };
   const api = async (path, body, method = "POST") => (await requestJson(path, { method, body: JSON.stringify(body) })).data;
@@ -326,6 +327,7 @@ window.TripDaily = (() => {
       await api('/api/day-plan', { city_id: cityId, date });
       if (active !== scope()) return;
       dateDraft = null;
+      selectedDates.set(active, date);
       await fetchSnapshot(true, true);
       if (active === scope()) showToast(`已新增 ${date}，可以添加地点或保留为空白日。`);
     } catch (err) {
@@ -355,6 +357,9 @@ window.TripDaily = (() => {
   function render(items) {
     if (dialog?.open && activeScope !== scope()) dialog.close();
     const dates = [...new Set([...items.map(v => v.date), ...(state.dailyPlans || []).filter(p => p.city_id === state.cityId).map(p => p.date)])].sort();
+    const previousDate = selectedDates.get(scope());
+    const selectedDate = dates.includes(previousDate) ? previousDate : (dates.find(date => date >= previousDate) || (previousDate ? dates.at(-1) : dates[0]));
+    if (selectedDate) selectedDates.set(scope(), selectedDate); else selectedDates.delete(scope());
     const wrapper = e("div", "daily-plans"), add = e("form", "daily-actions daily-day-add");
     const workflow = e("section", "daily-workflow");
     workflow.append(e("p", "daily-workflow-steps", "生成或收集 → 确认草稿 → 按天安排 → 规划路线"));
@@ -378,7 +383,29 @@ window.TripDaily = (() => {
     add.addEventListener('submit', event => { event.preventDefault(); return createDay(date.value); });
     wrapper.append(add);
     if (!dates.length) wrapper.append(e('p', 'daily-hint', '自己安排：选择日期并新增一天，再从地点清单添加。使用 AI 整体规划时，不必提前创建日期。'));
-    for (const day of dates) {
+    if (dates.length) {
+      const picker = e('nav', 'daily-day-picker'); picker.setAttribute('aria-label', '按天查看行程');
+      const index = dates.indexOf(selectedDate), field = e('label', 'daily-day-choice'), select = e('select', 'daily-day-select');
+      field.append(e('span', '', `查看行程 · 共 ${dates.length} 天`), select);
+      select.setAttribute('aria-label', '选择行程日期');
+      dates.forEach((day, i) => {
+        const count = items.filter(v => v.date === day && !v.is_backup).length;
+        const option = e('option', '', `第 ${i + 1} 天 · ${formatItineraryDate(day)} · ${count ? `${count} 项行程` : '暂未安排'}`);
+        option.value = day; select.append(option);
+      });
+      select.value = selectedDate;
+      const choose = date => {
+        if (!dates.includes(date) || (window.TripBatch && !window.TripBatch.canNavigate())) return;
+        dragged = null; selectedDates.set(scope(), date); render(items);
+        dom.cards.querySelector?.('.daily-day-select')?.focus?.({preventScroll:true});
+        dom.cards.querySelector?.('.daily-day-picker')?.scrollIntoView?.({block:'start', behavior:'smooth'});
+      };
+      select.addEventListener('change', () => choose(select.value));
+      const previous = button('← 上一天', () => choose(dates[index - 1]), 'secondary-button daily-day-step'); previous.disabled = index === 0;
+      const next = button('下一天 →', () => choose(dates[index + 1]), 'secondary-button daily-day-step'); next.disabled = index === dates.length - 1;
+      picker.append(previous, field, next); wrapper.append(picker);
+    }
+    for (const day of selectedDate ? [selectedDate] : []) {
       const visits = items.filter(v => v.date === day).sort((a,b) => a.position-b.position || a.id.localeCompare(b.id));
       const section = e("section", "itinerary-day"), heading = e("div", "itinerary-day-heading");
       heading.append(e("h3", "", formatItineraryDate(day)), button("确定当天行程", () => open(day)),
@@ -433,5 +460,5 @@ window.TripDaily = (() => {
     }
     dom.cards.replaceChildren(wrapper);
   }
-  return { blocks, options, label, render, open, openHours };
+  return { blocks, options, label, render, open, openHours, selectedDate: () => selectedDates.get(scope()) || '' };
 })();

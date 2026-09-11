@@ -53,4 +53,10 @@
 .daily-settings-card[open]>.daily-grid{margin:12px 18px}
 .daily-dialog .daily-settings-card>h3{margin:20px 18px 10px;font-size:15px;color:#365678}
 .daily-settings-card>button{margin:4px 0 16px 18px}
+.daily-day-picker{position:sticky;top:104px;z-index:5;display:flex;align-items:center;gap:16px;padding:14px 16px;border:1px solid #c6d8ed;border-radius:14px;background:#f0f6ff;box-shadow:0 4px 16px #335b8910;scroll-margin-top:112px}
+.daily-day-choice{display:grid;gap:6px;flex:1;min-width:0;color:#526c8a;font-size:12px}
+.daily-day-select{width:100%;min-height:44px;min-width:0;padding:10px 12px;border:1px solid #adc5e2;border-radius:9px;background:white;color:#284e7a;font:inherit;font-size:15px;font-weight:600}
+.daily-day-step{flex-shrink:0;min-height:44px;font-size:13px}.daily-day-step:disabled{opacity:.4;cursor:default}
+.daily-day-select:focus-visible{outline:3px solid #7397d6;outline-offset:2px}
+@media(max-width:640px){.daily-day-picker{top:88px;scroll-margin-top:96px;gap:8px;padding:12px;flex-wrap:wrap}.daily-day-choice{order:-1;flex-basis:100%}.daily-day-step{flex:1}.daily-day-select{font-size:14px}}
 @media(max-width:640px){.daily-settings-card>.daily-settings-summary{padding:14px;gap:8px;align-items:flex-start}.daily-settings-title strong{font-size:16px}.daily-settings-toggle{padding-top:3px}.daily-settings-card[open]>.daily-grid{margin:12px 14px}}

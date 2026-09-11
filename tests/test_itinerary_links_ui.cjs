@@ -116,6 +116,14 @@ test('old manual itineraries save an empty array for automatic identification', 
   assert.equal(h.names().value, ''); await h.save(); assert.deepEqual(h.requests[0].body.attraction_names, []);
 });
 
+test('new itinerary uses the selected day without changing an existing record date', () => {
+  const h=harness();h.env.window.TripDaily={selectedDate:()=> '2030-02-12'};
+  h.env.openEditor('itinerary');
+  assert.equal(h.dom.editFields.querySelector('[name="date"]').value,'2030-02-12');
+  h.env.openEditor('itinerary',{id:'i',version:1,date:'2030-03-01'});
+  assert.equal(h.dom.editFields.querySelector('[name="date"]').value,'2030-03-01');
+});
+
 test('locked editor preserves time block while saving other fields and reflects conflict locks', async () => {
   const h = harness();
   const item = {id:'i', version:1, title:'公园', time_block:'morning', block_locked:true};

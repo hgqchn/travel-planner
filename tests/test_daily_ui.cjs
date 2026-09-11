@@ -71,7 +71,7 @@ test('places in the same slot share one compact heading and retain local reorder
   const group = h.nodes().find(n => n.dataset.blockId === 'afternoon');
   assert.equal(group.children.filter(n => n.tag === 'article').length, 2);
   assert.equal(h.nodes().filter(n => n.textContent === '下午 14:00–16:00').length, 1);
-  assert.equal(h.nodes().filter(n => n.tag === 'select').length, 0);
+  assert.equal(h.nodes().filter(n => n.tag === 'select' && n.className !== 'daily-day-select').length, 0);
   assert.ok(h.cardOptions.every(options => options.showTimeBlock === false));
   await h.nodes().find(n => n.textContent === '↓ 下移').events.click();
   assert.deepEqual(h.requests[0].order, ['b', 'a']);
@@ -112,4 +112,44 @@ test('restoring a concurrently edited backup cannot overwrite it', async () => {
   const h=harness({is_backup:true});h.plan.visits[0].version++;
   await h.nodes().find(n=>n.textContent==='添加到行程中').events.click();
   assert.equal(h.requests.length,0);assert.match(h.notices[0],/已变化/);
+});
+
+test('date selection shows one day and routes actions to that day, surviving synchronization', () => {
+  const h=harness(), seen=[];
+  h.env.state.items.itinerary.push({...h.env.state.items.itinerary[0], id:'c', date:'2030-01-03'});
+  h.env.state.dailyPlans.push({city_id:'shanghai',date:'2030-01-02',settings:{}});
+  h.env.window.TripMaps={open:date=>seen.push(date)};
+  const render=()=>h.env.window.TripDaily.render(h.env.state.items.itinerary);
+  const select=()=>h.nodes().find(n=>n.className==='daily-day-select');
+  render();
+  assert.equal(select().children.length,3);
+  assert.equal(h.nodes().filter(n=>n.className==='itinerary-day').length,1);
+  assert.deepEqual(h.nodes().filter(n=>n.tag==='article').map(n=>n.dataset.visitId),['a','b']);
+  assert.equal(h.nodes().find(n=>n.textContent==='← 上一天').disabled,true);
+  h.nodes().find(n=>n.textContent==='下一天 →').events.click();
+  assert.equal(select().value,'2030-01-02');
+  assert.equal(h.nodes().filter(n=>n.tag==='article').length,0);
+  select().value='2030-01-03';select().events.change();
+  assert.deepEqual(h.nodes().filter(n=>n.tag==='article').map(n=>n.dataset.visitId),['c']);
+  h.nodes().find(n=>n.textContent==='规划路线').events.click();
+  assert.deepEqual(seen,['2030-01-03']);
+  render();assert.equal(select().value,'2030-01-03');
+  assert.equal(h.nodes().find(n=>n.textContent==='下一天 →').disabled,true);
+  assert.equal(h.requests.length,0);
+});
+
+test('date selection is scoped to city and project and falls back when its day disappears', () => {
+  const h=harness();
+  const first=h.env.state.items.itinerary;
+  h.env.state.dailyPlans.push({city_id:'shanghai',date:'2030-01-02',settings:{}});
+  const render=items=>h.env.window.TripDaily.render(items);
+  const select=()=>h.nodes().find(n=>n.className==='daily-day-select');
+  render(first); select().value='2030-01-02';select().events.change();
+  h.env.state.cityId='beijing';render([]);
+  assert.equal(select(),undefined);assert.equal(h.env.window.TripDaily.selectedDate(),'');
+  h.env.state.cityId='shanghai';render(first);assert.equal(select().value,'2030-01-02');
+  h.env.state.projectId='other';render(first);assert.equal(select().value,'2030-01-01');
+  h.env.state.projectId='main';render(first);assert.equal(select().value,'2030-01-02');
+  h.env.state.dailyPlans=h.env.state.dailyPlans.slice(0,1);render(first);
+  assert.equal(select().value,'2030-01-01');
 });

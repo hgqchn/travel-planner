@@ -51,6 +51,14 @@ test('initial snapshot updates the suggested date until the user edits it',()=>{
   h.env.state.dailyPlans=[{city_id:'shanghai',date:'2031-05-01',version:'v',settings:{}}];h.render();
   assert.equal(h.input().value,'2031-05-02');
 });
+
+test('creating a day selects it when the refreshed snapshot arrives', async()=>{
+  const h=harness();h.input().value='2030-02-12';h.input().events.input();
+  h.env.fetchSnapshot=async()=>{h.env.state.dailyPlans.push({city_id:'shanghai',date:'2030-02-12',settings:{}});h.render();};
+  await h.submit();
+  assert.equal(h.env.window.TripDaily.selectedDate(),'2030-02-12');
+  assert.equal(h.nodes().find(n=>n.className==='daily-day-select').value,'2030-02-12');
+});
 test('canceling deletion makes no request',async()=>{
   const h=harness({confirm:false});await h.remove();
   assert.equal(h.requests.length,0);assert.equal(h.refreshes(),0);
