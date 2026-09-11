@@ -290,3 +290,25 @@ dialog::backdrop { background: rgb(32 57 88 / 30%); backdrop-filter: blur(7px); 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* Make the primary planning entry visible on both desktop and mobile. */
+.ai-launch { background: linear-gradient(145deg, #1f4eac, #326fe0); border-color: #285fc3; box-shadow: 0 10px 26px #2458bd2b; }
+.ai-launch::after { border-color: #ffffff14; width: 170px; height: 170px; }
+.ai-launch strong { color: #fff; font-size: 27px; line-height: 1.35; }
+.ai-launch small { color: #e4edff; font-size: 12px; }
+.ai-launch .ai-model-credit { background: #ffffff16; color: #eef4ff; border-color: #ffffff35; }
+.ai-launch .ai-symbol { color: #2458bd; background: #fff; }
+.ai-launch-cta { display: inline-flex; align-items: center; gap: 18px; padding: 10px 16px; border-radius: 11px; background: #fff; color: #214eaa; font-size: 14px; font-weight: 700; }
+.ai-launch .ai-launch-arrow { display: none; }
+.ai-launch.has-result .ai-launch-cta { display: none; }
+.ai-launch.has-result .ai-launch-arrow { display: flex; position: static; color: #214eaa; background: #fff; }
+.ai-launch:focus-visible { outline: 3px solid #173d87; outline-offset: 4px; }
+.ai-launch:hover { background: linear-gradient(145deg, #19459e, #2865d4); border-color: #164794; box-shadow: 0 12px 30px #2458bd38; }
+@media(max-width:750px) {
+  .ai-launch { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; padding: 20px; }
+  .ai-launch strong { font-size: 22px; }
+  .ai-launch-copy { flex: 1; }
+  .ai-launch small { font-size: 12px; padding: 0; }
+  .ai-launch-cta { grid-column: 2; justify-self: start; padding: 9px 14px; }
+}
+@media(max-width:420px) { .ai-launch { padding: 16px; grid-template-columns: 34px minmax(0, 1fr); } .ai-launch strong { font-size: 20px; } }

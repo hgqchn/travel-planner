@@ -44,6 +44,21 @@ test('dropping into a slot saves the shared order and membership atomically', as
   assert.equal(h.requests[0].version, 'day1');
 });
 
+test('saved route preview is scoped to the selected day and opens its route planner', () => {
+  const h=harness(), opened=[];
+  h.env.window.TripMaps={open:day=>opened.push(day)};
+  h.env.window.TripProject={url:(path,project)=>`${path}&project=${project}`};
+  h.plan.route_preview={version:'saved-v1',planned:1,total:1,minutes:10,stops:[{number:1,name:'公园'},{number:2,name:'广场'}]};
+  h.env.window.TripDaily.render(h.env.state.items.itinerary);
+  const image=h.nodes().find(n=>n.className==='daily-route-image');
+  assert.match(image.src,/date=2030-01-01.*v=saved-v1.*project=main/);
+  h.nodes().find(n=>n.className==='daily-route-image-button').events.click();
+  assert.deepEqual(opened,['2030-01-01']);
+  h.plan.route_preview=null;
+  h.env.window.TripDaily.render(h.env.state.items.itinerary);
+  assert.equal(h.nodes().some(n=>n.className==='daily-route-image'),false);
+});
+
 test('empty slots accept a dropped place without inventing an activity', async () => {
   const h = harness(); await drop(h, 'a', 'midday');
   assert.deepEqual(h.requests[0].order, ['a', 'b']);

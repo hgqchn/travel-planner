@@ -16,7 +16,7 @@ COPY place_taxonomy.py place_taxonomy.json ./
 COPY metro_maps.py metro_sources.json ./
 COPY amap_service.py ./
 COPY scenic_catalog.py scenic_aliases.py ./
-COPY itinerary_export.py itinerary_links.py travel_guidance.py project_itinerary.py ./
+COPY itinerary_export.py itinerary_links.py travel_guidance.py project_itinerary.py route_image.py ./
 COPY resources/scenic ./resources/scenic
 COPY backup_all.py ./
 COPY public ./public

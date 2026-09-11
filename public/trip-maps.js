@@ -104,16 +104,17 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     view.candidates.querySelectorAll('button').forEach(n => { n.disabled = busy || conflicted; });
   }
   function clearLeg(leg, status = 'idle') { leg.result = null; leg.status = status; leg.error = ''; leg.departure = null; leg.source = 'reference'; }
-  function clearAssessment() { evaluated = null; candidates = []; preview = null; legs.forEach(leg => { leg.source = 'reference'; }); view.candidates.replaceChildren(); }
+  function clearAssessment() { evaluated = null; candidates = []; preview = null; view.candidates.replaceChildren(); }
   function refDeparture(i) {
     const leg = legs[i];
+    if (leg.source === 'evaluation' && leg.result) return leg.departure;
     const serverLeg = evaluated?.evaluation.legs?.find(x => x.from_ref === leg.from_ref && x.to_ref === leg.to_ref);
     if (serverLeg?.departure && Number.isFinite(serverLeg.departure.minutes)) return serverLeg.departure;
     return TripMapPlan.referenceDeparture(stops, legs, stops.findIndex(s => s.id === leg.from_ref), plan);
   }
   function reconcile() {
     legs.forEach((leg, i) => {
-      if (!leg.result || leg.mode !== 'transit') return;
+      if (!leg.result || leg.mode !== 'transit' || leg.source === 'evaluation') return;
       const next = refDeparture(i);
       if (!next || leg.departure?.minutes !== next.minutes || leg.departure?.provisional !== next.provisional || leg.departure?.context !== next.context) clearLeg(leg, 'stale');
     });
@@ -121,10 +122,13 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   function adopt(next, preserve = false) {
     cancelPick();
     if (!next || typeof next.version !== 'string' || !Array.isArray(next.visits) || !next.settings) throw new Error('每日计划返回格式无效。');
-    const oldStops = stops, oldLegs = legs, oldDate = plan?.date, selectedId = legs[selectedLeg]?.id;
+    const oldStops = stops, oldDate = plan?.date, selectedId = legs[selectedLeg]?.id;
     plan = next; stops = TripMapPlan.nodes(plan); clearAssessment();
-    legs = TripMapPlan.segments(stops, plan.settings.leg_modes || {}, preserve ? oldLegs : []);
+    if (plan.evaluation?.legs?.length) evaluated = { evaluation: plan.evaluation };
+    const savedLegs = (plan.routes || []).map(l => ({ ...l, id: TripMapPlan.pair(l.from_ref, l.to_ref) }));
+    legs = TripMapPlan.segments(stops, plan.settings.leg_modes || {}, savedLegs);
     legs.forEach(leg => {
+      if (savedLegs.some(l => l.id === leg.id)) return;
       const changed = [leg.from_ref, leg.to_ref].some(id => JSON.stringify(oldStops.find(s => s.id === id)?.poi) !== JSON.stringify(stops.find(s => s.id === id)?.poi));
       if (changed || oldDate !== next.date) clearLeg(leg);
       else leg.source = 'reference';
@@ -219,6 +223,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       busy = enabled = saving = checking = conflicted = false; preview = evaluated = null; candidates = [];
       drafts.clear();
       [view.canvas, view.list, view.timeline, view.segments, view.candidates, view.evaluation, view.summary, view.daySettings].forEach(n => n.replaceChildren());
+      if (state.projectUnlocked) fetchSnapshot(true, true).catch(() => {});
     });
   }
   function loadSDK(config) {
@@ -310,6 +315,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   function blockName(stop) { return (plan.blocks || []).find(b => b.id === stop.block)?.label || stop.block || '待安排时段'; }
   function render() {
     if (!plan) { setBusy(busy); return; }
+    const timelineScroll = view.timeline.scrollLeft;
     const done = legs.filter(l => l.result).length, total = legs.reduce((n, l) => n + (l.result ? Math.ceil(l.result.duration / 60) : 0), 0);
     view.summary.textContent = `${preview ? '候选预览 · ' : ''}${done}/${legs.length} 段已查询${done ? ` · 已查询交通约 ${total} 分钟` : ' · 交通耗时待查询'}${done < legs.length ? '（未包含待规划路段）' : ''}`;
     renderEvaluation(); view.timeline.replaceChildren(); view.segments.replaceChildren();
@@ -342,6 +348,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       for (const endpoint of [i, toIndex]) if (!stops[endpoint].poi) actions.append(nav(`确认地点 ${endpoint + 1}`, () => focusStop(endpoint)));
       panel.append(actions, el('p', leg.error ? 'trip-map-warning' : 'trip-segment-status', leg.error || legText(leg)));
       if (leg.result) {
+        if (leg.saved_at) panel.append(el('p', 'trip-map-note', `路线已保存 · ${new Date(leg.saved_at * 1000).toLocaleString()} 查询；出行前可重新规划更新耗时。`));
         if (leg.source !== 'evaluation' || leg.departure?.provisional) panel.append(el('p', 'trip-map-note', '单段参考，不代表完整日程可行。'));
         const details = el('details'); details.append(el('summary', '', '查看路线与换乘说明'));
         (leg.result.instructions || []).forEach(text => details.append(el('p', '', text))); panel.append(details);
@@ -351,6 +358,14 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       view.segments.append(panel);
     });
     if (!legs.length) view.segments.append(el('p', 'trip-map-note', '至少添加两个具体地点后即可规划路段。'));
+    view.timeline.scrollLeft = timelineScroll;
+    const active = view.timeline.querySelectorAll('.trip-overview-leg')[selectedLeg];
+    if (active?.getBoundingClientRect && view.timeline.clientWidth) {
+      const left = active.getBoundingClientRect().left - view.timeline.getBoundingClientRect().left + view.timeline.scrollLeft;
+      if (left < view.timeline.scrollLeft) view.timeline.scrollLeft = left;
+      else if (left + active.offsetWidth > view.timeline.scrollLeft + view.timeline.clientWidth)
+        view.timeline.scrollLeft = left + active.offsetWidth - view.timeline.clientWidth;
+    }
     drawMap(); setBusy(busy);
   }
   function renderStops(selected = null) {
@@ -397,13 +412,16 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     if (!from.poi || !to.poi) throw new Error('请先确认本段两端的具体地点。');
     const departure = TripMapPlan.referenceDeparture(stops, legs, stops.indexOf(from), plan);
     if (!departure) throw new Error('请先填写出发地点的建议停留分钟。');
+    const previousDuration = leg.result?.duration;
     clearLeg(leg); leg.status = 'loading'; reconcile(); render();
-    const date = new Date(`${day}T00:00:00Z`); date.setUTCMinutes(departure.minutes);
     try {
-      const result = await mapRequest('route', { mode: leg.mode, origin: from.poi.location, destination: to.poi.location,
-        date: date.toISOString().slice(0, 10), time: date.toISOString().slice(11, 16) });
+      const saved = await dayRequest('POST', '/route', { from_ref: leg.from_ref, to_ref: leg.to_ref, departure });
       if (!valid(token)) return false;
-      leg.result = result; leg.status = 'ready'; leg.departure = departure; leg.source = 'reference'; reconcile(); render(); return true;
+      Object.assign(leg, saved);
+      if (previousDuration !== leg.result.duration) legs.slice(index + 1).forEach(l => { if (l.mode === 'transit') clearLeg(l, 'stale'); });
+      plan.evaluation = null;
+      plan.routes = [...(plan.routes || []).filter(l => l.from_ref !== leg.from_ref || l.to_ref !== leg.to_ref), saved];
+      reconcile(); render(); return true;
     } catch (error) { if (valid(token)) { leg.status = 'error'; leg.error = error.message; render(); } throw error; }
   }
   async function calculate(index) {
@@ -412,8 +430,8 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     try {
       message(`正在规划第 ${index + 1} 段…`);
       await queryLeg(index, token);
-      if (valid(token)) message('本段路线已更新，地图和行程条已同步。点击其他行程或路段继续规划。');
-    } catch (error) { if (valid(token)) message(error.message); }
+      if (valid(token)) message('本段路线已自动保存，重新打开仍可查看。点击其他行程或路段继续规划。');
+    } catch (error) { if (valid(token)) { if (error.status === 409) markConflict(); else message(error.message); } }
     finally { if (valid(token)) setBusy(false); }
   }
   function showCandidate(candidate, isPreview) {

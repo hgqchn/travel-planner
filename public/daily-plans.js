@@ -108,6 +108,7 @@ window.TripDaily = (() => {
       status.textContent = "返回地点已设为出发地点，点击保存每日设置后生效。";
     }));
     preferences.append(e("h3", "", "时间与休息"));
+    preferences.append(e("p", "daily-hint", "这些设置用于“规划路线 → 全天预算与顺序优化 → 核算全天”：计算交通缓冲、用餐休息和剩余机动时间，检查当天是否排得下。保存设置不会自动重排行程。"));
     const grid = e("div", "daily-grid"); preferences.append(grid);
     const start = field(grid, "当天开始", "time", draft.start_time), end = field(grid, "返回终点前结束", "time", draft.end_time);
     const paceLabel = e("label", "field"), pace = e("select");
@@ -421,6 +422,24 @@ window.TripDaily = (() => {
       dayMore.append(remove);
       const summary = daily?.evaluation;
       if (summary) section.append(e("p", "daily-hint", summary.route_status === "stale" ? "路线核算已过期，请重新核算。" : `交通约 ${summary.travel_minutes} 分钟 · 缓冲 ${summary.buffer_minutes} 分钟 · ${summary.slack_minutes == null ? "余量待核算" : `机动余量 ${summary.slack_minutes} 分钟`}`));
+      const route = daily?.route_preview;
+      if (route) {
+        const card = e('section','daily-route-preview'), header = e('div','daily-route-heading');
+        header.append(e('h4','','当天路线'), e('span','daily-route-count',`已保存 ${route.planned}/${route.total} 段 · 交通约 ${route.minutes} 分钟`));
+        const imageButton = button('', () => window.TripMaps?.open(day), 'daily-route-image-button');
+        imageButton.setAttribute('aria-label', `查看或调整 ${day} 的已保存路线`);
+        const image = e('img','daily-route-image');
+        image.width=1000; image.height=600; image.loading='lazy'; image.decoding='async';
+        image.alt=`${day} 已保存路线轨迹图，地点编号见下方清单`;
+        image.src=window.TripProject.url(`/api/day-plan/route.png?city_id=${encodeURIComponent(state.cityId)}&date=${encodeURIComponent(day)}&v=${encodeURIComponent(route.version)}`,state.projectId);
+        const note=e('p','daily-hint',`点击路线图可查看或调整。北向上，无街道底图；${route.planned<route.total || route.incomplete ? '部分路段尚未规划或轨迹不完整。' : '耗时为规划时参考。'}`);
+        image.addEventListener('error',()=>{ image.hidden=true; note.textContent='路线图暂时无法加载，点击下方按钮查看或重新规划。'; });
+        imageButton.append(image);
+        const places=e('div','daily-route-places');
+        route.stops.forEach(stop=>places.append(e('span','daily-route-place',`${stop.number}. ${stop.name}`)));
+        card.append(header,imageButton,places,note,button('查看 / 调整路线',()=>window.TripMaps?.open(day)));
+        section.append(card);
+      }
       const groups = [...(visits.some(v => groupId(v) === "") ? [["", "待安排", "", ""]] : []), ...blocks,
         ...(visits.some(v => v.is_backup) ? [["backup", "备选行程", "", ""]] : [])];
       for (const [id, name, start, end] of groups) {

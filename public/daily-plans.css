@@ -60,3 +60,14 @@
 .daily-day-select:focus-visible{outline:3px solid #7397d6;outline-offset:2px}
 @media(max-width:640px){.daily-day-picker{top:88px;scroll-margin-top:96px;gap:8px;padding:12px;flex-wrap:wrap}.daily-day-choice{order:-1;flex-basis:100%}.daily-day-step{flex:1}.daily-day-select{font-size:14px}}
 @media(max-width:640px){.daily-settings-card>.daily-settings-summary{padding:14px;gap:8px;align-items:flex-start}.daily-settings-title strong{font-size:16px}.daily-settings-toggle{padding-top:3px}.daily-settings-card[open]>.daily-grid{margin:12px 14px}}
+
+.daily-route-preview { grid-column: 1 / -1; min-width: 0; margin: 16px 0 22px; padding: 18px; border: 1px solid #d8e5f5; border-radius: 18px; background: #f7faff; }
+.daily-route-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.daily-route-heading h4 { margin: 0; font-size: 17px; color: #203d68; }
+.daily-route-count { font-size: 12px; color: #4b6585; }
+.daily-route-image-button { display: block; width: 100%; padding: 0; overflow: hidden; border: 1px solid #e1e8f1; border-radius: 12px; background: #f7f9fc; cursor: zoom-in; }
+.daily-route-image { display: block; width: 100%; height: auto; max-height: 390px; object-fit: contain; }
+.daily-route-places { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.daily-route-place { padding: 5px 9px; border-radius: 8px; background: white; color: #29476f; font-size: 12px; }
+.daily-route-image-button:focus-visible { outline: 3px solid #2b6ad2; outline-offset: 3px; }
+@media(max-width:600px) { .daily-route-preview { padding: 12px; } .daily-route-heading { align-items: flex-start; flex-direction: column; } }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import daily_planner
+from route_image import route_map
 
 import io
 import math
@@ -74,7 +75,7 @@ def package(parts: dict, content_types: dict, main: str) -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for path, xml in parts.items():
-            archive.writestr(path, (XML_DECL + xml).encode('utf-8'))
+            archive.writestr(path, xml if isinstance(xml,bytes) else (XML_DECL + xml).encode('utf-8'))
     return output.getvalue()
 
 
@@ -127,6 +128,7 @@ def daily_summary(plan):
 
 
 def build_docx(data: dict) -> bytes:
+    images = {}
     body = [paragraph(f'{data["project_name"]} 行程安排', 'Title')]
     body.extend(paragraph(f'{label}：{value}') for label, value in overview(data))
     if data.get('travel_guidance'):
@@ -143,6 +145,16 @@ def build_docx(data: dict) -> bytes:
         for plan in data.get('daily_plans',[]):
             if plan['date']==day:
                 body.extend(paragraph(line) for line in daily_summary(plan))
+                mapped = route_map(plan)
+                if mapped:
+                    png, legend = mapped
+                    number = len(images)+1; image_path = f'word/media/route{number}.png'
+                    images[image_path] = png
+                    rid = f'rId{len(rels)+1}'; rels.append((rid,'image',f'media/route{number}.png',False))
+                    body.append(paragraph(f"{plan.get('city_name','')} · 已保存路线图",'Heading2'))
+                    body.append(paragraph('按已保存高德轨迹绘制，北向上，无街道底图；仅展示已规划路段，耗时为规划时参考。'))
+                    body.append(word_picture(rid,number))
+                    body.extend(paragraph(line) for line in legend)
         for item in entries:
             body.append(paragraph(f'{daily_planner.block_label(item) if item.get("plan_version")==2 else item.get("start_time") or "时间待定"}  {item["title"]}', 'Heading2'))
             details = [f'城市：{item["city_name"]}']
@@ -184,11 +196,28 @@ def build_docx(data: dict) -> bytes:
         'word/_rels/document.xml.rels': relationships(rels),
         'word/footer1.xml': f'<w:ftr xmlns:w="{WORD}"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>' + word_runs('第 ') + '<w:fldSimple w:instr="PAGE"><w:r><w:t>1</w:t></w:r></w:fldSimple>' + word_runs(' 页') + '</w:p></w:ftr>',
     }
+    parts.update(images)
     return package(parts, {
+        **{name:'image/png' for name in images},
         'word/document.xml': MIME_TYPES['docx'] + '.main+xml',
         'word/styles.xml': 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml',
         'word/footer1.xml': 'application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml',
     }, 'word/document.xml')
+
+
+def picture(rid, number):
+    return (f'<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="{REL}">'
+            f'<pic:nvPicPr><pic:cNvPr id="{number}" name="路线图 {number}" descr="已保存路线轨迹与地点编号"/><pic:cNvPicPr/></pic:nvPicPr>'
+            f'<pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="6000000" cy="3600000"/></a:xfrm>'
+            '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>')
+
+
+def word_picture(rid, number):
+    return ('<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">'
+            f'<wp:extent cx="6000000" cy="3600000"/><wp:docPr id="{number}" name="路线图 {number}" descr="已保存路线轨迹与地点编号"/>'
+            '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            +picture(rid,number)+'</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>')
 
 
 def spreadsheet_text(value) -> str:
@@ -301,4 +330,34 @@ def build_xlsx(data: dict) -> bytes:
             ('rId4', 'worksheet', 'worksheets/sheet3.xml', False),
         ])
         content_types['xl/worksheets/sheet3.xml'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'
+    maps = [(plan,route_map(plan)) for plan in data.get('daily_plans',[])]
+    maps = [(plan,mapped) for plan,mapped in maps if mapped]
+    if maps:
+        sheet_number = 4 if data.get('travel_guidance') else 3
+        sheet_path = f'xl/worksheets/sheet{sheet_number}.xml'
+        parts['xl/workbook.xml'] = parts['xl/workbook.xml'].replace('</sheets>',f'<sheet name="路线图" sheetId="{sheet_number}" r:id="rIdRoutes"/></sheets>')
+        extra = relationships([('rIdRoutes','worksheet',f'worksheets/sheet{sheet_number}.xml',False)]).split('>',1)[1].removesuffix('</Relationships>')
+        parts['xl/_rels/workbook.xml.rels'] = parts['xl/_rels/workbook.xml.rels'].replace('</Relationships>',extra+'</Relationships>')
+        rows, anchors, image_rels = [], [], []
+        row = 1
+        for number,(plan,(png,legend)) in enumerate(maps,1):
+            rows.append(f'<row r="{row}" ht="30" customHeight="1">'+cell(f'A{row}',f"{plan.get('city_name','')} {plan['date']} · 已保存路线图",1)+'</row>')
+            row += 1
+            rows.append(f'<row r="{row}" ht="36" customHeight="1">'+cell(f'A{row}','北向上，无街道底图；仅展示已规划路段，耗时为规划时参考。')+'</row>')
+            anchors.append(f'<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="6000000" cy="3600000"/>'
+                           +picture(f'rId{number}',number).replace('pic:','xdr:').replace('xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"','')+'<xdr:clientData/></xdr:oneCellAnchor>')
+            row += 12
+            for line in legend:
+                values = [line]
+                rows.append(f'<row r="{row}" ht="{row_height(values,[110])}" customHeight="1">'+cell(f'A{row}',line)+'</row>'); row+=1
+            row+=2
+            path=f'xl/media/route{number}.png'; parts[path]=png; content_types[path]='image/png'
+            image_rels.append((f'rId{number}','image',f'../media/route{number}.png',False))
+        parts[sheet_path]=worksheet(rows,[110]).replace('<dimension ', '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ').replace('</worksheet>',
+            '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><drawing r:id="rIdDrawing"/></worksheet>')
+        parts[f'xl/worksheets/_rels/sheet{sheet_number}.xml.rels']=relationships([('rIdDrawing','drawing','../drawings/routes.xml',False)])
+        parts['xl/drawings/routes.xml']='<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">'+''.join(anchors)+'</xdr:wsDr>'
+        parts['xl/drawings/_rels/routes.xml.rels']=relationships(image_rels)
+        content_types[sheet_path]='application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'
+        content_types['xl/drawings/routes.xml']='application/vnd.openxmlformats-officedocument.drawing+xml'
     return package(parts, content_types, 'xl/workbook.xml')

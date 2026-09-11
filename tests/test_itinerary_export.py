@@ -20,7 +20,7 @@ from test_server import RunningServer, TEST_ADMIN_PASSWORD, json_request, opener
 def xml_parts(body):
     with zipfile.ZipFile(io.BytesIO(body)) as archive:
         assert archive.testzip() is None
-        return {name: ET.fromstring(archive.read(name)) for name in archive.namelist()}
+        return {name: ET.fromstring(archive.read(name)) for name in archive.namelist() if not name.endswith('.png')}
 
 
 def content(body):
@@ -50,6 +50,21 @@ class ExportFormatTests(unittest.TestCase):
         self.assertGreater(len(doc.findall('.//w:tab', ns)), 0)
         links = [node.attrib['Target'] for node in parts['word/_rels/document.xml.rels'] if node.attrib['Type'].endswith('/hyperlink')]
         self.assertEqual(links, ['https://example.com/?a=1&b=2'])
+
+    def test_saved_route_png_is_embedded_in_both_office_formats(self):
+        import daily_planner
+        self.data['daily_plans']=[dict(city_name='上海',date='2026-10-01',settings=daily_planner.defaults(),visits=[
+            dict(id='a',title='起点公园',poi=dict(location='121.1,31.1')),
+            dict(id='b',title='终点广场',poi=dict(location='121.2,31.2'))],routes=[dict(from_ref='a',to_ref='b',mode='walking',result=dict(
+                duration=600,parts=[[[121.1,31.1],[121.15,31.12],[121.2,31.2]]],instructions=['沿河向北步行']))])]
+        for builder in (export.build_docx,export.build_xlsx):
+            body=builder(self.data); parts=xml_parts(body)
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                images=[name for name in archive.namelist() if name.endswith('.png')]
+                self.assertEqual(len(images),1)
+                self.assertTrue(archive.read(images[0]).startswith(b'\x89PNG'))
+            self.assertIn('沿河向北步行',content(body))
+            self.assertTrue(any(node.attrib.get('Type','').endswith('/image') for root in parts.values() for node in root.iter()))
 
     def test_excel_typed_dates_times_and_formula_like_text(self):
         parts = xml_parts(export.build_xlsx(self.data))

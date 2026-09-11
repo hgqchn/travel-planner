@@ -14,7 +14,7 @@ function harness(options = {}) {
     set textContent(value) { this.text = String(value); this.children = []; }
     get textContent() { return (this.text || '') + this.children.map(n => n.textContent).join(''); }
     append(...nodes) { this.children.push(...nodes); }
-    replaceChildren(...nodes) { this.children = nodes; this.text = ''; }
+    replaceChildren(...nodes) { this.children = nodes; this.text = ''; this.scrollLeft = 0; }
     setAttribute(name, value) { this.attrs[name] = value; if (name === 'class') this.className = value; if (name === 'value') this.value = value; }
     getAttribute(name) { return this.attrs[name] ?? null; }
     addEventListener(name, fn) { this.events[name] = fn; }
@@ -81,6 +81,7 @@ function harness(options = {}) {
         assert.equal(payload.version, document.version);
         for (const update of payload.updates || []) Object.assign(document.visits.find(v=>v.id===update.id),update.changes);
         Object.assign(document.settings,payload.settings || {});
+        document.routes = [];
         document.version = 'v'+(Number(document.version.slice(1))+1); return {data:clone(document)};
       }
       if (url.endsWith('/evaluate')) {
@@ -98,6 +99,13 @@ function harness(options = {}) {
       }
       if (url.endsWith('config')) return { data: { enabled: true, max_stops: 12 } };
       if (url.endsWith('search')) return { data: { places: [{ name: payload.keywords, address: '上海', location: `121.${payload.keywords === '甲' ? 1 : payload.keywords === '乙' ? 2 : 3},31` }] } };
+      if (url === '/api/day-plan/route') {
+        const mode = document.settings.leg_modes[JSON.stringify([payload.from_ref,payload.to_ref])] || 'transit';
+        const result = await handler({ ...payload, mode });
+        const saved = {from_ref:payload.from_ref,to_ref:payload.to_ref,departure:payload.departure,mode,result,status:'ready',source:'reference',saved_at:Date.now()/1000};
+        document.routes = [...(document.routes || []).filter(l=>l.from_ref!==saved.from_ref), saved];
+        return {data:clone(saved)};
+      }
       return { data: await handler(payload) };
     } };
   vm.createContext(env); vm.runInContext(fs.readFileSync('public/trip-maps.js', 'utf8'), env);
@@ -129,6 +137,19 @@ test('shared node loading ignores backups and old HH:MM, while each leg defaults
   assert.doesNotMatch(h.get('.trip-map-timeline').textContent,/07:00|09:00/);
 });
 
+test('route timeline retains horizontal position and saved geometry survives closing and reopening', async () => {
+  const h=harness(); await h.open(); await h.confirm(0); await h.confirm(1);
+  const timeline=h.get('.trip-map-timeline'); timeline.scrollLeft=340;
+  await h.click(h.panel(0),'规划本段路线');
+  assert.equal(timeline.scrollLeft,340);
+  const count=h.routes().length;
+  h.get('dialog').close(); await h.open();
+  assert.equal(h.routes().length,count);
+  assert.match(h.panel(0).textContent,/约 10 分钟/);
+  assert.ok(h.maps.at(-1).overlays.some(n=>n.options.path));
+  assert.match(h.panel(0).textContent,/路线已保存/);
+});
+
 test('map endpoints stage coordinates, cancel without saving, then save and query cycling', async () => {
   const h = harness(); await h.open();
   const point = (lng, lat) => h.maps[0].events.click({lnglat:{getLng:()=>lng,getLat:()=>lat}});
@@ -146,9 +167,9 @@ test('map endpoints stage coordinates, cancel without saving, then save and quer
   assert.equal(h.document.visits[0].poi.location, '121.100000,31.000000');
   assert.equal(h.document.visits[1].poi.location, '121.200000,31.000000');
   await h.click(h.panel(0),'骑行'); await h.click(h.panel(0),'规划本段路线');
-  assert.equal(h.routes().at(-1).payload.mode,'bicycling');
-  assert.equal(h.routes().at(-1).payload.origin,'121.100000,31.000000');
-  assert.equal(h.routes().at(-1).payload.destination,'121.200000,31.000000');
+  assert.equal(h.document.routes[0].mode,'bicycling');
+  assert.equal(h.routes().at(-1).payload.from_ref,'0');
+  assert.equal(h.routes().at(-1).payload.to_ref,'1');
   assert.match(h.get('.trip-map-timeline').textContent,/约 10 分钟/);
   assert.ok(h.maps[0].overlays.some(n=>n.options.path));
   await h.click(h.get('.trip-map-stops'), '地图选择终点'); point(121.3,31);
@@ -185,7 +206,7 @@ test('mode changes save a directed stable pair and independently query without t
   const h=harness(); await h.open(); await h.confirm(0); await h.confirm(1);
   await h.click(h.panel(0),'步行');
   assert.equal(h.document.settings.leg_modes['["0","1"]'],'walking'); assert.equal(h.routes().length,0); await h.click(h.panel(0),'规划本段路线'); assert.equal(h.routes().length,1);
-  assert.equal(h.routes()[0].payload.mode,'walking'); assert.match(h.summary(),/1\/2.*未包含/);
+  assert.equal(h.document.routes[0].mode,'walking'); assert.match(h.summary(),/1\/2.*未包含/);
   assert.match(h.get('.trip-map-evaluation').textContent,/分段路线参考/);
 });
 test('independent result never replaces full server feasibility, even if all routes exist', async () => {

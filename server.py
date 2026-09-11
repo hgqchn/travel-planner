@@ -928,7 +928,12 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
         daily_plans = []
         for day_city, day_date in sorted(day_keys):
             plan = daily_plan_store.read(db,day_city,day_date)
-            daily_plans.append({k:v for k,v in plan.items() if k not in {'visits','blocks'}})
+            summary = {k:v for k,v in plan.items() if k not in {'visits','blocks','routes'}}
+            import route_image
+            summary['route_preview'] = route_image.preview(plan)
+            if summary.get('evaluation'):
+                summary['evaluation'] = {k:v for k,v in summary['evaluation'].items() if k!='legs'}
+            daily_plans.append(summary)
         omitted = {}
         guidance = travel_guidance.read(db, city_id)
         project_plan = project_itinerary.overview(
@@ -2113,6 +2118,30 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(200, admin_state(self.db_path))
                 return
             self.require_project_access()
+            if path == '/api/day-plan/route.png':
+                authenticate(self.db_path, self.session_token())
+                query = parse_qs(urlparse(self.path).query)
+                plan = daily_plan_store.get(sys.modules[__name__], self.db_path, query.get('city_id',[''])[0], query.get('date',[''])[0])
+                import route_image
+                preview = route_image.preview(plan)
+                if not preview:
+                    raise ApiError(404, '当天还没有已保存的路线图。')
+                etag = '"route-' + preview['version'] + '"'
+                unchanged = self.headers.get('If-None-Match') == etag
+                mapped = None if unchanged else route_image.route_map(plan)
+                if not unchanged and not mapped:
+                    raise ApiError(404, '当天没有可显示的路线轨迹。')
+                self.send_response(304 if unchanged else 200)
+                self.send_header('Content-Type','image/png')
+                self.send_header('Cache-Control','private, no-cache')
+                self.send_header('Vary','Cookie, X-Trip-Project')
+                self.send_header('ETag',etag)
+                if mapped:
+                    self.send_header('Content-Length',str(len(mapped[0])))
+                self.end_headers()
+                if mapped:
+                    self.wfile.write(mapped[0])
+                return
             if path == '/api/day-plan':
                 authenticate(self.db_path, self.session_token())
                 query = parse_qs(urlparse(self.path).query)
@@ -2240,6 +2269,11 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.enforce_rate_limit('write')
                 user_id = authenticate(self.db_path, self.session_token())
                 self.send_json(201, daily_plan_store.change_day(sys.modules[__name__], self.db_path, self.read_json(), user_id))
+                return
+            if path == '/api/day-plan/route':
+                self.enforce_rate_limit('write')
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, daily_plan_store.save_route(sys.modules[__name__], self.db_path, self.read_json(), user_id, self.server.amap_service))
                 return
             if path in ('/api/day-plan/evaluate', '/api/day-plan/apply'):
                 self.enforce_rate_limit('write')

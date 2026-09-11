@@ -19,6 +19,9 @@ def dumps(value):
 
 
 def ensure_schema(db):
+    db.execute('''CREATE TABLE IF NOT EXISTS day_routes (
+        city_id TEXT NOT NULL, date TEXT NOT NULL, edge TEXT NOT NULL,
+        context TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(city_id,date,edge))''')
     db.execute('''CREATE TABLE IF NOT EXISTS day_plans (
         city_id TEXT NOT NULL REFERENCES cities(id) ON DELETE CASCADE,
         date TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, payload TEXT NOT NULL,
@@ -78,12 +81,97 @@ def read(db, city_id, date):
     if evaluation_row:
         evaluation=json.loads(evaluation_row['payload'])
         evaluation['evaluated_at']=evaluation_row['evaluated_at']
+        if evaluation_row['version']!=version:
+            evaluation.pop('legs',None)
         if evaluation_row['version']!=version or time.time()-evaluation_row['evaluated_at']>900:
             evaluation['route_status']='stale'
             evaluation['time_fit']='unknown'
             evaluation['slack_minutes']=None
-    return {'city_id': city_id, 'date': date, 'version': version, 'settings': settings,
+    plan = {'city_id': city_id, 'date': date, 'version': version, 'settings': settings,
             'visits': visits, 'blocks': planner.BLOCKS, 'evaluation':evaluation}
+    plan['routes'] = []
+    for saved in db.execute('SELECT * FROM day_routes WHERE city_id=? AND date=?', (city_id,date)):
+        leg = json.loads(saved['payload'])
+        if saved['context'] == route_context(plan, leg['from_ref'], leg['to_ref']):
+            plan['routes'].append(leg)
+    if evaluation and evaluation.get('legs'):
+        existing = {(l['from_ref'],l['to_ref']) for l in plan['routes']}
+        plan['routes'].extend(dict(l,source='evaluation',saved_at=evaluation['evaluated_at']) for l in evaluation['legs']
+                              if l.get('result') and (l['from_ref'],l['to_ref']) not in existing)
+    return plan
+
+
+def route_nodes(plan):
+    nodes = [v for v in plan['visits'] if not v['is_backup']]
+    for key, ref, first in [('start_anchor','@start',True),('end_anchor','@end',False)]:
+        if plan['settings'][key]:
+            anchor = dict(id=ref, poi=plan['settings'][key], duration_minutes=0, visit_kind='anchor', time_block='')
+            nodes.insert(0, anchor) if first else nodes.append(anchor)
+    return nodes
+
+
+def route_context(plan, from_ref, to_ref):
+    nodes = route_nodes(plan)
+    moving = [v for v in nodes if not (v['visit_kind']=='rest' and not v.get('poi'))]
+    pairs = [(a['id'], b['id']) for a,b in zip(moving,moving[1:])]
+    if (from_ref,to_ref) not in pairs:
+        return None
+    edge = planner.edge_key(from_ref,to_ref)
+    mode = plan['settings']['leg_modes'].get(edge,'transit')
+    end = next(i for i,v in enumerate(nodes) if v['id']==to_ref)
+    relevant = nodes[:end+1] if mode=='transit' else [v for v in nodes if v['id'] in (from_ref,to_ref)]
+    fields = ('id','poi','duration_minutes','time_block','visit_kind','opening_start','opening_end','opening_source','block_locked') if mode=='transit' else ('id','poi')
+    settings = {k:v for k,v in plan['settings'].items() if k not in ('leg_modes','order_mode')} if mode=='transit' else {}
+    if mode=='transit':
+        settings['meal_blocks'] = [v['time_block'] for v in nodes if v['visit_kind']=='meal']
+    modes = [plan['settings']['leg_modes'].get(planner.edge_key(a,b),'transit') for a,b in pairs[:pairs.index((from_ref,to_ref))+1]] if mode=='transit' else [mode]
+    return dumps([plan['date'], settings, modes, [{k:v.get(k) for k in fields} for v in relevant]])
+
+
+def save_route(s, db_path, data, user_id, amap):
+    if not isinstance(data,dict) or set(data)-{'city_id','date','version','from_ref','to_ref','departure'}:
+        raise s.ApiError(400,'路段请求格式无效。')
+    plan = get(s,db_path,data.get('city_id'),data.get('date'))
+    if data.get('version') != plan['version']:
+        raise s.ApiError(409,'当天安排已变化，请载入最新版后规划。')
+    a,b = data.get('from_ref'),data.get('to_ref')
+    context = route_context(plan,a,b)
+    if context is None:
+        raise s.ApiError(400,'请选择当前日计划的相邻路段。')
+    nodes = route_nodes(plan)
+    source,target = [next(v for v in nodes if v['id']==ref) for ref in (a,b)]
+    if not source.get('poi') or not target.get('poi'):
+        raise s.ApiError(400,'请先确认两端地点。')
+    departure = data.get('departure')
+    if not isinstance(departure,dict) or type(departure.get('minutes')) is not int or not 0<=departure['minutes']<=10080:
+        raise s.ApiError(400,'出发时间无效。')
+    departure = {k:departure[k] for k in ('minutes','provisional','context') if k in departure}
+    edge = planner.edge_key(a,b)
+    mode = plan['settings']['leg_modes'].get(edge,'transit')
+    when = dt.datetime.combine(dt.date.fromisoformat(plan['date']),dt.time())+dt.timedelta(minutes=departure['minutes'])
+    with s.connect_db(db_path) as db:
+        city = db.execute('SELECT name FROM cities WHERE id=?',(plan['city_id'],)).fetchone()['name']
+    result = amap.route(dict(origin=source['poi']['location'],destination=target['poi']['location'],mode=mode,
+                             date=when.date().isoformat(),time=when.strftime('%H:%M')),city)
+    leg = dict(from_ref=a,to_ref=b,mode=mode,result=result,status='ready',error='',departure=departure,
+               source='reference',saved_at=time.time())
+    with s.connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        current = read(db,plan['city_id'],plan['date'])
+        if current['version']!=plan['version'] or dumps(current['routes'])!=dumps(plan['routes']):
+            raise s.ApiError(409,'规划期间当天安排已变化，请重新规划。')
+        # A changed earlier duration changes subsequent transit departures.
+        later = {v['id'] for v in nodes[nodes.index(target):]}
+        previous = next((l for l in plan['routes'] if (l['from_ref'],l['to_ref'])==(a,b)),None)
+        duration_changed = not previous or previous['result']['duration'] != result['duration']
+        for row in db.execute('SELECT * FROM day_routes WHERE city_id=? AND date=?',(plan['city_id'],plan['date'])).fetchall():
+            old = json.loads(row['payload'])
+            if duration_changed and old['mode']=='transit' and old['from_ref'] in later:
+                db.execute('DELETE FROM day_routes WHERE city_id=? AND date=? AND edge=?',(plan['city_id'],plan['date'],row['edge']))
+        db.execute('INSERT OR REPLACE INTO day_routes VALUES(?,?,?,?,?)',(plan['city_id'],plan['date'],edge,context,dumps(leg)))
+        db.execute('DELETE FROM day_evaluations WHERE city_id=? AND date=?',(plan['city_id'],plan['date']))
+        s.next_revision(db)
+    return leg
 
 
 def get(s, db_path, city_id, date):
@@ -118,6 +206,7 @@ def change_day(s, db_path, data, user_id, *, delete=False):
                     db.execute("DELETE FROM items WHERE id=? AND city_id=? AND kind='itinerary'", (visit['id'],city_id))
                 db.execute('DELETE FROM day_plans WHERE city_id=? AND date=?', (city_id,date))
                 db.execute('DELETE FROM day_evaluations WHERE city_id=? AND date=?', (city_id,date))
+                db.execute('DELETE FROM day_routes WHERE city_id=? AND date=?', (city_id,date))
                 # Keep stale settings/AI drafts invalid even if this date is recreated.
                 db.execute('''INSERT INTO day_plan_epochs VALUES(?,?,1)
                     ON CONFLICT(city_id,date) DO UPDATE SET epoch=day_plan_epochs.epoch+1''', (city_id,date))
@@ -250,6 +339,24 @@ def save(s, db_path, data, user_id, receipt=None):
         raise s.ApiError(400,str(exc)) from None
 
 
+def evaluation_summary(evaluation):
+    summary = dict(evaluation)
+    summary['leg_summaries'] = [dict(from_ref=l['from_ref'],to_ref=l['to_ref'],mode=l['mode'],
+        duration_minutes=__import__('math').ceil(l['result']['duration']/60) if l['result'] else None,
+        status=l['status']) for l in evaluation['legs']]
+    return summary
+
+
+def persist_evaluated_routes(db, plan, evaluation):
+    db.execute('DELETE FROM day_routes WHERE city_id=? AND date=?',(plan['city_id'],plan['date']))
+    for leg in evaluation['legs']:
+        context=route_context(plan,leg['from_ref'],leg['to_ref'])
+        if leg.get('result') and context:
+            saved=dict(leg,source='evaluation',saved_at=time.time())
+            db.execute('INSERT OR REPLACE INTO day_routes VALUES(?,?,?,?,?)',
+                (plan['city_id'],plan['date'],planner.edge_key(leg['from_ref'],leg['to_ref']),context,dumps(saved)))
+
+
 def evaluate(s, db_path, data, user_id, amap):
     if not isinstance(data,dict) or type(data.get('optimize',False)) is not bool:
         raise s.ApiError(400,'路线评估请求无效。')
@@ -272,17 +379,15 @@ def evaluate(s, db_path, data, user_id, amap):
     current = get(s,db_path,plan['city_id'],plan['date'])
     if current['version']!=plan['version']:
         raise s.ApiError(409,'计算期间当天安排已变化，已丢弃旧结果。')
-    # Store only derived schedule summaries, not provider POI responses or polylines.
-    summary={k:v for k,v in candidates[0]['evaluation'].items() if k!='legs'}
-    summary['leg_summaries']=[{'from_ref':l['from_ref'],'to_ref':l['to_ref'],'mode':l['mode'],
-                              'duration_minutes':__import__('math').ceil(l['result']['duration']/60) if l['result'] else None,
-                              'status':l['status']} for l in candidates[0]['evaluation']['legs']]
+    # Keep the saved-order geometry for reopening and offline exports.
+    summary=evaluation_summary(candidates[0]['evaluation'])
     with s.connect_db(db_path) as db:
         db.execute('BEGIN IMMEDIATE')
         if read(db,plan['city_id'],plan['date'])['version']!=plan['version']:
             raise s.ApiError(409,'计划已变化，请重新核算。')
         db.execute('INSERT OR REPLACE INTO day_evaluations VALUES(?,?,?,?,?)',
                    (plan['city_id'],plan['date'],plan['version'],time.time(),dumps(summary)))
+        persist_evaluated_routes(db,plan,summary)
         s.next_revision(db)
     with _lock:
         now = time.monotonic()
@@ -317,13 +422,24 @@ def apply(s, db_path, data, user_id):
     ev = record['candidate']['evaluation']
     if ev['constraint_status']=='conflict':
         raise s.ApiError(400,'候选与锁定条件冲突，请先调整约束。')
-    return save(s,db_path,{'city_id':old['city_id'],'date':old['date'],'version':old['version'],
+    saved = save(s,db_path,{'city_id':old['city_id'],'date':old['date'],'version':old['version'],
                           'order':ids+remainder,'settings':{'order_mode':'optimized'}},user_id)
+    with s.connect_db(db_path) as db:
+        db.execute('BEGIN IMMEDIATE')
+        current = read(db,old['city_id'],old['date'])
+        if current['version']==saved['version'] and [v['id'] for v in current['visits'] if not v['is_backup']]==ids:
+            db.execute('INSERT OR REPLACE INTO day_evaluations VALUES(?,?,?,?,?)',
+                       (old['city_id'],old['date'],saved['version'],time.time(),dumps(evaluation_summary(ev))))
+            persist_evaluated_routes(db,current,ev)
+            s.next_revision(db)
+            return read(db,old['city_id'],old['date'])
+    return saved
 
 
 def shift_city(db, city_id, offset, delete=False):
     rows = db.execute('SELECT * FROM day_plans WHERE city_id=?',(city_id,)).fetchall()
     if delete or offset:
+        db.execute('DELETE FROM day_routes WHERE city_id=?',(city_id,))
         db.execute('DELETE FROM day_evaluations WHERE city_id=?',(city_id,))
         db.execute('DELETE FROM day_plans WHERE city_id=?',(city_id,))
         if not delete:

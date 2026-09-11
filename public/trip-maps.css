@@ -63,8 +63,8 @@ section.trip-map-candidates h3 { flex-basis: 100%; }
 .trip-map-overview { margin: 14px 0 0; padding: 14px 16px 0; }
 .trip-map-overview h3 { margin: 0; }
 .trip-map-summary { margin: 8px 0 2px; font-size: 12px; }
-.trip-map-timeline { scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
-.trip-overview-stop { flex-basis: 180px; scroll-snap-align: start; }
+.trip-map-timeline { overscroll-behavior-x: contain; overflow-anchor: none; }
+.trip-overview-stop { flex-basis: 180px; }
 .trip-overview-leg { flex-basis: 145px; font-size: 12px; align-self: center; padding: 10px; border-bottom: 2px solid var(--leg-color); }
 .trip-overview-stop[aria-pressed="true"] { background: #eaf2ff; border-color: #7397d6; }
 .trip-overview-leg[aria-pressed="true"] { background: #eaf2ff; box-shadow: inset 0 0 0 1px #7397d6; border-radius: 8px; }

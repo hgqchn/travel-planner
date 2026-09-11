@@ -125,6 +125,57 @@ class StoreTests(unittest.TestCase):
     def add(self,**change):
         return self.save(self.read(),additions=[{'title':'公园','duration_minutes':60,**change}])
 
+    def test_saved_routes_survive_reopen_and_only_relevant_edits_invalidate(self):
+        from types import SimpleNamespace
+        plan=self.save(self.read(),additions=[{'title':str(i),'duration_minutes':60,'poi':{**POI,'location':f'121.{i+1},31.1'}} for i in range(3)])
+        a,b,c=[v['id'] for v in plan['visits']]
+        provider=SimpleNamespace(route=lambda payload,city:dict(duration=600,distance=1000,parts=[[[121.1,31.1],[121.2,31.1]]],instructions=['步行至入口']))
+        def query(a,b):
+            current=self.read()
+            return store.save_route(server,self.path,dict(city_id=self.city,date=self.day,version=current['version'],from_ref=a,to_ref=b,
+                departure=dict(minutes=600,provisional=True,context='estimated-prefix')),self.user,provider)
+        query(a,b)
+        self.assertEqual(len(self.read()['routes']),1)
+        with server.connect_db(self.path) as db: store.ensure_schema(db)
+        self.assertEqual(self.read()['routes'][0]['result']['duration'],600)
+        self.save(self.read(),updates=[{'id':a,'changes':{'notes':'保留路线'}}])
+        self.assertEqual(len(self.read()['routes']),1)
+        self.save(self.read(),updates=[{'id':c,'changes':{'poi':{**POI,'location':'122,31'}}}])
+        self.assertEqual(len(self.read()['routes']),1)
+        query(b,c); self.assertEqual(len(self.read()['routes']),2)
+        query(a,b); self.assertEqual(len(self.read()['routes']),2)
+        provider.route=lambda payload,city:dict(duration=1200,distance=1000,parts=[],instructions=[])
+        query(a,b); self.assertEqual(len(self.read()['routes']),1)
+        self.save(self.read(),updates=[{'id':b,'changes':{'poi':{**POI,'location':'123,31'}}}])
+        self.assertEqual(self.read()['routes'],[])
+
+    def test_route_conflict_during_provider_call_cannot_save_old_geometry(self):
+        from types import SimpleNamespace
+        plan=self.save(self.read(),additions=[{'title':str(i),'duration_minutes':60,'poi':POI} for i in range(2)])
+        a,b=[v['id'] for v in plan['visits']]
+        def changed(payload,city):
+            self.save(self.read(),updates=[{'id':a,'changes':{'duration_minutes':90}}])
+            return dict(duration=600,parts=[])
+        with self.assertRaises(server.ApiError) as error:
+            store.save_route(server,self.path,dict(city_id=self.city,date=self.day,version=plan['version'],from_ref=a,to_ref=b,
+                departure=dict(minutes=600)),self.user,SimpleNamespace(route=changed))
+        self.assertEqual(error.exception.status,409)
+        self.assertEqual(self.read()['routes'],[])
+
+    def test_evaluated_and_applied_route_geometry_survives_summary_expiry(self):
+        from types import SimpleNamespace
+        plan=self.save(self.read(),additions=[{'title':str(i),'duration_minutes':30,'time_block':'morning','poi':POI} for i in range(2)])
+        provider=SimpleNamespace(route=lambda payload,city:dict(duration=600,distance=100,parts=[[[121.1,31.1],[121.2,31.2]]],instructions=[]))
+        data=store.evaluate(server,self.path,{k:plan[k] for k in ('city_id','date','version')},self.user,provider)
+        self.assertEqual(len(self.read()['routes']),1)
+        applied=store.apply(server,self.path,{**{k:plan[k] for k in ('city_id','date','version')},'candidate_ref':data['candidates'][0]['candidate_ref']},self.user)
+        self.assertEqual(len(applied['routes']),1)
+        with server.connect_db(self.path) as db:
+            db.execute('UPDATE day_evaluations SET evaluated_at=evaluated_at-1000')
+        restored=self.read()
+        self.assertEqual(restored['evaluation']['route_status'],'stale')
+        self.assertEqual(len(restored['routes']),1)
+
     def test_order_conflicts_on_insert_and_settings(self):
         initial=self.read();now=self.add()
         with self.assertRaises(server.ApiError) as error:self.save(initial,order=[])
