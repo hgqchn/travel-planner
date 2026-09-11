@@ -1,6 +1,5 @@
 .muted { color: var(--ink-soft); font-size: 13px; }
-.scenic-rating.is-verified { color: #7b5613; background: #fff0cb; border: 1px solid #e4c67e; }
-.scenic-rating.is-unverified { color: #755d32; background: #f5eedf; }
+.scenic-rating { color: #7b5613; background: #fff0cb; border: 1px solid #e4c67e; }
 .scenic-rating.is-unknown { color: var(--ink-soft); background: #f1f4f2; font-weight: 500; }
 .ai-scenic-rating { margin-top: 10px; }
 .cache-notice { padding: 12px 14px; margin: 0 0 16px; border: 1px solid #e6d8ad; border-radius: 12px; background: #fff9e9; color: #785e24; font-size: 13px; line-height: 1.7; }
@@ -147,6 +146,13 @@
 .ai-import-actions .primary-button { flex: 1; min-width: 0; }
 .ai-import-actions .secondary-button { flex-shrink: 0; }
 .ai-result-card input:disabled, .ai-result-card textarea:disabled, .ai-result-card select:disabled { color: var(--ink-soft); }
+@media (max-width: 619px), (pointer: coarse) {
+  /* One native scroll surface avoids trapping swipes in a nested city list. */
+  .city-sheet { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+  .city-sheet .sheet-content { padding-bottom: calc(20px + var(--safe-bottom)); }
+  .city-sheet .city-results { max-height: none; overflow: visible; overscroll-behavior: auto; }
+  .city-sheet input { font-size: 16px; }
+}
 @media (max-width: 619px) {
   .itinerary-day-heading { flex-wrap: wrap; }
   .itinerary-day-heading .ai-replan-day { margin-left: 0; }
@@ -207,3 +213,31 @@
 .ai-task-controls { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; }
 .ai-task-controls .field { flex: 1; min-width: 0; }
 .ai-task-controls .secondary-button { flex-shrink: 0; }
+
+.city-metro-entry { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--jade-dark); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.city-metro-entry[hidden] { display: none; }
+.city-metro-entry:hover { background: var(--jade-light, #eaf1e3); }
+.city-metro-dialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: white; }
+.city-metro-dialog > .dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.city-metro-dialog h2 { margin: 0; font-size: 20px; }
+@media (max-width: 600px) {
+  .city-metro-dialog { padding: 14px; }
+  .city-metro-dialog .transport-panel { padding: 14px; }
+}
+.ai-flow-choices{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.ai-flow-choices button{padding:9px 12px;border:1px solid #cfddec;border-radius:9px;background:#f6f9fd;color:#3b5d81;font-size:13px;cursor:pointer}.ai-flow-choices button:hover{border-color:#6b91ba}.ai-next-step{margin-top:18px;padding:16px;border:1px solid #d6e4ef;border-radius:12px;background:#f3f8fc}.ai-next-step p{font-size:14px;line-height:1.7}
+#guidance-tools { flex-wrap: wrap; margin: 12px 0 16px; gap: 10px 16px; }
+#guidance-tools .guidance-add { margin: 0; }
+#guidance-confirm-dialog { width: min(580px, calc(100vw - 28px)); margin: auto; padding: 26px; border-radius: 22px; }
+#guidance-confirm-dialog h2 { margin: 0; font-size: 21px; line-height: 1.45; }
+#guidance-confirm-dialog > p { font-size: 14px; line-height: 1.8; text-align: left; }
+#guidance-confirm-city { color: var(--ink-soft); }
+#guidance-confirm-dialog .guidance-editor-actions { justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
+#guidance-confirm-dialog button { width: auto; flex: 0 0 auto; padding: 10px 16px; min-height: 44px; white-space: normal; }
+#guidance-generate-status:empty { display: none; }
+#guidance-generate-status { color: var(--jade-dark); }
+@media (max-width: 600px) {
+  #guidance-confirm-dialog { padding: 20px; }
+  #guidance-confirm-dialog h2 { font-size: 19px; }
+  #guidance-confirm-dialog .guidance-editor-actions { display: grid; grid-template-columns: 1fr; }
+  #guidance-tools .guidance-source { flex-basis: 100%; order: 3; }
+}

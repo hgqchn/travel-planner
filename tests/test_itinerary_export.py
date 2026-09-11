@@ -123,8 +123,8 @@ class ExportApiTests(unittest.TestCase):
             self.assertIn(f'filename="itinerary.{fmt}"', response.headers['Content-Disposition'])
             self.assertIn('上海-行程', unquote(response.headers['Content-Disposition']))
             value = content(body)
-            self.assertLess(value.index('最早'), value.index('稍晚'))
-            self.assertLess(value.index('稍晚'), value.index('时间未定'))
+            self.assertLess(value.index('时间未定'), value.index('最早'))  # Shared visit order, independent of legacy HH:MM.
+            self.assertLess(value.index('最早'), value.index('稍晚'))  # Unassigned slot first, then chronological slots.
             self.assertNotIn('北京安排', value)
             self.assertNotIn('导出测试', value)
             self.assertIn('北京安排', content(self.download(f'format={fmt}&scope=all')[1]))

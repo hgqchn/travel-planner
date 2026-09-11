@@ -137,6 +137,35 @@ function readyJob(mode = "replace_day") {
   return { id: jobId, city_id: "shanghai", city_name: "上海", status: "ready", request: { planning_mode: mode, target_date: firstDate, start_date: firstDate, days: 1, kinds: ["itinerary"], people: 1 }, replacement: { count: 4 }, result: { itineraries: [{ date: firstDate, title: "新方案", duplicate: true }] } };
 }
 
+test("planning entry presets distinguish a complete draft from collecting places and food", async () => {
+  for (const [flow, expected] of [["full", ["attraction", "food", "itinerary"]], ["collect", ["attraction", "food"]]]) {
+    const h = harness(); await h.controller.openPlanning(flow);
+    await h.submit();
+    assert.deepEqual(h.generations()[0].body.kinds, expected);
+    assert.equal(h.generations()[0].body.planning_mode, "append");
+  }
+});
+
+test("changing the planning entry preserves an unconfirmed existing draft", async () => {
+  const h = harness({storedJob:readyJob()});
+  await h.controller.openPlanning("collect");
+  assert.equal(h.cards().length, 1);
+  assert.equal(h.generations().length, 0);
+  assert.equal(h.imports().length, 0);
+  assert.match(h.node("ai-status").textContent, /先确认当前草稿/);
+});
+
+test("confirmed itinerary drafts lead to route verification without silently querying maps", async () => {
+  const job = readyJob("append"); job.result.itineraries[0].duplicate = false;
+  const h = harness({storedJob:job});
+  await h.click("ai-open");
+  assert.equal(h.node("ai-next-step").hidden, true);
+  await h.apply();
+  assert.equal(h.node("ai-next-step").hidden, false);
+  assert.match(h.node("ai-next-step-text").textContent, /逐天确认地图位置/);
+  assert.equal(h.requests.filter(request => request.url.includes("/maps/")).length, 0);
+});
+
 test("AI preview edits linked attraction names as an array and reports automatic additions", async () => {
   const job = readyJob('append'); job.result.itineraries[0].duplicate = false;
   job.result.itineraries[0].attraction_names = ['外滩', '上海博物馆'];
@@ -431,10 +460,14 @@ test("itinerary day buttons preserve each group's own date and omit undated grou
   const source = fs.readFileSync(path.join(__dirname, "../public/app.js"), "utf8");
   vm.runInContext(source.slice(source.indexOf("function renderItinerary("), source.indexOf("function emptyState(")), h.env);
   h.env.renderItinerary([{ date: firstDate }, { date: secondDate }, { date: "" }]);
-  const buttons = h.node("cards").querySelectorAll("button");
+  const buttons = h.node("cards").querySelectorAll("button").filter(button => button.className.includes("ai-replan-day"));
   assert.equal(buttons.length, 2);
   buttons.forEach((button) => button.events.click());
   assert.deepEqual(calls, [{ mode: "replace_day", date: firstDate }, { mode: "replace_day", date: secondDate }]);
+  const maps = [];
+  h.env.window.TripMaps = { open: date => maps.push(date) };
+  h.node("cards").querySelectorAll("button").filter(button => button.textContent === "地图与路线").forEach(button => button.events.click());
+  assert.deepEqual(maps, [firstDate, secondDate]);
 });
 
 test("manual model defaults to configured value and is sent without a model list request", async () => {
@@ -458,13 +491,13 @@ test("restored running task keeps its own model and locks model selection", asyn
   assert.match(h.node("ai-model").textContent, /deepseek-v4-pro/);
 });
 
-test('single-day and food-only previews omit city guidance; overall plans show only advice', async () => {
+test('all itinerary previews omit guidance, including historical results', async () => {
   for (const mode of ['replace_day', 'replace_all', 'append']) {
     const job = readyJob(mode);
     job.result.summary = '本次为你规划了行程'; job.result.notices = ['外滩与陆家嘴隔江相望，按片区组织动线。'];
     const h = harness({ storedJob: job }); await h.click('ai-open');
-    assert.equal(h.node('ai-travel-guidance').hidden, mode === 'replace_day');
-    assert.equal(h.node('ai-notices').children[0].textContent, job.result.notices[0]);
+    assert.equal(h.node('ai-travel-guidance').hidden, true);
+    assert.equal(h.node('ai-notices').children.length, 0);
     assert.equal(h.node('ai-summary').textContent, '');
   }
   const job = readyJob('append'); job.request.kinds = ['food'];

@@ -134,6 +134,9 @@ window.TripUI = (() => {
 
   function renderCity() {
     syncMetroContext();
+    renderMetroEntry();
+    if (state.projectUnlocked && state.cityId && !metro.loading && !metro.submitting && (!metro.checkedAt || Date.now() - metro.checkedAt >= 30000)) loadMetro();
+    if ($("city-metro-dialog").open) renderCityMetro();
     $("city-current-name").textContent = state.cities.find((city) => city.id === state.cityId)?.name || "选择城市";
     const signature = JSON.stringify(state.cities);
     if (signature !== citySignature) {
@@ -229,7 +232,8 @@ window.TripUI = (() => {
       $("city-add-input").value = "";
       $("city-dialog").close();
       await switchCity(data.city.id);
-      showToast(`已添加 ${data.city.name}，开始安排旅行吧`);
+      const provinceLabel = data.city.province && data.city.province !== "自定义" ? `（${data.city.province}）` : "";
+      showToast(`已添加 ${data.city.name}${provinceLabel}，开始安排旅行吧`);
     } catch (error) {
       if (error.status === 409 && error.data?.city) {
         const city = error.data.city;
@@ -252,9 +256,10 @@ window.TripUI = (() => {
       metro.cityId = state.cityId;
       metro.record = null; metro.view = null; metro.error = "";
       metro.loading = false; metro.submitting = false; metro.checkedAt = 0; metro.timer = null;
+      if ($("city-metro-dialog").open) $("city-metro-dialog").close();
       if ($("metro-dialog").open) $("metro-dialog").close();
     }
-    if (state.tab !== "transit") { clearTimeout(metro.timer); metro.timer = null; }
+    if (!$("city-metro-dialog").open) { clearTimeout(metro.timer); metro.timer = null; }
   }
 
   function metroPending() { return metro.submitting || ["queued", "running"].includes(metro.record?.update?.status); }
@@ -267,12 +272,12 @@ window.TripUI = (() => {
   function scheduleMetroPoll() {
     clearTimeout(metro.timer);
     metro.timer = null;
-    if (state.tab !== "transit" || state.cityId !== metro.cityId || !metroPending() || metro.error) return;
+    if (!$("city-metro-dialog").open || state.cityId !== metro.cityId || !metroPending() || metro.error) return;
     metro.timer = setTimeout(() => { metro.timer = null; loadMetro(); }, 2000);
   }
 
   async function loadMetro() {
-    if (!metro.cityId || metro.loading || metro.submitting) return;
+    if (!state.projectUnlocked || !metro.cityId || metro.loading || metro.submitting) return;
     const epoch = metro.epoch, cityId = metro.cityId;
     metro.loading = true; metro.error = "";
     renderMetroDetails();
@@ -283,6 +288,7 @@ window.TripUI = (() => {
       metro.checkedAt = Date.now();
     } catch (error) {
       if (epoch !== metro.epoch || cityId !== state.cityId) return;
+      metro.checkedAt = Date.now();
       metro.error = error.message || "线路图状态加载失败，请重试。";
     } finally {
       if (epoch === metro.epoch && cityId === state.cityId) {
@@ -318,9 +324,24 @@ window.TripUI = (() => {
     }
   }
 
+  function renderMetroEntry() {
+    const city = state.cities.find((entry) => entry.id === state.cityId);
+    const button = $("city-metro-open");
+    button.hidden = !state.projectUnlocked || !city || !(metro.record?.supported || metro.record?.available);
+    button.setAttribute("aria-label", city ? `查看${city.name}轨道交通图` : "轨道交通图");
+  }
+
+  function openCityMetro() {
+    syncMetroContext();
+    if (!state.projectUnlocked || !(metro.record?.supported || metro.record?.available)) return;
+    $("city-metro-dialog").showModal();
+    renderCityMetro();
+  }
+
   function renderMetroDetails() {
+    renderMetroEntry();
     const view = metro.view;
-    if (!view || view.city.id !== state.cityId || state.tab !== "transit" || dom.cards.firstElementChild !== view.panel) return;
+    if (!view || view.city.id !== state.cityId || !$("city-metro-dialog").open || $("city-metro-content").firstElementChild !== view.panel) return;
     const record = metro.record, asset = record?.available ? record.map : null;
     const pending = metroPending();
     view.badge.hidden = !asset;
@@ -367,13 +388,14 @@ window.TripUI = (() => {
     view.status.hidden = !view.status.textContent;
   }
 
-  function renderTransport() {
+  function renderCityMetro() {
     syncMetroContext();
     const city = state.cities.find((entry) => entry.id === state.cityId);
+    $("city-metro-title").textContent = city ? `${city.name}轨道交通图` : "轨道交通图";
     const signature = city ? JSON.stringify([city.id, city.name, city.map_query, city.center]) : "";
-    dom.cards.setAttribute("aria-busy", "false");
-    if (!city) { dom.cards.replaceChildren(); return; }
-    if (!metro.view || dom.cards.firstElementChild !== metro.view.panel || dom.cards.firstElementChild?.dataset.transportCity !== signature) {
+    if (!$("city-metro-dialog").open) return;
+    if (!city) { $("city-metro-content").replaceChildren(); return; }
+    if (!metro.view || $("city-metro-content").firstElementChild !== metro.view.panel || $("city-metro-content").firstElementChild?.dataset.transportCity !== signature) {
       const panel = element("section", "transport-panel");
       panel.dataset.transportCity = signature;
       const links = element("div", "map-actions");
@@ -410,9 +432,9 @@ window.TripUI = (() => {
       status.setAttribute("aria-live", "polite");
       panel.append(links, heading, preview, empty, help, actions, status, credit);
       metro.view = { city, panel, badge, preview, img, imageMessage, help, credit, empty, emptyText, update, retry, status };
-      dom.cards.replaceChildren(panel);
-      renderMetroDetails();
+      $("city-metro-content").replaceChildren(panel);
     }
+    renderMetroDetails();
     // Snapshot refreshes must not replace the image or reset an open zoom dialog.
     if (!metro.error && (!metro.record || Date.now() - metro.checkedAt >= 30000)) loadMetro();
     else if (metroPending() && !metro.timer) scheduleMetroPoll();
@@ -702,6 +724,22 @@ window.TripUI = (() => {
 
   function openReplan(mode, date = "") { return openAi({ planning_mode: mode, target_date: date }); }
 
+  function setPlanningContents(flow) {
+    if (busyJob() || ai.pendingRequest || ai.job?.status === "ready") {
+      $("ai-status").textContent = "请先确认当前草稿，或点击“新建任务”后选择新的规划方式。";
+      return;
+    }
+    if (!choosePlanningMode("append", "", true)) return;
+    $("ai-form").querySelectorAll('[name="kinds"]').forEach(input => { input.checked = flow === "full" || input.value !== "itinerary"; });
+    updateModeControls();
+    $("ai-status").textContent = flow === "full" ? "将生成地点、美食和按天行程草稿；确认保存后，再逐天核对地图位置和路线。" : "仅生成地点和美食清单。确认保存后，新增日期并从地点清单选择当天安排。";
+  }
+
+  async function openPlanning(flow) {
+    await openAi();
+    if ($("ai-dialog").open) setPlanningContents(flow);
+  }
+
   function useTemplate(template) {
     if (busyJob() || ai.pendingRequest || (template === "food" && ai.formMode !== "append")) return;
     const form = $("ai-form");
@@ -830,10 +868,9 @@ window.TripUI = (() => {
     const range = replan ? requestDateRange(job.request) : null;
     ai.previewId = job.id;
     ai.rows = [];
-    $("ai-notices").replaceChildren(...(result.notices || []).map((notice) => element("li", "", notice)));
-    $("ai-notices").hidden = !(result.notices || []).length;
-    const citywideGuidance = planningMode(job.request) !== "replace_day" && (result.itineraries || []).length > 0;
-    $("ai-travel-guidance").hidden = !citywideGuidance || !(result.notices || []).length;
+    $("ai-notices").replaceChildren();
+    $("ai-notices").hidden = true;
+    $("ai-travel-guidance").hidden = true;
     $("ai-preview-scope").hidden = !replan;
     const oldCount = Number.isInteger(job.replacement?.count) ? `现有 ${job.replacement.count} 项行程` : "现有行程";
     $("ai-preview-scope").textContent = `${ai.cityName} · ${replacementLabel(job.request)}：确认后将用所选方案替换${oldCount}。${planningMode(job.request) === "replace_all" ? "包括新日期范围之外的全部旧行程。" : "其他日期保留。"}新方案的每一天至少选择一项；确认应用前原行程保留。`;
@@ -861,7 +898,7 @@ window.TripUI = (() => {
           rating.hidden = !badge;
           if (badge) rating.append(badge);
         }
-        const shortText = kind === "itinerary" ? `${record.date} ${record.start_time || ""} · ${record.location || "地点待定"}` : record.description;
+        const shortText = kind === "itinerary" ? `${record.date} ${window.TripDaily?.label(record.time_block) || "待安排"} · ${record.location || "地点待定"}` : record.description;
         const description = element("p", "ai-result-description", shortText);
         const details = element("details", "ai-edit-details");
         details.append(element("summary", "", "查看 / 编辑详情"));
@@ -892,7 +929,7 @@ window.TripUI = (() => {
           const title = value(key) || "未命名";
           choice.querySelector("strong").textContent = title;
           checkbox.setAttribute("aria-label", `导入${title}`);
-          description.textContent = kind === "itinerary" ? `${value("date")} ${value("start_time")} · ${value("location") || "地点待定"}` : value("description");
+          description.textContent = kind === "itinerary" ? `${value("date")} ${window.TripDaily?.label(value("time_block")) || "待安排"} · ${value("location") || "地点待定"}` : value("description");
           if (rating) {
             const unchanged = value("name").trim() === (record.name || "").trim() && value("scenic_rating") === (record.scenic_rating || "");
             const edited = { ...record, scenic_rating: value("scenic_rating"), scenic_rating_info: unchanged ? record.scenic_rating_info : { status: "unverified" } };
@@ -910,6 +947,7 @@ window.TripUI = (() => {
       groups.push(group);
     }
     $("ai-preview-items").replaceChildren(...groups);
+    if ($("ai-next-step")) $("ai-next-step").hidden = true;
     $("ai-preview").hidden = false;
     $("ai-select-all").disabled = false;
     $("ai-import-form").querySelectorAll("button,input,textarea,select").forEach((input) => { input.disabled = false; });
@@ -922,7 +960,7 @@ window.TripUI = (() => {
     const coverageError = replan ? replacementCoverageError(ai.rows.filter((row) => row.checkbox.checked).map((row) => ({ kind: row.kind, data: { date: row.fields.querySelector('[name$=":date"]')?.value || "" } }))) : "";
     $("ai-selection-count").textContent = `已选 ${count} 项 · ${ai.cityName}${replan ? ` · ${replacementLabel(ai.job.request)}` : ""}${coverageError ? `。${coverageError}` : ""}`;
     $("ai-attraction-sync-note").hidden = !ai.rows.some(row => row.checkbox.checked && row.kind === "itinerary");
-    $("ai-import").textContent = ai.replacementConflict ? "行程已变化，请重新生成" : replan ? `确认替换${replacementLabel(ai.job.request)}` : `将 ${count} 项加入${ai.cityName}清单`;
+    $("ai-import").textContent = ai.replacementConflict ? "行程已变化，请重新生成" : replan ? `确认替换${replacementLabel(ai.job.request)}` : `确认并保存 ${count} 项到${ai.cityName}`;
     $("ai-import").disabled = count === 0 || Boolean(coverageError) || ai.replacementConflict || ai.importing || ai.job?.status !== "ready";
     ai.rows.forEach((row) => row.card.classList.toggle("is-selected", row.checkbox.checked));
   }
@@ -945,6 +983,13 @@ window.TripUI = (() => {
     $("ai-import-form").querySelectorAll("input,textarea,select,button").forEach((input) => { input.disabled = input.id !== "ai-result-close"; });
     $("ai-select-all").disabled = true;
     $("ai-import").textContent = "已导入";
+    const next = $("ai-next-step");
+    if (next) {
+      next.hidden = false;
+      $("ai-next-step-text").textContent = ai.job.request.kinds?.includes("itinerary")
+        ? "行程草稿已确认保存。下一步：逐天确认地图位置、交通方式和路线；不满意时可重排某一天。"
+        : "地点与美食已加入清单。下一步：新增一天，从地点清单选择当天安排，再规划路线。";
+    }
   }
 
   function showAiImportError(message) {
@@ -976,6 +1021,12 @@ window.TripUI = (() => {
           if (error) { row.details.open = true; input.focus(); showAiImportError(error); return; }
         }
         data[definition.key] = definition.attractionNames ? parseAttractionNames(input.value) : definition.tagsKind ? window.TripTaxonomy.parseTags(input.value) : input.value.trim();
+      }
+      if (row.kind === "itinerary") {
+        data.duration_minutes = data.duration_minutes === "" ? null : Number(data.duration_minutes);
+        data.duration_source = data.duration_minutes === row.record.duration_minutes ? (row.record.duration_source || "ai_estimate") : "user";
+        if (!data.priority) data.priority = "preferred";
+        if (!data.visit_kind) data.visit_kind = "place";
       }
       items.push({ kind: row.kind, data });
     }
@@ -1062,17 +1113,28 @@ window.TripUI = (() => {
     $("ai-preview-items").replaceChildren();
     $("ai-status").textContent = $("ai-error").textContent = "";
     $("ai-open").classList.remove("has-result");
-    for (const id of ["city-dialog", "metro-dialog", "ai-dialog", "ai-import-error-dialog"]) if ($(id).open) $(id).close();
+    $("city-metro-open").hidden = true;
+    $("city-metro-content").replaceChildren();
+    for (const id of ["city-dialog", "city-metro-dialog", "metro-dialog", "ai-dialog", "ai-import-error-dialog"]) if ($(id).open) $(id).close();
   }
 
   function init() {
+    $("city-metro-open").addEventListener("click", openCityMetro);
+    $("city-metro-close").addEventListener("click", () => $("city-metro-dialog").close());
+    $("city-metro-dialog").addEventListener("close", () => {
+      clearTimeout(metro.timer); metro.timer = null;
+      if ($("metro-dialog").open) $("metro-dialog").close();
+    });
     $("city-select").addEventListener("click", () => {
       if (!authorized()) return;
       $("city-search").value = "";
       $("city-add-error").textContent = "";
       renderCityResults();
       $("city-dialog").showModal();
-      $("city-search").focus();
+      $("city-dialog").scrollTop = 0;
+      $("city-results").scrollTop = 0;
+      // On touch screens, let people browse before opening the software keyboard.
+      if (!window.matchMedia?.("(pointer: coarse)").matches) $("city-search").focus({ preventScroll: true });
     });
     $("city-close").addEventListener("click", () => $("city-dialog").close());
     $("city-search").addEventListener("input", renderCityResults);
@@ -1083,6 +1145,12 @@ window.TripUI = (() => {
     $("city-add-form").addEventListener("submit", addCity);
     setupMap();
     $("ai-open").addEventListener("click", () => openAi());
+    document.querySelectorAll("[data-ai-flow]").forEach(button => button.addEventListener("click", () => setPlanningContents(button.dataset.aiFlow)));
+    $("ai-next-step-open")?.addEventListener("click", async () => {
+      if (state.cityId !== ai.cityId) await switchCity(ai.cityId);
+      if (state.cityId !== ai.cityId) return;
+      $("ai-dialog").close(); state.tab = "itinerary"; render();
+    });
     $("ai-replan-all").addEventListener("click", () => openReplan("replace_all"));
     for (const id of ["ai-close", "ai-result-close"]) $(id).addEventListener("click", () => $("ai-dialog").close());
     $("ai-form").addEventListener("submit", generateAi);
@@ -1111,5 +1179,5 @@ window.TripUI = (() => {
     $("ai-import-form").addEventListener("submit", importAi);
   }
 
-  return { init, reset, initialCity, switchCity, renderCity, renderTransport, cityMapUrl, renderCacheNotice, openReplan };
+  return { init, reset, initialCity, switchCity, renderCity, openCityMetro, cityMapUrl, renderCacheNotice, openReplan, openPlanning };
 })();

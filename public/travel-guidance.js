@@ -5,6 +5,8 @@ window.TripGuidance = (() => {
   const scope = () => JSON.stringify([state.projectId, state.cityId, state.userId, state.projectUnlocked]);
   let signature = "", editor = null, conflict = null, busy = false, initialized = false, generation = 0;
 
+  let generator = null, timer = null;
+
   function setBusy(value) {
     busy = value;
     for (const id of ["guidance-save", "guidance-delete", "guidance-close", "guidance-reload", "guidance-notices"]) $(id).disabled = value;
@@ -57,6 +59,7 @@ window.TripGuidance = (() => {
     $("guidance-error").textContent = "";
     const payload = { city_id: active.group.city_id, version: active.group.version };
     if (!deleting) {
+      if (active.planVersion) payload.plan_version = active.planVersion;
       payload.notices = $("guidance-notices").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     }
     try {
@@ -81,9 +84,72 @@ window.TripGuidance = (() => {
     }
   }
 
+  const requestId = () => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  function stopGeneration() {
+    clearTimeout(timer); timer = null; generator = null;
+    $("guidance-confirm-dialog").close();
+  }
+  function beginGeneration() {
+    if (!requireIdentity() || busy) return;
+    stopGeneration();
+    generator = { scope:scope(), cityId:state.cityId, pending:false, job:null,
+      requestId:requestId() };
+    $("guidance-confirm-city").textContent = `当前城市：${state.cities?.find(city => city.id === state.cityId)?.name || state.travelGuidance?.find(group => group.city_id === state.cityId)?.city_name || "当前城市"}。重新生成不会直接覆盖现有提示。`;
+    $("guidance-generate-status").textContent = "";
+    $("guidance-generate-confirm").disabled = false;
+    $("guidance-generate-confirm").textContent = "已规划完毕，生成提示";
+    $("guidance-generate-cancel").textContent = "还没规划好";
+    $("guidance-confirm-dialog").showModal();
+  }
+  function generationActive(owner) { return generator === owner && scope() === owner.scope; }
+  async function generate() {
+    const owner = generator;
+    if (!owner || owner.pending || !generationActive(owner)) return;
+    owner.pending = true;
+    $("guidance-generate-confirm").disabled = true;
+    $("guidance-generate-cancel").textContent = "关闭";
+    $("guidance-generate-status").textContent = owner.job ? "正在查询生成结果…" : "正在读取已保存的行程并提交生成…";
+    try {
+      const { data:job } = owner.job
+        ? await requestJson(`/api/ai/jobs/${encodeURIComponent(owner.job.id)}`)
+        : await requestJson('/api/ai/jobs', {method:'POST',body:JSON.stringify({purpose:'travel_guidance',
+            city_id:owner.cityId,confirmed_complete:true,request_id:owner.requestId})});
+      if (!generationActive(owner)) return;
+      owner.job = job;
+      if (job.status === 'ready') {
+        const { data } = await requestJson(`/api/travel-guidance?city_id=${encodeURIComponent(owner.cityId)}`);
+        if (!generationActive(owner)) return;
+        load({...data.guidance, version:job.request.guidance_version});
+        editor.planVersion = job.request.plan_version;
+        $("guidance-notices").value = (job.result.notices || []).join('\n');
+        $("guidance-city").textContent = `${data.guidance.city_name} · AI 已按保存的行程生成，请核对后保存`;
+        stopGeneration();
+        $("guidance-dialog").showModal();
+        return;
+      }
+      if (job.status === 'failed') { owner.job = null; owner.requestId = requestId(); throw new Error(job.error || '生成失败，请重试。'); }
+      if (!['queued','running'].includes(job.status)) throw new Error('生成状态无法识别，请重试查询。');
+      $("guidance-generate-status").textContent = job.status === 'queued' ? '已排队，稍后自动生成…' : 'AI 正在结合每日行程生成提示…';
+      timer = setTimeout(() => generate(), 1800);
+    } catch (error) {
+      if (!generationActive(owner)) return;
+      $("guidance-generate-status").textContent = error.message;
+      if (error.status && error.status < 500) { owner.job = null; owner.requestId = requestId(); }
+      $("guidance-generate-confirm").textContent = owner.job ? '重试查询' : '已规划完毕，重试生成';
+      $("guidance-generate-confirm").disabled = false;
+    } finally {
+      if (generationActive(owner)) owner.pending = false;
+    }
+  }
+
   function init() {
     if (initialized) return;
     initialized = true;
+    $("guidance-generate").addEventListener("click", beginGeneration);
+    $("guidance-generate-confirm").addEventListener("click", generate);
+    $("guidance-generate-cancel").addEventListener("click", stopGeneration);
+    $("guidance-confirm-dialog").addEventListener("cancel", event => { event.preventDefault(); stopGeneration(); });
     $("guidance-add").addEventListener("click", () => open());
     $("guidance-close").addEventListener("click", () => { if (!busy) close(); });
     $("guidance-dialog").addEventListener("cancel", event => { event.preventDefault(); if (!busy) close(); });
@@ -97,9 +163,11 @@ window.TripGuidance = (() => {
   function render() {
     init();
     if (editor && editor.scope !== scope()) close();
+    if (generator && generator.scope !== scope()) stopGeneration();
     const group = (state.travelGuidance || []).find(group => group.city_id === state.cityId);
     const onPage = state.tab === "itinerary" && state.projectUnlocked && Boolean(state.userId);
     const visible = onPage && Boolean(group);
+    $("guidance-tools").hidden = !onPage;
     $("travel-guidance").hidden = !visible;
     $("guidance-add").hidden = !onPage || Boolean(group);
     const next = JSON.stringify([scope(), visible, group]);
@@ -109,7 +177,7 @@ window.TripGuidance = (() => {
     wrapper.replaceChildren();
     if (!visible) return;
     const toolbar = element("div", "guidance-actions");
-    toolbar.append(element("span", "guidance-source", group.manual ? "已手动维护" : "最近一次 AI 规划"));
+    toolbar.append(element("span", "guidance-source", group.manual ? "已保存提示" : "旧版行程附带提示"));
     const edit = element("button", "link-button", "编辑提示");
     edit.type = "button";
     edit.addEventListener("click", () => open(group));

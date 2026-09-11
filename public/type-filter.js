@@ -3,7 +3,7 @@
 window.TripTypeFilter = (() => {
   const $ = (id) => document.getElementById(id);
   let scope = "", selected = null, signature = "", tagSignature = "", itinerarySignature = "", initialized = false;
-  let itineraryStatus = "all";
+  let itineraryStatus = "all", scenicRating = "all", ratingSignature = "";
   let selectedTags = new Set(), mode = "any", search = "";
   const supported = () => ["attraction", "food"].includes(state.tab);
   const category = (item) => typeof item.category === "string" ? item.category.trim() : "";
@@ -15,15 +15,17 @@ window.TripTypeFilter = (() => {
     if (scope !== next) {
       scope = next; selected = null; signature = ""; tagSignature = ""; itinerarySignature = ""; itineraryStatus = "all";
       selectedTags = new Set(); mode = "any"; search = "";
+      scenicRating = "all"; ratingSignature = "";
       if ($("tag-filter-search")) $("tag-filter-search").value = "";
     }
   }
 
   function selection() { syncScope(); return selected; }
-  function key() { syncScope(); return JSON.stringify([selected, [...selectedTags].sort(), mode, itineraryStatus]); }
-  function active() { syncScope(); return selected !== null || selectedTags.size > 0 || itineraryStatus !== "all"; }
+  function key() { syncScope(); return JSON.stringify([selected, [...selectedTags].sort(), mode, itineraryStatus, scenicRating]); }
+  function active() { syncScope(); return selected !== null || selectedTags.size > 0 || itineraryStatus !== "all" || scenicRating !== "all"; }
   const scheduled = item => item.in_itinerary === true || (Array.isArray(item.itinerary_refs) && item.itinerary_refs.length > 0);
   const matchesItinerary = item => state.tab !== "attraction" || itineraryStatus === "all" || scheduled(item) === (itineraryStatus === "scheduled");
+  const matchesRating = item => state.tab !== "attraction" || scenicRating === "all" || item.scenic_rating === scenicRating;
 
   function filter(items) {
     syncScope();
@@ -31,6 +33,7 @@ window.TripTypeFilter = (() => {
     return items.filter(item => {
       if (selected !== null && category(item) !== selected) return false;
       if (!matchesItinerary(item)) return false;
+      if (!matchesRating(item)) return false;
       if (!selectedTags.size) return true;
       const values = new Set(tags(item).map(tagKey));
       return mode === "all" ? [...selectedTags].every(tag => values.has(tag)) : [...selectedTags].some(tag => values.has(tag));
@@ -83,6 +86,32 @@ window.TripTypeFilter = (() => {
     $("type-filter-count").textContent = `显示 ${shown} / ${items.length} 项${state.tab === "food" ? "美食" : "地点"}`;
     renderTags(items);
     renderItineraryStatus(items);
+    renderScenicRating(items);
+  }
+
+  function renderScenicRating(items) {
+    const wrapper = $("scenic-rating-filter");
+    if (!wrapper) return;
+    wrapper.hidden = state.tab !== "attraction";
+    if (wrapper.hidden) return;
+    const options = [["all", "全部", items.length], ...["4A", "5A"].map(rating =>
+      [rating, rating, items.filter(item => item.scenic_rating === rating).length])];
+    const next = JSON.stringify([scope, scenicRating, options]);
+    if (ratingSignature === next) return;
+    ratingSignature = next;
+    $("scenic-rating-filter-options").replaceChildren(...options.map(([value, label, count]) => {
+      const button = element("button", "type-filter-chip", `${label} ${count}`);
+      button.type = "button";
+      button.dataset.scenicRating = value;
+      button.setAttribute("aria-label", `筛选景区等级：${label}，${count}项`);
+      button.setAttribute("aria-pressed", String(scenicRating === value));
+      button.addEventListener("click", () => {
+        if (!window.TripBatch.canNavigate()) return;
+        scenicRating = value; render();
+        for (const option of $("scenic-rating-filter-options").querySelectorAll("button")) if (option.dataset.scenicRating === value) option.focus({ preventScroll: true });
+      });
+      return button;
+    }));
   }
 
   function renderItineraryStatus(items) {
@@ -112,6 +141,7 @@ window.TripTypeFilter = (() => {
   function reset() {
     if (!window.TripBatch.canNavigate()) return;
     selected = null; selectedTags.clear(); mode = "any"; search = ""; itineraryStatus = "all";
+    scenicRating = "all";
     $("tag-filter-search").value = "";
     render();
   }
@@ -124,12 +154,13 @@ window.TripTypeFilter = (() => {
       for (const tag of tags(item)) if (!labels.has(tagKey(tag))) labels.set(tagKey(tag), tag);
       if (selected !== null && category(item) !== selected) continue;
       if (!matchesItinerary(item)) continue;
+      if (!matchesRating(item)) continue;
       for (const tag of new Set(tags(item).map(tagKey))) counts.set(tag, (counts.get(tag) || 0) + 1);
     }
     for (const tag of selectedTags) if (!counts.has(tag)) counts.set(tag, 0);
     const groups = [...counts].filter(([tag]) => selectedTags.has(tag) || tag.includes(search))
       .sort(([a], [b]) => Number(selectedTags.has(b)) - Number(selectedTags.has(a)) || (labels.get(a) || a).localeCompare(labels.get(b) || b, "zh-CN"));
-    const next = JSON.stringify([scope, selected, [...selectedTags], mode, groups, [...labels], search, itineraryStatus]);
+    const next = JSON.stringify([scope, selected, [...selectedTags], mode, groups, [...labels], search, itineraryStatus, scenicRating]);
     if (next !== tagSignature) {
       $("tag-filter-options").replaceChildren(...groups.map(([tag, count]) => {
         const button = element("button", "type-filter-chip", `${labels.get(tag) || tag} ${count}`);
@@ -167,7 +198,7 @@ window.TripTypeFilter = (() => {
     if (!supported() || !active()) return null;
     const wrapper = element("div", "empty-state");
     const copy = element("div");
-    copy.append(element("strong", "", selectedTags.size || itineraryStatus !== "all" ? "没有符合当前筛选条件的内容" : `“${selected || "未分类"}”暂无内容`));
+    copy.append(element("strong", "", selectedTags.size || itineraryStatus !== "all" || scenicRating !== "all" ? "没有符合当前筛选条件的内容" : `“${selected || "未分类"}”暂无内容`));
     const button = element("button", "link-button", "清空筛选，查看全部");
     button.type = "button";
     button.addEventListener("click", reset);

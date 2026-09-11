@@ -1,6 +1,7 @@
 """Portable Office Open XML downloads; no runtime dependencies or saved files."""
 
 from __future__ import annotations
+import daily_planner
 
 import io
 import math
@@ -105,6 +106,26 @@ def guidance_scope(group) -> str:
     return '、'.join(group.get('dates', [])) or '城市出行提示'
 
 
+def daily_summary(plan):
+    settings=plan['settings']
+    ev=plan.get('evaluation')
+    lines=[f"{plan.get('city_name','')} {plan['date']} · 当天 {settings['start_time']}–{settings['end_time']}",
+           f"午餐 {settings['lunch_minutes']} 分钟，晚餐 {settings['dinner_minutes']} 分钟，午休 {settings['rest_minutes']} 分钟；目标机动 {settings['slack_target']} 分钟。"]
+    if not ev or ev['route_status']=='stale':
+        lines.append('路线与时间预算待重新核算。')
+    else:
+        slack=ev['slack_minutes']
+        lines.append(f"交通 {ev['travel_minutes']} 分钟，缓冲 {ev['buffer_minutes']} 分钟；"+(f"机动余量 {slack} 分钟。" if slack is not None else '机动余量未知。'))
+        names={v['id']:v['title'] for v in plan.get('visits',[])}
+        names.update({'@start':'出发地点','@end':'返回地点'})
+        modes={'transit':'公交 / 地铁','walking':'步行','driving':'驾车','bicycling':'骑行'}
+        for leg in ev.get('leg_summaries',[]):
+            duration=leg['duration_minutes']
+            lines.append(f"{names.get(leg['from_ref'],'上一站')} → {names.get(leg['to_ref'],'下一站')}：{modes[leg['mode']]}，"+(f"约 {duration} 分钟" if duration is not None else '耗时待核算'))
+        lines.extend(issue['message'] for issue in ev['issues'])
+    return lines
+
+
 def build_docx(data: dict) -> bytes:
     body = [paragraph(f'{data["project_name"]} 行程安排', 'Title')]
     body.extend(paragraph(f'{label}：{value}') for label, value in overview(data))
@@ -119,9 +140,14 @@ def build_docx(data: dict) -> bytes:
     rels = [('rId1', 'styles', 'styles.xml', False), ('rId2', 'footer', 'footer1.xml', False)]
     for day, entries in groupby(data['items'], key=lambda item: item['date']):
         body.append(paragraph(day, 'Heading1'))
+        for plan in data.get('daily_plans',[]):
+            if plan['date']==day:
+                body.extend(paragraph(line) for line in daily_summary(plan))
         for item in entries:
-            body.append(paragraph(f'{item.get("start_time") or "时间待定"}  {item["title"]}', 'Heading2'))
+            body.append(paragraph(f'{daily_planner.block_label(item) if item.get("plan_version")==2 else item.get("start_time") or "时间待定"}  {item["title"]}', 'Heading2'))
             details = [f'城市：{item["city_name"]}']
+            if item.get('plan_version')==2:
+                details.extend([f"顺序：{item.get('position','')}", f"建议停留：{item.get('duration_minutes') or '待确认'} 分钟", f"状态：{'备选' if item.get('is_backup') else '已安排'}"])
             for key, label in [('category', '类型'), ('location', '地点')]:
                 if item.get(key):
                     details.append(f'{label}：{item[key]}')
@@ -206,8 +232,9 @@ def worksheet(rows, widths, *, links=(), filtered=False) -> str:
 
 
 def build_xlsx(data: dict) -> bytes:
-    widths = [14, 12, 12, 32, 16, 30, 64, 44]
-    headers = ['日期', '城市', '开始时间', '安排名称', '类型', '地点', '备注', '相关链接']
+    modern=any(item.get('plan_version')==2 for item in data['items'])
+    widths = [14, 12, 24 if modern else 12, 32, 16, 30, 64, 44] + ([10,14,12] if modern else [])
+    headers = ['日期', '城市', '偏好时段' if modern else '开始时间', '安排名称', '类型', '地点', '备注', '相关链接'] + (['顺序','停留分钟','状态'] if modern else [])
     rows = ['<row r="1" ht="32" customHeight="1">' + ''.join(cell(f'{chr(65 + i)}1', label, 1) for i, label in enumerate(headers)) + '</row>']
     links, rels = [], []
     for index, item in enumerate(data['items'], 2):
@@ -215,14 +242,22 @@ def build_xlsx(data: dict) -> bytes:
         time_value = (int(time[:2]) * 60 + int(time[3:])) / 1440 if time else ''
         values = [excel_date(item['date']), item['city_name'], time_value, item['title'], item.get('category', ''), item.get('location', ''), item.get('notes', ''), item.get('link', '')]
         styles = [2, 0, 3 if time else 0, 0, 0, 0, 0, 4 if safe_link(values[-1]) else 0]
+        if modern:
+            values[2]=daily_planner.block_label(item)
+            styles[2]=0
+            values += [item.get('position',''),item.get('duration_minutes') or '待确认','备选' if item.get('is_backup') else '已安排']
+            styles += [0,0,0]
         rows.append(f'<row r="{index}" ht="{row_height(values, widths)}" customHeight="1">' + ''.join(cell(f'{chr(65 + i)}{index}', value, styles[i]) for i, value in enumerate(values)) + '</row>')
-        if safe_link(values[-1]):
+        if safe_link(item.get('link','')):
             rid = f'rId{len(rels) + 1}'
             links.append((f'H{index}', rid))
-            rels.append((rid, 'hyperlink', safe_link(values[-1]), True))
+            rels.append((rid, 'hyperlink', safe_link(item.get('link','')), True))
     summary_rows = []
     for i, values in enumerate([('项目', '内容'), *overview(data)], 1):
         summary_rows.append(f'<row r="{i}" ht="{row_height(values, [18, 86])}" customHeight="1">' + cell(f'A{i}', values[0], 1) + cell(f'B{i}', values[1], 1 if i == 1 else 0) + '</row>')
+    for plan in data.get('daily_plans',[]):
+        i=len(summary_rows)+1
+        summary_rows.append(f'<row r="{i}" ht="120" customHeight="1">'+cell(f'A{i}',plan['date'],1)+cell(f'B{i}','\n'.join(daily_summary(plan)))+'</row>')
     styles = f'<styleSheet xmlns="{SHEET}"><numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="hh:mm"/></numFmts>'
     styles += '<fonts count="3"><font><sz val="11"/><name val="Microsoft YaHei"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Microsoft YaHei"/></font><font><u/><color rgb="FF245C78"/><sz val="11"/><name val="Microsoft YaHei"/></font></fonts>'
     styles += '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF123B3A"/><bgColor indexed="64"/></patternFill></fill></fills>'

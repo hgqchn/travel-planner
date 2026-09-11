@@ -45,6 +45,68 @@ function harness() {
   return { env, state, filter, node, choose, visible, requests, click: id => node(id).events.click() };
 }
 
+function rateFixtures(h) {
+  Object.assign(h.state.items.attraction[0], { scenic_rating: '4A', tags: ['室内'], in_itinerary: true });
+  Object.assign(h.state.items.attraction[1], { scenic_rating: '5A', tags: ['亲子'] });
+  Object.assign(h.state.items.attraction[2], { scenic_rating: '4A', tags: ['亲子'], scenic_rating_info: { status: 'unverified' } });
+  h.state.items.attraction[4].scenic_rating = '5A';
+  h.env.render();
+  return value => h.node('scenic-rating-filter-options').children.find(button => button.dataset.scenicRating === value).events.click();
+}
+
+test('rating counts are city scoped and combine with type, tags and itinerary status', () => {
+  const h = harness(), rating = rateFixtures(h);
+  assert.deepEqual(h.node('scenic-rating-filter-options').children.map(b => b.textContent), ['全部 4', '4A 2', '5A 1']);
+  rating('4A');
+  assert.deepEqual(h.visible().map(item => item.id), ['a', 'c']);
+  assert.equal(h.node('scenic-rating-filter-options').children[1]['aria-pressed'], 'true');
+  assert.equal(h.node('type-filter-count').textContent, '显示 2 / 4 项地点');
+  assert.equal(h.filter.active(), true);
+  h.choose('博物馆');
+  h.node('tag-filter-options').children.find(b => b.dataset.tagKey === '室内').events.click();
+  assert.deepEqual(h.visible().map(item => item.id), ['a']);
+  h.node('itinerary-filter-options').children.find(b => b.dataset.itineraryStatus === 'unscheduled').events.click();
+  assert.equal(h.visible().length, 0);
+  assert.ok(h.filter.emptyState());
+  h.click('filter-reset');
+  assert.equal(h.visible().length, 4);
+  assert.equal(h.filter.active(), false);
+});
+
+test('rating filtering tracks polling changes and keeps a selected zero-count grade', () => {
+  const h = harness(), rating = rateFixtures(h);
+  rating('5A');
+  const option = h.node('scenic-rating-filter-options').children[2];
+  h.env.render(); assert.equal(h.node('scenic-rating-filter-options').children[2], option);
+  h.state.items.attraction[1].scenic_rating = '';
+  h.env.render();
+  assert.equal(h.visible().length, 0);
+  assert.equal(h.node('scenic-rating-filter-options').children[2].textContent, '5A 0');
+  assert.equal(h.node('scenic-rating-filter-options').children[2]['aria-pressed'], 'true');
+  assert.equal(h.node('filter-reset').disabled, false);
+});
+
+test('rating selection resets across scopes and is hidden for food', () => {
+  for (const [key, value] of [['tab', 'food'], ['cityId', 'beijing'], ['projectId', 'other'], ['userId', 'Bob'], ['projectUnlocked', false]]) {
+    const h = harness(), rating = rateFixtures(h);
+    rating('4A'); h.state[key] = value; h.env.render();
+    assert.equal(h.filter.active(), false);
+    if (key === 'tab') {
+      assert.equal(h.node('scenic-rating-filter').hidden, true);
+      assert.equal(h.visible().length, 1);
+    }
+  }
+});
+
+test('rating batch deletion only targets matching results and changing grade clears selection', async () => {
+  const h = harness(), rating = rateFixtures(h);
+  rating('4A'); h.click('batch-open'); h.click('batch-select-all');
+  rating('5A'); assert.equal(h.node('batch-toolbar').hidden, true);
+  h.click('batch-open'); assert.equal(h.node('batch-delete').disabled, true);
+  h.click('batch-select-all'); h.click('batch-delete'); await h.click('batch-confirm-delete');
+  assert.deepEqual(JSON.parse(JSON.stringify(h.requests[0].body.items)), [{ id: 'b', version: 1 }]);
+});
+
 test("types and counts reflect current city, normalize surrounding whitespace and include uncategorized", () => {
   const h = harness();
   assert.deepEqual(h.node("type-filter-options").children.map(button => button.textContent), ["全部 4", "博物馆 2", "公园 1", "未分类 1"]);

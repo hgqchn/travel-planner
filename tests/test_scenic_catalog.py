@@ -193,12 +193,14 @@ class ScenicIntegrationTests(unittest.TestCase):
                   'source_type': 'wikipedia'}
         docs = [document([source])]
         catalog = scenic_catalog.ScenicCatalog(docs)
-        city = server.create_city(self.path, {'name': '合肥'}, 'rating-test')['city']
+        # 合肥 is now in the bundled city directory; reuse the initialized city.
+        with server.connect_db(self.path) as db:
+            city = dict(server.find_existing_city(db, '合肥'))
         with patch.object(scenic_catalog, 'get_catalog', return_value=catalog):
             item = server.create_item(self.path, 'attraction', {'name': '示例公园', 'city_id': city['id']}, 'rating-test')['item']
             self.assertEqual(item['scenic_rating'], '4A')
             self.assertEqual(item['scenic_rating_info']['status'], 'reference')
-        correction = dict(source, action='removed', effective_date='2026-09-07', source_url='https://www.cqn.com.cn/example')
+        correction = dict(source, action='removed', effective_date='2026-09-07', source_url='https://www.cqn.com.cn/example', source_type='reported_official')
         corrected = scenic_catalog.ScenicCatalog(docs, corrections=[correction])
         with patch.object(scenic_catalog, 'get_catalog', return_value=corrected):
             result = server.snapshot(self.path, city['id'])['items']['attraction'][0]

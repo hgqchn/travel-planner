@@ -11,3 +11,5 @@ deepseek.md
 data/preview/
 data/local-preview.log
 data/local-preview.pid
+# Local AMap credentials supplied during setup.
+高德地图.md

@@ -11,6 +11,7 @@ fi
 set -a
 . ./data/preview.env
 if [ -f data/deepseek.env ]; then . ./data/deepseek.env; fi
+if [ -f data/amap.env ]; then . ./data/amap.env; fi
 set +a
 export TRIP_HOST=0.0.0.0
 export TRIP_PORT=${TRIP_PORT:-8000}

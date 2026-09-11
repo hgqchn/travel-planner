@@ -111,13 +111,18 @@ class ScenicCatalog:
         self.component_index: dict[str, list[int]] = {}
         self.fingerprint = hashlib.sha256(json.dumps([documents, corrections or []], ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
         # Use the same strict city/name matcher for the small withdrawal list.
-        # Its synthetic rating is internal only; public provenance below remains
-        # a reported official decision, never a fabricated official data file.
+        # Its synthetic rating is internal only; preserve whether the decision
+        # was read in an official announcement or in a report quoting it.
         self._corrections = None
+        self._correction_source_types = {}
         if corrections:
             for item in corrections:
                 if item.get('action') not in {'removed', 'downgraded'} or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', item.get('effective_date', '')):
                     raise ValueError('评级更正需要明确的处理类型与生效日期。')
+                source_type = item.get('source_type', 'reported_official')
+                if source_type not in {'official', 'reported_official'}:
+                    raise ValueError('评级更正来源类别无效。')
+                self._correction_source_types[(item.get('source_url', ''), item['effective_date'])] = source_type
             self._corrections = ScenicCatalog([{'items': [dict(item, rating='4A', source_type='official',
                                                               as_of=item['effective_date']) for item in corrections]}])
         for document in documents:
@@ -226,7 +231,8 @@ class ScenicCatalog:
                 reinstated = info['status'] == 'catalog' and info['as_of'] > correction['as_of']
                 if not reinstated:
                     rating = ''
-                    info = dict(correction, status='outdated', source_type='reported_official')
+                    source_type = self._correction_source_types[(correction['source_url'], correction['as_of'])]
+                    info = dict(correction, status='outdated', source_type=source_type)
         result.update(scenic_rating=rating, scenic_rating_info=info)
         return result
 
@@ -254,13 +260,18 @@ class ScenicCatalog:
 
 @lru_cache(maxsize=1)
 def get_catalog() -> ScenicCatalog:
+    from scenic_aliases import apply_aliases
+
+    aliases_path = DATA_DIR / 'aliases.json'
+    aliases = json.loads(aliases_path.read_text(encoding='utf-8'))['files'] if aliases_path.is_file() else {}
     paths = sorted(DATA_DIR.glob("*-official.json"))
     wikipedia = DATA_DIR / '4a-wikipedia.json'
     if wikipedia.is_file():
         paths.append(wikipedia)
     corrections_path = DATA_DIR / 'rating-corrections.json'
-    corrections = json.loads(corrections_path.read_text(encoding='utf-8'))['items'] if corrections_path.is_file() else []
-    return ScenicCatalog([json.loads(path.read_text(encoding="utf-8"))
+    corrections = apply_aliases(json.loads(corrections_path.read_text(encoding='utf-8')),
+                                aliases.get(corrections_path.name, []))['items'] if corrections_path.is_file() else []
+    return ScenicCatalog([apply_aliases(json.loads(path.read_text(encoding="utf-8")), aliases.get(path.name, []))
                           for path in paths], corrections=corrections)
 
 

@@ -18,7 +18,7 @@ window.TripCities = (() => {
       section.append(element("h3", "", conflict.date));
       const list = element("ul");
       for (const item of conflict.items) {
-        list.append(element("li", "", `${item.start_time || "时间待定"} · ${item.city_name} · ${item.title}`));
+        list.append(element("li", "", `${item.time_block || item.start_time || "待安排"} · ${item.city_name} · ${item.title}`));
       }
       section.append(list);
       return section;

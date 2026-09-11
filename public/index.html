@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f7f2" />
+    <meta name="theme-color" content="#f3f8fe" />
     <meta
       name="description"
       content="即刻出发：基于 AI 的多人共享旅行规划，和同行者一起整理每日行程、地点、交通和本地美食。"
@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="/batch-selection.css" />
     <link rel="stylesheet" href="/departure.css" />
     <link rel="stylesheet" href="/project-cities.css" />
+    <link rel="stylesheet" href="/sky-theme.css" />
+    <link rel="stylesheet" href="/trip-maps.css" />
+    <link rel="stylesheet" href="/usage-help.css" />
+    <script src="/usage-help.js" defer></script>
     <script src="/project-scope.js" defer></script>
     <script src="/place-taxonomy.js" defer></script>
     <script src="/type-filter.js" defer></script>
@@ -25,7 +29,10 @@
     <script src="/travel-guidance.js" defer></script>
     <script src="/project-cities.js" defer></script>
     <script src="/project-city-editor.js" defer></script>
+    <link rel="stylesheet" href="/daily-plans.css" />
+    <script src="/daily-plans.js" defer></script>
     <script src="/app.js" defer></script>
+    <script src="/trip-maps.js" defer></script>
   </head>
   <body class="is-booting">
     <div class="app-shell">
@@ -34,7 +41,7 @@
           <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21 3-7 18-4-7-7-4 18-7Z"/><path d="m10 14 5-5"/></svg></span>
           <span class="brand-copy">
             <strong>即刻出发</strong>
-            <span class="site-subtitle">基于 AI 的多人共享旅行规划</span>
+            <span class="site-subtitle">和同行的人，去向往的地方</span>
           </span>
         </a>
         <div class="topbar-actions">
@@ -48,22 +55,25 @@
 
       <main>
         <div class="project-toolbar">
-          <div><strong id="project-name">旅游规划</strong><button id="city-select" class="city-switch" type="button" aria-haspopup="dialog"><span aria-hidden="true">⌖</span> <b id="city-current-name">选择城市</b><span aria-hidden="true">⌄</span></button></div>
-          <a href="/admin.html" data-project-path="/admin.html">项目管理</a>
+          <div><strong id="project-name">旅游规划</strong><button id="city-select" class="city-switch" type="button" aria-haspopup="dialog"><span aria-hidden="true">⌖</span> <b id="city-current-name">选择城市</b><span aria-hidden="true">⌄</span></button><button id="city-metro-open" class="city-metro-entry" type="button" aria-haspopup="dialog" aria-controls="city-metro-dialog" hidden>轨道交通图</button></div>
+          <div class="help-toolbar-actions">
+            <button class="help-open" type="button" data-help-open aria-haspopup="dialog" aria-controls="usage-help-dialog">使用帮助</button>
+            <a href="/admin.html" data-project-path="/admin.html">项目管理</a>
+          </div>
         </div>
         <section class="trip-cover" aria-labelledby="page-title">
           <img
-            src="/assets/shanghai-sunset.jpg"
-            alt="上海黄昏时分的黄浦江、外滩与浦东天际线插画"
-            width="1600"
-            height="900"
+            src="/assets/sky-journey.svg"
+            alt="纸飞机飞过晴空，远山与湖水旁的一张旅行明信片"
+            width="1000"
+            height="580"
           />
           <div class="trip-cover-shade" aria-hidden="true"></div>
           <div class="trip-cover-content">
             <div>
               <p class="eyebrow">共享旅行清单 · 上海</p>
-              <h1 id="page-title">好风景，<br />一起出发。</h1>
-              <p class="trip-cover-note">把想去的地方，变成一起走过的路。</p>
+              <h1 id="page-title">下一站，<br />去向往的地方。</h1>
+              <p class="trip-cover-note">把一点期待，排进下一段旅程。</p>
               <p class="trip-stats" id="trip-stats">正在读取计划…</p>
             </div>
             <button class="share-button" id="share-button" type="button">
@@ -72,18 +82,18 @@
           </div>
         </section>
 
+        <button class="ai-launch" id="ai-open" type="button" aria-haspopup="dialog">
+          <span class="ai-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/><path d="M20 2v4m-2-2h4"/></svg></span>
+          <span class="ai-launch-copy"><span class="ai-launch-title"><strong>AI 帮你，<br class="ai-desktop-break" />安排旅程。</strong><span class="ai-model-credit">AI 旅行助手 · DeepSeek</span></span><small>生成完整行程，或只收集地点和美食。<br class="ai-desktop-break" />先确认草稿，再核对路线。</small></span>
+          <span class="ai-launch-arrow" aria-hidden="true">↗</span>
+        </button>
+
         <section class="project-cities" id="project-cities" aria-labelledby="project-cities-title" hidden>
-          <div class="project-cities-heading"><h2 id="project-cities-title">本项目的旅行城市</h2><span id="project-cities-count"></span></div>
+          <div class="project-cities-heading"><div><p class="sky-eyebrow">YOUR DESTINATIONS</p><h2 id="project-cities-title">本项目的旅行城市</h2></div><span id="project-cities-count"></span></div>
           <div class="project-city-list" id="project-city-list" role="group" aria-label="切换已规划城市"></div>
           <p class="project-cities-empty" id="project-cities-empty"></p>
           <button class="city-conflict-open" id="city-conflict-open" type="button" aria-haspopup="dialog" hidden></button>
         </section>
-
-        <button class="ai-launch" id="ai-open" type="button" aria-haspopup="dialog">
-          <span class="ai-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/><path d="M20 2v4m-2-2h4"/></svg></span>
-          <span class="ai-launch-copy"><span class="ai-launch-title"><strong>AI 旅行助手</strong><span class="ai-model-credit">基于 DeepSeek 模型</span></span><small>说说你的想法，让旅行灵感变成计划</small></span>
-          <span class="ai-launch-arrow" aria-hidden="true">↗</span>
-        </button>
 
         <section class="workspace">
           <div class="section-heading">
@@ -102,9 +112,10 @@
             </div>
           </div>
 
-          <section class="type-filter" id="type-filter" aria-label="按行程状态、分类和标签筛选" hidden>
-            <div class="type-filter-heading"><strong>分类与标签</strong><span id="type-filter-count" role="status" aria-live="polite"></span></div>
+          <section class="type-filter" id="type-filter" aria-label="按景区等级、行程状态、分类和标签筛选" hidden>
+            <div class="type-filter-heading"><strong>筛选</strong><span id="type-filter-count" role="status" aria-live="polite"></span></div>
             <div id="itinerary-filter" class="itinerary-filter" hidden><strong>行程状态</strong><div id="itinerary-filter-options" class="type-filter-options" role="group" aria-label="按是否已排行程筛选地点"></div></div>
+            <div id="scenic-rating-filter" class="itinerary-filter" hidden><strong>景区等级</strong><div id="scenic-rating-filter-options" class="type-filter-options" role="group" aria-label="按4A或5A景区等级筛选地点"></div></div>
             <div class="type-filter-options" id="type-filter-options" role="group" aria-label="选择地点或美食类型"></div>
             <div class="tag-filter-heading">
               <label for="tag-filter-search">标签 <small id="tag-filter-hint">可多选</small></label>
@@ -126,7 +137,11 @@
           </section>
 
           <p id="cache-notice" class="cache-notice" role="status" hidden></p>
-          <button id="guidance-add" class="link-button guidance-add" type="button" hidden>＋ 添加出行提示</button>
+          <div id="guidance-tools" class="guidance-actions" hidden>
+            <button id="guidance-generate" class="secondary-button" type="button">AI 生成行程提示</button>
+            <span class="guidance-source">当前城市行程规划完毕后，再生成出行提醒。</span>
+            <button id="guidance-add" class="link-button guidance-add" type="button" hidden>手动添加提示</button>
+          </div>
           <section class="travel-guidance" id="travel-guidance" aria-labelledby="travel-guidance-title" hidden>
             <div class="travel-guidance-heading"><span class="travel-guidance-icon" aria-hidden="true">!</span><div><h3 id="travel-guidance-title">出行提示</h3><p>针对当前城市的整个行程 · 可编辑或删除 · 随行程导出</p></div></div>
             <div id="travel-guidance-groups"></div>
@@ -149,7 +164,7 @@
         </section>
       </main>
 
-      <footer class="site-footer"><span class="footer-brand">即刻出发</span><span>和喜欢的人，去想去的地方。</span><small>基于 GPT 模型生成</small></footer>
+      <footer class="site-footer"><span class="footer-brand">即刻出发</span><span>和同行的人，去向往的地方。</span><small>基于 GPT 模型生成</small></footer>
 
       <nav class="bottom-nav" aria-label="旅行计划分类">
         <button class="nav-item" type="button" data-tab="itinerary">
@@ -157,9 +172,6 @@
         </button>
         <button class="nav-item is-active" type="button" data-tab="attraction" aria-current="page">
           <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span><b>地点</b>
-        </button>
-        <button class="nav-item" type="button" data-tab="transit">
-          <span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="15" rx="4"/><path d="M5 11h14m-9-8v8m-3 7-2 3m12-3 2 3M8 15h1m6 0h1"/></svg></span><b>交通</b>
         </button>
         <button class="nav-item" type="button" data-tab="food">
           <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3v5a3 3 0 0 0 6 0V3M7 3v18M17 3c-3 3-3 8 0 9h3V3h-3Zm3 9v9"/></svg></span><b>美食</b>
@@ -198,9 +210,61 @@
         </label>
         <p class="form-error" id="project-error" role="alert"></p>
         <button class="primary-button" type="submit">进入项目</button>
+        <button class="help-open help-gate-open" type="button" data-help-open aria-haspopup="dialog" aria-controls="usage-help-dialog">第一次使用？查看操作说明</button>
         <p class="privacy-note">项目口令只用于验证访问权限，不会显示在页面内容中。</p>
         <a href="/admin.html" data-project-path="/admin.html">管理员入口</a>
       </form>
+    </dialog>
+
+    <dialog class="usage-help-dialog" id="usage-help-dialog" aria-labelledby="usage-help-title" aria-describedby="usage-help-intro">
+      <header class="usage-help-header">
+        <div><p class="usage-help-kicker">从这里开始</p><h2 id="usage-help-title">使用帮助</h2></div>
+        <button class="icon-button" type="button" data-help-close aria-label="关闭使用帮助" autofocus>×</button>
+      </header>
+      <div class="usage-help-content" tabindex="0" role="region" aria-label="操作说明，可上下滚动">
+        <p id="usage-help-intro">进入项目并选好城市后，可以让 AI 整体规划，也可以先收集地点、美食，再自己按天安排。两条流程最后都要确认具体路线。</p>
+        <ol class="help-quick-start">
+          <li><strong>输入口令，选择署名</strong><span>在主页输入项目口令即可进入对应项目，无需完整链接。随后选择已有用户 ID，或创建自己的 ID，用来标记你的修改。</span></li>
+          <li><strong>方式一：AI 整体规划</strong><span>选择“整体规划：地点＋美食＋行程”，填写日期和偏好，生成后核对、编辑并保存草稿。不必提前新增日期。</span></li>
+          <li><strong>方式二：自己按天安排</strong><span>选择“只收集地点和美食”，确认保存清单；再“新增一天”，从时段旁的“添加地点”选入多个地点，也可以自行填写活动。</span></li><li><strong>共同最后一步：规划路线</strong><span>每天点击“规划路线”，确认地图位置、出发地和返回地、交通方式及全天预算。不满意可在当天“更多”中选择“AI 重排这一天”，确认新草稿后重新核对路线。</span></li>
+        </ol>
+        <h3 class="help-section-title">按操作查看</h3>
+        <details class="help-topic">
+          <summary>如何进入项目、切换用户？</summary>
+          <p>向项目创建者索取口令，在主页输入后点击“进入项目”。每个项目有自己的口令和旅行内容。第一次使用时，选择已有用户 ID 或输入新的 ID；ID 是编辑署名，不需要单独设置密码。</p>
+          <p>进入后点击页面右上角的用户 ID 可以切换署名。如果口令失效，请向管理员确认最新口令；新建项目、修改口令或管理用户，请使用“项目管理”或登录页的“管理员入口”。</p>
+        </details>
+        <details class="help-topic">
+          <summary>如何选择城市、添加地点和美食？</summary>
+          <p>点击上方城市名称，输入中文、拼音、首字母或省份筛选。手机可上下滑动浏览；没有找到时，在列表底部输入完整城市名，点击“添加并前往”。</p>
+          <p>切换到“地点”或“美食”，点击添加按钮，填写名称、介绍等内容并保存。已有卡片可以编辑，分类和标签可以缩小列表范围；地点还可按4A、5A景区等级和是否已排行程筛选，多个条件同时生效。点击“清空筛选”恢复全部。内容保存到当前项目、当前城市。</p>
+        </details>
+        <details class="help-topic">
+          <summary>如何安排一天的行程？</summary>
+          <p>在“行程”中选择日期，点击“新增一天”。默认日期为已有行程的下一天，也可自行选择；空白日期会直接保存，已有日期不会重复添加。点击“确定当天行程”，再通过“选择地点”把清单里的地点加入当天，也可添加行程。</p>
+          <p>每个日期标题的“更多 → 删除这一天”会先显示确认提示。确认后会删除当前城市当天的全部安排（含备选）、每日设置和路线核算结果；地点、美食清单及其他日期保留。若当天内容已被同行者修改，请刷新核对后重新确认。</p>
+          <p>在“确定当天行程”中调整地点；展开“出发地、返回地与时间预算”可修改起终点和休息预算。停留时长和时段可在地点编辑中修改。同一时段可容纳多个地点，空时段保留，可拖入地点。暂时不确定的地点可转为备选；需要保留时段的安排可锁定。新 AI 行程会填入推荐停留时长，从地点清单添加时继承已有建议；旧行程可点击“AI 补全停留时长”，预览后应用。每个地点均可手动修改，已填写的时长不会被补全操作覆盖。</p>
+          <p>确认具体地点后，可以“核算全天”，或打开“地图与路线”查看。地点、顺序或每日设置变更后，请重新核算路线。</p>
+        </details>
+        <details class="help-topic">
+          <summary>如何使用 AI 旅行助手？</summary>
+          <p>点击主页的“AI 旅行助手”，选择需要的内容，填写日期、天数、节奏和偏好，然后生成建议。生成后先核对预览，编辑并勾选需要的内容，再确认导入；仅生成不会自动加入行程。</p>
+          <p>想小幅修改时，在“确定当天行程”中使用“AI 微调当天安排”；想重新生成这一天的行程时，使用日期旁“更多 → AI 重排这一天”。两种建议都先预览再确认，修改后重新核对路线。重排仅替换所选日期的行程，地点、美食和其他日期保留。</p>
+          <p>如果提示 AI 暂不可用，请联系管理员配置；仍可手动添加、编辑和规划。</p>
+        </details>
+        <details class="help-topic">
+          <summary>如何查看地图、交通和出行提示？</summary>
+          <p>地点卡片的“高德导航”可用于查找目的地。行程中的“地图与路线”用于查看当天地点与交通；已收录轨道交通图的城市还可从城市名称旁打开线路图，放大查看。</p>
+          <p>完成当前城市的地点、顺序和路线规划后，点击“AI 生成行程提示”，确认规划完毕后生成，编辑并保存。行程草稿不再附带出行提示。已有提示仍可手动编辑或删除。美食卡片可以复制搜索词，方便粘贴到常用应用。出发前请核实营业时间、预约要求和交通情况。</p>
+        </details>
+        <details class="help-topic">
+          <summary>如何共享、导出和查看他人的修改？</summary>
+          <p>点击封面的“分享”，把项目链接发给同行者，并告知项目口令。每个人进入同一项目后都能共同编辑；保存的内容会自动同步，在“动态”中可以查看最近修改及署名。</p>
+          <p>“行程”页的“导出行程”可下载 Word 或 Excel，选择当前城市或全部城市。导出包含已保存的内容；网页之后有更新时，需要重新下载文件。</p>
+          <p>如果提示有人已修改，请先查看最新内容，再决定如何处理自己的草稿。删除前请核对当前城市和所选条目，并阅读确认提示。</p>
+        </details>
+      </div>
+      <footer class="usage-help-footer"><span>随时可从主页重新打开</span><button class="primary-button" type="button" data-help-close>知道了</button></footer>
     </dialog>
 
     <dialog
@@ -330,22 +394,35 @@
 
     <dialog class="sheet city-sheet" id="city-dialog" aria-labelledby="city-title">
       <div class="sheet-content">
-        <div class="dialog-header"><div><p class="section-kicker">下一站，去哪里</p><h2 id="city-title">选择城市</h2></div><button class="icon-button" id="city-close" type="button" aria-label="关闭城市选择">×</button></div>
+        <div class="dialog-header"><div><p class="section-kicker">下一站，去哪里</p><h2 id="city-title">选择城市</h2></div><button class="icon-button" id="city-close" type="button" aria-label="关闭城市选择" autofocus>×</button></div>
         <label class="field city-search-field"><span>搜索城市</span><input id="city-search" type="search" placeholder="中文、拼音或首字母，例如：成都 / cd" autocomplete="off" aria-controls="city-results" /></label>
         <p id="city-result-count" class="muted" role="status" aria-live="polite"></p>
         <div id="city-results" class="city-results"></div>
         <form id="city-add-form" class="city-add-form">
-          <label class="field"><span>没找到？手动添加城市</span><input id="city-add-input" name="name" maxlength="30" required placeholder="输入完整城市名，例如：安吉" autocomplete="off" /></label>
+          <label class="field"><span>没找到？添加城市，自动匹配省份</span><input id="city-add-input" name="name" maxlength="30" required placeholder="例如：大同、洛阳" autocomplete="off" /></label>
           <button class="secondary-button" type="submit">＋ 添加并前往</button>
           <p id="city-add-error" class="form-error" role="alert"></p>
         </form>
       </div>
     </dialog>
 
+    <dialog class="city-metro-dialog" id="city-metro-dialog" aria-labelledby="city-metro-title">
+      <div class="dialog-heading"><h2 id="city-metro-title">轨道交通图</h2><button class="icon-button" id="city-metro-close" type="button" aria-label="关闭城市轨道交通图">×</button></div>
+      <div id="city-metro-content"></div>
+    </dialog>
+
     <dialog class="metro-dialog" id="metro-dialog" aria-labelledby="metro-title" aria-describedby="metro-help">
       <div class="metro-header"><div><h2 id="metro-title">轨道交通线路图</h2><p id="metro-help">滚轮或双指缩放 · 拖动查看 · 双击放大</p></div><button class="icon-button" id="metro-close" type="button" aria-label="关闭线路图">×</button></div>
       <div class="metro-stage" id="metro-stage" tabindex="0" aria-label="可缩放线路图，使用加减键缩放、方向键移动、数字0复位"><img id="metro-full-image" alt="轨道交通高清线路图" draggable="false" /><span class="metro-loading" id="metro-loading" role="status">正在加载高清线路图…</span></div>
       <div class="metro-controls"><button id="metro-minus" class="secondary-button" type="button" aria-label="缩小线路图">−</button><output id="metro-scale" aria-label="线路图缩放比例">100%</output><button id="metro-plus" class="secondary-button" type="button" aria-label="放大线路图">＋</button><button id="metro-reset" class="secondary-button" type="button">适应窗口</button></div>
+    </dialog>
+
+    <dialog class="sheet guidance-sheet" id="guidance-confirm-dialog" aria-labelledby="guidance-confirm-title">
+      <div class="dialog-header"><h2 id="guidance-confirm-title">当前城市的行程规划完毕了吗？</h2></div>
+      <p class="dialog-lead" id="guidance-confirm-city"></p>
+      <p>请先确认每天的地点、顺序、停留和交通路线。AI 将根据当前已保存的行程生成提醒，不会修改行程。生成后可编辑并确认保存。</p>
+      <p id="guidance-generate-status" role="status" aria-live="polite"></p>
+      <div class="guidance-editor-actions"><button id="guidance-generate-cancel" class="secondary-button" type="button">还没规划好</button><button id="guidance-generate-confirm" class="primary-button" type="button">已规划完毕，生成提示</button></div>
     </dialog>
 
     <dialog class="sheet guidance-sheet" id="guidance-dialog" aria-labelledby="guidance-title">
@@ -369,14 +446,15 @@
           <button id="ai-new-task" class="secondary-button" type="button">新建任务</button>
         </div>
         <form id="ai-form">
+          <div class="ai-flow-choices" aria-label="选择 AI 的帮助方式"><button type="button" data-ai-flow="full">整体规划：地点＋美食＋行程</button><button type="button" data-ai-flow="collect">只收集地点和美食</button></div>
           <label class="field"><span>DeepSeek 模型 ID</span><input id="ai-model-input" name="model" type="text" maxlength="200" required autocomplete="off" spellcheck="false" aria-describedby="ai-model-hint" /><small id="ai-model-hint">默认使用当前配置的模型，可手动填写其他模型 ID。本次生成使用这里填写的模型。</small></label>
           <div class="ai-field-grid">
-            <label class="field"><span>规划方式</span><select name="planning_mode" id="ai-planning-mode"><option value="append">补充内容</option><option value="replace_all">重新规划全部行程</option><option value="replace_day">重新规划某一天</option></select></label>
+            <label class="field"><span>如何处理已有行程</span><select name="planning_mode" id="ai-planning-mode"><option value="append">保留已有内容，生成新草稿</option><option value="replace_all">重新规划全部行程</option><option value="replace_day">重新规划某一天</option></select></label>
             <label class="field" id="ai-target-date-field" hidden><span>重新规划的日期</span><input name="target_date" id="ai-target-date" type="date" /></label>
           </div>
           <p class="ai-replan-scope" id="ai-replan-scope" role="note" hidden></p>
           <p class="ai-replan-range-note" id="ai-replan-range-note" hidden></p>
-          <fieldset class="ai-kinds"><legend>想生成什么</legend><label><input type="checkbox" name="kinds" value="attraction" checked /> 地点</label><label><input type="checkbox" name="kinds" value="food" checked /> 美食</label><label><input type="checkbox" name="kinds" value="itinerary" checked /> 行程</label></fieldset>
+          <fieldset class="ai-kinds"><legend>本次生成的内容（可调整）</legend><label><input type="checkbox" name="kinds" value="attraction" checked /> 地点</label><label><input type="checkbox" name="kinds" value="food" checked /> 美食</label><label><input type="checkbox" name="kinds" value="itinerary" checked /> 行程草稿</label></fieldset>
           <p id="ai-content-only-note" class="ai-guidance" role="status" aria-live="polite" hidden>仅补充地点或美食时，无需专门设置下方的出发日期、旅行天数、人数、预算和节奏，保留默认值即可。可在“兴趣偏好”和“补充要求”中说明想要的推荐；勾选“行程”后，再按实际出行情况填写这些参数。</p>
           <p class="ai-guidance">AI 会参考当前城市的已有地点及行程安排，区分已安排和未安排的地点，减少重复推荐。行程中的游览地点会与地点清单同步关联。</p>
           <div class="ai-templates" aria-label="常用旅行模板"><button type="button" data-ai-template="classic">经典三日游</button><button type="button" data-ai-template="family">亲子轻松游</button><button type="button" data-ai-template="food">本地美食</button><button type="button" data-ai-template="extra">补充新灵感</button></div>
@@ -395,14 +473,15 @@
         <p class="ai-status" id="ai-status" role="status" aria-live="polite"></p>
         <p class="form-error" id="ai-error" role="alert"></p>
         <section id="ai-preview" hidden aria-label="AI 生成结果预览">
-          <div class="ai-preview-heading"><h3>挑选你的旅行灵感</h3><button id="ai-select-all" class="link-button" type="button">全选可导入内容</button></div>
+          <div class="ai-preview-heading"><h3>确认草稿内容</h3><button id="ai-select-all" class="link-button" type="button">全选可导入内容</button></div>
           <p class="ai-replan-scope" id="ai-preview-scope" role="note" hidden></p>
           <p class="ai-guidance" id="ai-attraction-sync-note" role="note" hidden>导入行程时，会关联已有地点，并将清单中缺少的游览地点自动加入。可展开“编辑详细内容”调整关联地点；路口、普通街道和路线等不会自动收录。</p>
           <aside id="ai-travel-guidance" class="travel-guidance" aria-labelledby="ai-guidance-title" hidden>
-            <div class="travel-guidance-heading"><span class="travel-guidance-icon" aria-hidden="true">!</span><div><h3 id="ai-guidance-title">出行提示</h3><p>导入后更新当前城市的提示；已手动编辑或删除的提示会保留你的选择。</p></div></div>
+            <div class="travel-guidance-heading"><span class="travel-guidance-icon" aria-hidden="true">!</span><div><h3 id="ai-guidance-title">出行提示</h3><p>行程提示在确认当前城市行程后独立生成。</p></div></div>
             <ul id="ai-notices" class="ai-notices"></ul>
           </aside>
-          <form id="ai-import-form"><div id="ai-preview-items"></div><div class="ai-import-footer"><p id="ai-selection-count"></p><div class="ai-import-actions"><button id="ai-import" class="primary-button" type="submit">加入当前城市清单</button><button id="ai-result-close" class="secondary-button" type="button">关闭</button></div></div></form>
+          <form id="ai-import-form"><div id="ai-preview-items"></div><div class="ai-import-footer"><p id="ai-selection-count"></p><div class="ai-import-actions"><button id="ai-import" class="primary-button" type="submit">确认并保存草稿</button><button id="ai-result-close" class="secondary-button" type="button">关闭</button></div></div></form>
+          <aside id="ai-next-step" class="ai-next-step" hidden><p id="ai-next-step-text"></p><button id="ai-next-step-open" class="primary-button" type="button">前往行程，继续安排与规划路线</button></aside>
         </section>
       </div>
     </dialog>
@@ -463,7 +542,7 @@
           <h2 id="city-conflict-title">多城市行程可能存在时间冲突</h2>
           <button class="icon-button" id="city-conflict-close" type="button" aria-label="关闭时间提醒">×</button>
         </div>
-        <p class="dialog-lead" id="city-conflict-description">以下日期安排了多个城市，请核对时间并预留城际交通时间。当前仅记录开始时间，同日转场也会提醒；这不代表安排一定冲突。行程已保存，可直接保留，无需修改。</p>
+        <p class="dialog-lead" id="city-conflict-description">以下日期安排了多个城市，请核对时间并预留城际交通时间。跨城交通需要另行核对，同日转场也会提醒；这不代表安排一定冲突。行程已保存，可直接保留，无需修改。</p>
         <div class="city-conflict-list" id="city-conflict-list"></div>
         <button class="primary-button city-conflict-keep" id="city-conflict-keep" type="button">知道了，保留安排</button>
       </div>

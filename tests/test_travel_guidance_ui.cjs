@@ -21,7 +21,8 @@ function harness({ handler, confirm = true } = {}) {
       { id: 'one', city_id: 'shanghai', city_name: '上海', version: 'a'.repeat(24), summary: '建议性安排', notices: ['预约提醒', '<img src=x onerror=alert(1)>'] },
       { id: 'two', city_id: 'beijing', city_name: '北京', version: 'b'.repeat(24), summary: '', notices: ['北京提示'] },
     ] };
-  const env = { window: { confirm: () => confirm }, state, document: { getElementById: node },
+  const timers = [];
+  const env = { crypto: {randomUUID:()=>`request-${requests.length}`}, setTimeout: fn => {timers.push(fn);return timers.length;}, clearTimeout:()=>{timers.length=0;}, window: { confirm: () => confirm }, state, document: { getElementById: node },
     element: (tag, cls, text) => new Node(tag, cls, text), requireIdentity: () => Boolean(state.userId), showToast() {}, fetchSnapshot: async () => {},
     requestJson: async (url, options = {}) => {
       const body = options.body ? JSON.parse(options.body) : undefined;
@@ -35,7 +36,7 @@ function harness({ handler, confirm = true } = {}) {
   const render = () => env.window.TripGuidance.render();
   render();
   const edit = () => node('travel-guidance-groups').children[0].children[1].emit();
-  return { state, node, render, edit, requests, submit: () => node('guidance-form').emit('submit'), remove: () => node('guidance-delete').emit() };
+  return { tick:async()=>{await timers.shift()?.();}, state, node, render, edit, requests, submit: () => node('guidance-form').emit('submit'), remove: () => node('guidance-delete').emit() };
 }
 
 test('one city note is visible only on itinerary; an empty note offers creation', () => {
@@ -111,4 +112,51 @@ test('generated content stays plain text and old snapshots hide it cleanly', () 
   assert.equal(notice.children.length, 0);
   delete h.state.travelGuidance; h.render();
   assert.equal(h.node('travel-guidance').hidden, true);
+});
+
+
+test('generation requires the separate completion confirmation; cancel creates no AI job', async () => {
+  const h=harness(); h.node('guidance-generate').emit();
+  assert.equal(h.node('guidance-confirm-dialog').open,true);
+  assert.equal(h.requests.length,0);
+  h.node('guidance-generate-cancel').emit();
+  assert.equal(h.node('guidance-confirm-dialog').open,false);
+  assert.equal(h.requests.length,0);
+});
+
+test('ready guidance is an editable draft; save carries both original versions', async () => {
+  const group={city_id:'shanghai',city_name:'上海',version:'b'.repeat(24),notices:['原提示']};
+  const h=harness({handler:async(url,options,body)=> url.includes('/ai/jobs')
+    ? {data:{id:'job',status:'ready',request:{plan_version:'plan-v1',guidance_version:'a'.repeat(24)},result:{notices:['外滩步行请穿舒适鞋']}}}
+    : {data:{guidance:options.method ? {...group,...body} : group,revision:2}}});
+  h.node('guidance-generate').emit(); await h.node('guidance-generate-confirm').emit();
+  assert.equal(h.requests[0].body.confirmed_complete,true);
+  assert.equal(h.requests[0].body.purpose,'travel_guidance');
+  assert.equal(h.requests[0].body.city_id,'shanghai');
+  assert.equal(h.requests.some(r=>r.method==='PUT'),false);
+  assert.equal(h.node('guidance-dialog').open,true);
+  assert.equal(h.node('guidance-notices').value,'外滩步行请穿舒适鞋');
+  h.node('guidance-notices').value='已人工核对'; await h.submit();
+  assert.equal(h.requests.at(-1).body.plan_version,'plan-v1');
+  assert.equal(h.requests.at(-1).body.version,'a'.repeat(24));
+});
+
+test('queued generation polls its existing job and a city switch discards late output', async () => {
+  let resolve;
+  const h=harness({handler:async(url)=>url==='/api/ai/jobs' ? {data:{id:'same',status:'queued'}} : new Promise(done=>{resolve=done;})});
+  h.node('guidance-generate').emit(); await h.node('guidance-generate-confirm').emit();
+  const pending=h.tick(); h.state.cityId='beijing'; h.render();
+  resolve({data:{id:'same',status:'ready',request:{},result:{notices:['上海提示']}}}); await pending;
+  assert.equal(h.requests.filter(r=>r.method==='POST').length,1);
+  assert.equal(h.requests[1].url,'/api/ai/jobs/same');
+  assert.equal(h.node('guidance-dialog').open,false);
+  assert.equal(h.node('guidance-confirm-dialog').open,false);
+});
+
+test('generation errors offer retry and cannot overwrite existing notes', async () => {
+  const h=harness({handler:async()=>{throw new Error('AI 暂不可用');}});
+  h.node('guidance-generate').emit(); await h.node('guidance-generate-confirm').emit();
+  assert.equal(h.node('guidance-generate-confirm').disabled,false);
+  assert.equal(h.node('guidance-generate-status').textContent,'AI 暂不可用');
+  assert.equal(h.state.travelGuidance[0].notices[0],'预约提醒');
 });

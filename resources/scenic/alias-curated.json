@@ -1,0 +1,149 @@
+{
+  "checked_at": "2026-09-11",
+  "note": "补充具有明确名称对应关系的常用名、旧称；来源仅用于别名，不更改原记录评级或评级来源。",
+  "items": [
+    {
+      "province": "北京市",
+      "names": [
+        "故宫博物院"
+      ],
+      "aliases": [
+        "故宫",
+        "北京故宫",
+        "紫禁城"
+      ],
+      "source_url": "https://www.dpm.org.cn/Explore.html"
+    },
+    {
+      "province": "北京市",
+      "names": [
+        "圆明园遗址公园景区"
+      ],
+      "aliases": [
+        "圆明园"
+      ],
+      "source_url": "https://gygl.beijing.gov.cn/mlgy/mlgy_lsmy/201911/t20191129_732079.html"
+    },
+    {
+      "province": "辽宁省",
+      "names": [
+        "沈阳故宫"
+      ],
+      "aliases": [
+        "盛京皇宫"
+      ],
+      "source_url": "https://www.dpm.org.cn/lemmas/240647.html"
+    },
+    {
+      "province": "上海市",
+      "names": [
+        "东方明珠广播电视塔"
+      ],
+      "aliases": [
+        "东方明珠",
+        "东方明珠电视塔"
+      ],
+      "source_url": "https://smgpictures.opg.cn/cn/newsCenter/newsInfo/1579741574330097664.html"
+    },
+    {
+      "province": "江苏省",
+      "names": [
+        "南京总统府（南京中国近代史遗址博物馆）"
+      ],
+      "aliases": [
+        "南京总统府",
+        "总统府",
+        "总统府景区",
+        "南京中国近代史遗址博物馆"
+      ],
+      "source_url": "https://www.njztf.cn/jqgk/detail/297.html"
+    },
+    {
+      "province": "湖南省",
+      "names": [
+        "湖南省博物馆"
+      ],
+      "aliases": [
+        "湖南博物院"
+      ],
+      "source_url": "https://whhlyt.hunan.gov.cn/whhlyt/news/gzdt/202510/t20251013_33823787.html"
+    },
+    {
+      "province": "福建省",
+      "names": [
+        "福州国家森林公园景区（福州植物园）"
+      ],
+      "aliases": [
+        "福州国家森林公园",
+        "福州植物园"
+      ],
+      "source_url": "https://lyj.fujian.gov.cn/gkxx/jgsz/tjgzssydw/fzzwy/"
+    },
+    {
+      "province": "福建省",
+      "names": [
+        "安平桥（五里桥）景区"
+      ],
+      "aliases": [
+        "安平桥",
+        "五里桥"
+      ],
+      "source_url": "https://wlt.fujian.gov.cn/wldt/btdt/202607/t20260715_7178423.htm"
+    },
+    {
+      "province": "陕西省",
+      "names": [
+        "西安市秦始皇帝陵博物院景区"
+      ],
+      "aliases": [
+        "秦始皇兵马俑博物馆"
+      ],
+      "source_url": "https://wwj.shaanxi.gov.cn/sy/dtyw/tzgg/jgsw/202506/P020250623566794161850.pdf"
+    },
+    {
+      "province": "湖北省",
+      "names": [
+        "武汉市黄鹤楼公园"
+      ],
+      "aliases": [
+        "黄鹤楼",
+        "武汉黄鹤楼"
+      ],
+      "source_url": "https://wlt.hubei.gov.cn/bmdt/szyw/wh/201912/t20191204_1676830.shtml"
+    },
+    {
+      "province": "四川省",
+      "names": [
+        "四川广汉三星堆博物馆"
+      ],
+      "aliases": [
+        "三星堆博物馆",
+        "广汉三星堆博物馆"
+      ],
+      "source_url": "https://www.guanghan.gov.cn/gk/xxgk/jbxxgk/fd/gqgg/1633877.htm"
+    },
+    {
+      "province": "四川省",
+      "names": [
+        "康定情歌(木格措)风景区"
+      ],
+      "aliases": [
+        "康定情歌风景区",
+        "木格措景区",
+        "木格措"
+      ],
+      "source_url": "https://www.kangdingqingge.cn/"
+    },
+    {
+      "province": "北京市",
+      "names": [
+        "天坛公园"
+      ],
+      "aliases": [
+        "天坛",
+        "北京天坛"
+      ],
+      "source_url": "https://www.tiantanpark.cn/aboutus.html"
+    }
+  ]
+}

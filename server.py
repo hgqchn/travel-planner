@@ -29,16 +29,23 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from city_catalog import (
     CATALOG_MIGRATION_KEY,
+    CATALOG_EXPANSION_KEY,
+    LEGACY_CITY_IDS,
     city_metadata,
+    city_metadata_version,
+    find_city_region,
     find_catalog_city,
     load_catalog,
     normalize_city_name,
 )
 from metro_maps import MetroMapError, MetroMapStore
+from amap_service import AMapError, AMapService
 from scenic_catalog import RATINGS, enrich_attraction, get_catalog as get_scenic_catalog, rated_payload
 from itinerary_export import MIME_TYPES as EXPORT_MIME_TYPES, build_docx, build_xlsx, filename as export_filename
 import itinerary_links
 import project_itinerary
+import daily_planner
+import daily_plan_store
 import travel_guidance
 from place_taxonomy import TAXONOMY, normalize_place, migrate_project
 from project_store import ProjectStore
@@ -516,9 +523,11 @@ def ensure_project_records(db: sqlite3.Connection, initial_project_code: str) ->
         )
 
 
-def apply_city_catalog_upgrade(db: sqlite3.Connection, *, fresh: bool = False) -> None:
+def apply_city_catalog_upgrade(db: sqlite3.Connection, *, fresh: bool = False,
+                               migration_key: str = CATALOG_MIGRATION_KEY,
+                               excluded_ids: frozenset = frozenset()) -> None:
     """Append missing defaults once, preserving existing IDs, names and content."""
-    if db.execute("SELECT 1 FROM meta WHERE key = ?", (CATALOG_MIGRATION_KEY,)).fetchone():
+    if db.execute("SELECT 1 FROM meta WHERE key = ?", (migration_key,)).fetchone():
         return
     existing = db.execute("SELECT id, name FROM cities").fetchall()
     existing_ids = {row["id"] for row in existing}
@@ -532,7 +541,7 @@ def apply_city_catalog_upgrade(db: sqlite3.Connection, *, fresh: bool = False) -
     timestamp = utc_now()
     added = 0
     for candidate in load_catalog():
-        if candidate["id"] in represented or len(existing_ids) >= MAX_CITIES:
+        if candidate["id"] in represented or candidate["id"] in excluded_ids or len(existing_ids) >= MAX_CITIES:
             continue
         city_id = candidate["id"]
         while city_id in existing_ids:
@@ -544,7 +553,7 @@ def apply_city_catalog_upgrade(db: sqlite3.Connection, *, fresh: bool = False) -
         )
         existing_ids.add(city_id)
         added += 1
-    db.execute("INSERT INTO meta(key, value) VALUES (?, 1)", (CATALOG_MIGRATION_KEY,))
+    db.execute("INSERT INTO meta(key, value) VALUES (?, 1)", (migration_key,))
     if added and not fresh:
         db.execute("UPDATE meta SET value = value + 1 WHERE key = 'revision'")
 
@@ -693,10 +702,11 @@ def init_database(
         elif upgraded_to_v3:
             apply_v3_content_upgrade(db, extra if seed_path == SEED_PATH else seed)
         migrate_project(db, utc_now())
+        daily_plan_store.ensure_schema(db)
         db.execute("PRAGMA optimize")
     import place_cache
     place_cache.prepare(db_path, mark_existing_cities=not empty_project)
-    apply_curated_cities_upgrade(db_path)
+    apply_city_catalog_expansion(db_path)
     backfill_itinerary_links(db_path)
     with connect_db(db_path) as db:
         db.execute("BEGIN IMMEDIATE")
@@ -704,35 +714,11 @@ def init_database(
             next_revision(db)
 
 
-def apply_curated_cities_upgrade(db_path: Path) -> None:
-    """Archive cities removed from the default list once; later manual cities stay."""
+def apply_city_catalog_expansion(db_path: Path) -> None:
+    """Append nationwide defaults once; never prune or rewrite existing content."""
     with connect_db(db_path) as db:
         db.execute("BEGIN IMMEDIATE")
-        if db.execute("SELECT 1 FROM meta WHERE key='curated_cities_v2'").fetchone():
-            return
-        db.execute("CREATE TABLE IF NOT EXISTS archived_cities (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, archived_at TEXT NOT NULL)")
-        removed = 0
-        for city in db.execute("SELECT * FROM cities").fetchall():
-            if find_catalog_city(city['name']):
-                continue
-            records = [dict(row) for row in db.execute("SELECT * FROM items WHERE city_id=?", (city['id'],))]
-            history = [dict(row) for row in db.execute("SELECT * FROM activity WHERE city_id=?", (city['id'],))]
-            db.execute("INSERT OR REPLACE INTO archived_cities VALUES(?,?,?,?)", (city['id'], city['name'], json.dumps({'city': dict(city), 'items': records, 'activity': history}, ensure_ascii=False), utc_now()))
-            db.execute("DELETE FROM items WHERE city_id=?", (city['id'],))
-            db.execute("DELETE FROM activity WHERE city_id=?", (city['id'],))
-            db.execute("DELETE FROM city_cache_imports WHERE city_id=?", (city['id'],))
-            db.execute("DELETE FROM cities WHERE id=?", (city['id'],))
-            removed += 1
-        # The old 100-city migration may already be marked complete.
-        present = {find_catalog_city(row['name'])['id'] for row in db.execute('SELECT name FROM cities') if find_catalog_city(row['name'])}
-        added = 0
-        for city in load_catalog():
-            if city['id'] not in present:
-                insert_city(db, city['name'], utc_now())
-                added += 1
-        db.execute("INSERT INTO meta VALUES('curated_cities_v2',1)")
-        if removed or added:
-            next_revision(db)
+        apply_city_catalog_upgrade(db, migration_key=CATALOG_EXPANSION_KEY, excluded_ids=LEGACY_CITY_IDS)
 
 
 def queue_cached_place(db: sqlite3.Connection, city_id: str, kind: str, payload: dict, timestamp: str) -> None:
@@ -848,6 +834,8 @@ def validate_payload(kind: str, value: Any) -> dict[str, Any]:
     if kind == 'itinerary':
         try:
             cleaned['attraction_names'] = itinerary_links.normalize_attraction_names(value.get('attraction_names', []))
+            cleaned.update({key: value[key] for key in daily_planner.VISIT_FIELDS if key in value})
+            cleaned = daily_planner.normalize_visit(cleaned)
         except ValueError as exc:
             raise ApiError(400, str(exc)) from None
     if kind in ("attraction", "food"):
@@ -875,12 +863,16 @@ def row_to_item(row: sqlite3.Row, city: str | dict[str, Any] | None = None) -> d
         "updated_by": row["updated_by"],
         **normalize_place(row["kind"], json.loads(row["payload"]), legacy=True),
     }
+    if row['kind'] == 'itinerary':
+        item = daily_planner.normalize_visit(item)
     return enrich_attraction(item, city) if row['kind'] == 'attraction' else item
 
 
 def item_with_links(db, row, city: str) -> dict[str, Any]:
     """Keep mutation responses consistent with the annotated snapshot API."""
     item = row_to_item(row, city)
+    if row['kind'] == 'itinerary':
+        item = daily_planner.normalize_visit(item)
     if row['kind'] not in ('itinerary', 'attraction'):
         return item
     links = [dict(link) for link in db.execute(
@@ -931,10 +923,16 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
             "SELECT l.* FROM itinerary_attractions l JOIN items i ON i.id=l.itinerary_id"
             + (" WHERE i.city_id=?" if city_id is not None else "")
             + " ORDER BY l.itinerary_id,l.position", parameters)]
+        day_keys = {(row['city_id'],json.loads(row['payload'])['date']) for row in rows if row['kind']=='itinerary'}
+        day_keys.update((r['city_id'],r['date']) for r in db.execute('SELECT city_id,date FROM day_plans'+(' WHERE city_id=?' if city_id else ''), parameters))
+        daily_plans = []
+        for day_city, day_date in sorted(day_keys):
+            plan = daily_plan_store.read(db,day_city,day_date)
+            daily_plans.append({k:v for k,v in plan.items() if k not in {'visits','blocks'}})
         omitted = {}
         guidance = travel_guidance.read(db, city_id)
         project_plan = project_itinerary.overview(
-            db.execute("SELECT id, city_id, payload, version FROM items WHERE kind='itinerary'").fetchall(),
+            db.execute("SELECT id, city_id, payload, version, position FROM items WHERE kind='itinerary'").fetchall(),
             {row['id']: row['name'] for row in city_rows},
         )
         for kind in ('attraction', 'food'):
@@ -949,6 +947,7 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
         "revision": revision,
         "project": {"name": project["project_name"]},
         "cities": [city_metadata(row) for row in city_rows],
+        "city_metadata_version": city_metadata_version(),
         "city_id": city_id,
         "items": grouped,
         "activity": [dict(row) for row in activity_rows],
@@ -956,6 +955,7 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
         "taxonomy": TAXONOMY,
         "travel_guidance": guidance,
         "project_itinerary": project_plan,
+        "daily_plans": daily_plans,
         "scenic_catalog_version": get_scenic_catalog().fingerprint,
         "server_time": utc_now(),
     }
@@ -992,6 +992,13 @@ def change_guidance(db_path: Path, data: Any, user_id: str, *, delete=False) -> 
         if not groups:
             raise ApiError(404, '城市已不存在，请重新选择城市。')
         current = groups[0]
+        if not delete and data.get('plan_version'):
+            try:
+                latest_plan = travel_guidance.planning_context(db, data['city_id'])['version']
+            except ValueError:
+                latest_plan = None
+            if latest_plan != data['plan_version']:
+                raise ApiError(409, '行程已变化，请确认最新行程后重新生成提示。')
         if current['version'] != data['version']:
             raise ApiError(409, '出行提示已更新，你的草稿已保留，请载入最新版后再修改。', {'current': current})
         group = travel_guidance.write(db, data['city_id'], summary, notices, user_id, utc_now(), deleted=delete)
@@ -1011,16 +1018,17 @@ def itinerary_export_snapshot(db_path: Path, city_id: str | None) -> dict[str, A
             (city_id,) if city_id is not None else (),
         ).fetchall()
         # Export only travel content, never collaborator identities or credentials.
-        items = [{**json.loads(row['payload']), 'city_name': cities[row['city_id']],
+        items = [{**daily_planner.normalize_visit(json.loads(row['payload'])), 'city_name': cities[row['city_id']],
                   'position': row['position'], 'id': row['id']} for row in rows]
+        export_days = [dict(daily_plan_store.read(db, cid, day),city_name=cities[cid]) for cid,day in sorted({(r['city_id'],json.loads(r['payload'])['date']) for r in rows})]
         itinerary_cities = {row['city_id'] for row in rows}
         guidance = [group for group in travel_guidance.read(db, city_id) if group['city_id'] in itinerary_cities]
     if not items:
         raise ApiError(400, "所选范围还没有已保存的行程，请先添加行程或导入 AI 规划结果。")
-    items.sort(key=lambda item: (item['date'], item.get('start_time') or '99:99',
-                                 item['city_name'], item['position'], item['id']))
+    items.sort(key=lambda item: (item['date'], item['city_name'], daily_planner.group_rank(item), item['position'], item['id']))
     return {'project_name': project['project_name'], 'scope_name': cities[city_id] if city_id is not None else '全部城市',
             'items': items, 'travel_guidance': guidance,
+            'daily_plans': export_days,
             'exported_at': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S UTC+08:00')}
 
 
@@ -1058,13 +1066,17 @@ def find_existing_city(
     db: sqlite3.Connection, name: str, *, excluding_id: str | None = None
 ) -> sqlite3.Row | None:
     candidate = find_catalog_city(name)
+    candidate_region = find_city_region(name)
     normalized = normalize_city_name(name)
     for row in db.execute("SELECT id, name, position FROM cities ORDER BY position"):
         if row["id"] == excluding_id:
             continue
         match = find_catalog_city(row["name"])
+        region = find_city_region(row["name"]) if candidate_region else None
         if normalize_city_name(row["name"]) == normalized or (
             candidate and match and candidate["id"] == match["id"]
+        ) or (
+            candidate_region and region and candidate_region["code"] == region["code"]
         ):
             return row
     return None
@@ -1374,6 +1386,17 @@ def update_item(
                 "这条内容刚被其他人更新，请核对后再保存。",
                 {"current": row_to_item(current, city['name'])},
             )
+        if kind == 'itinerary':
+            previous = json.loads(current['payload'])
+            for key in daily_planner.VISIT_FIELDS:
+                if key not in data and key in previous:
+                    payload[key] = previous[key]
+            try:
+                daily_planner.validate_time_block_change(previous, payload)
+            except ValueError as exc:
+                raise ApiError(400, str(exc)) from None
+            if any(payload.get(k) != previous.get(k) for k in ('location','attraction_names')) and 'poi' not in data:
+                payload['poi'] = None
         payload = rated_payload(kind, payload, city['name'])
         new_version = version + 1
         db.execute(
@@ -1487,6 +1510,7 @@ def change_city_itinerary(db_path: Path, data: Any, user_id: str, *, delete=Fals
                 raise ApiError(400, '调整后部分行程日期超出有效范围，请更换开始日期。') from None
         revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
         if delete or offset:
+            daily_plan_store.shift_city(db, city_id, offset, delete)
             for row, payload in zip(rows, payloads):
                 if delete:
                     db.execute('DELETE FROM items WHERE id=?', (row['id'],))
@@ -1723,7 +1747,7 @@ def ai_replacement_rows(db: sqlite3.Connection, city_id: str, job: sqlite3.Row |
     try:
         start = datetime.strptime(request['start_date'], '%Y-%m-%d').date()
         days = request['days']
-        if type(days) is not int or not 1 <= days <= 7:
+        if type(days) is not int or days < 1:
             raise ValueError('invalid days')
         expected_dates = {(start + timedelta(days=offset)).isoformat() for offset in range(days)}
     except (KeyError, TypeError, ValueError, OverflowError) as error:
@@ -1752,8 +1776,8 @@ def ai_replacement_rows(db: sqlite3.Connection, city_id: str, job: sqlite3.Row |
 
 def import_ai_items(db_path: Path, city_id: str, user_id: str,
                     items: list[dict[str, Any]], job_id: str) -> dict[str, Any]:
-    if not isinstance(items, list) or not 1 <= len(items) <= 60:
-        raise ApiError(400, "每次请选择 1–60 条内容导入。")
+    if not isinstance(items, list) or not items:
+        raise ApiError(400, "请至少选择一条内容导入。")
     cleaned = []
     for item in items:
         if not isinstance(item, dict) or item.get("kind") not in {"attraction", "food", "itinerary"}:
@@ -1828,8 +1852,6 @@ def import_ai_items(db_path: Path, city_id: str, user_id: str,
             row = db.execute("SELECT * FROM items WHERE id=? AND kind='itinerary'", (item_id,)).fetchone()
             if row:
                 auto_added += sync_itinerary_attractions(db, row, current_city['name'], user_id, now)
-        if travel_guidance.save(db, job, selected_item_ids, now):
-            next_revision(db)
         revision = int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
         result = {"created": created, "skipped": skipped, "item_ids": item_ids, "city_id": city_id, "revision": revision,
                   "auto_added_attractions": auto_added}
@@ -1860,6 +1882,7 @@ class TripHTTPServer(ThreadingHTTPServer):
         self._worker_slots = threading.BoundedSemaphore(self.max_worker_threads)
         self.ai_service = None
         self.metro_store = None
+        self.amap_service = AMapService()
         self.project_store = None
         self._ai_services = {}
         self._ai_lock = threading.Lock()
@@ -1939,6 +1962,13 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             "script-src 'self'; connect-src 'self'; base-uri 'none'; "
             "frame-ancestors 'none'; form-action 'self'"
         )
+        if self.server.amap_service.config('main')['map_enabled'] and urlparse(self.path).path in ('/', '/index.html'):
+            policy = (
+                "default-src 'self'; img-src 'self' data: blob: https://*.amap.com https://*.autonavi.com; "
+                "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval' https://webapi.amap.com; "
+                "connect-src 'self' https://*.amap.com https://*.autonavi.com; worker-src 'self' blob:; "
+                "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+            )
         if urlparse(self.path).path.lower().endswith('.svg'):
             policy = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
         self.send_header("Content-Security-Policy", policy)
@@ -1958,7 +1988,8 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
 
     @property
     def project_id(self) -> str:
-        project_id = self.headers.get('X-Trip-Project') or parse_qs(urlparse(self.path).query).get('project', ['main'])[0]
+        map_scope = re.match(r'^/_AMapService/(main|[0-9a-f]{16})/', urlparse(self.path).path)
+        project_id = map_scope.group(1) if map_scope else self.headers.get('X-Trip-Project') or parse_qs(urlparse(self.path).query).get('project', ['main'])[0]
         if not re.fullmatch(r'main|[0-9a-f]{16}', project_id):
             raise ApiError(404, '项目不存在，请检查项目链接。')
         return project_id
@@ -2014,7 +2045,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             raise ApiError(HTTPStatus.BAD_REQUEST, "JSON 内容格式不正确。") from exc
 
     def handle_api_error(self, error: Exception) -> None:
-        if isinstance(error, MetroMapError):
+        if isinstance(error, (MetroMapError, AMapError)):
             self.send_json(error.status, {"error": error.message})
             return
         if isinstance(error, ApiError):
@@ -2030,6 +2061,20 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         try:
             path = urlparse(self.path).path
+            if path.startswith('/_AMapService/'):
+                self.require_project_access()
+                authenticate(self.db_path, self.session_token())
+                match = re.fullmatch(r'/_AMapService/(main|[0-9a-f]{16})(/.*)', path)
+                if not match:
+                    raise ApiError(404, '地图接口不存在。')
+                body, content_type = self.server.amap_service.proxy(match.group(2), urlparse(self.path).query)
+                self.send_response(200)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if not path.startswith("/api/"):
                 super().do_GET()
                 return
@@ -2068,6 +2113,15 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(200, admin_state(self.db_path))
                 return
             self.require_project_access()
+            if path == '/api/day-plan':
+                authenticate(self.db_path, self.session_token())
+                query = parse_qs(urlparse(self.path).query)
+                self.send_json(200, daily_plan_store.get(sys.modules[__name__], self.db_path, query.get('city_id',[''])[0], query.get('date',[''])[0]))
+                return
+            if path == '/api/maps/config':
+                authenticate(self.db_path, self.session_token())
+                self.send_json(200, self.server.amap_service.config(self.project_id))
+                return
             if path == '/api/travel-guidance':
                 authenticate(self.db_path, self.session_token())
                 city_id = parse_qs(urlparse(self.path).query).get('city_id', [''])[0]
@@ -2122,6 +2176,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 city_key = hashlib.sha256((city_id or "all").encode()).hexdigest()[:16]
                 etag = f'"revision-{state["revision"]}-{city_key}"' if city_id else f'"revision-{state["revision"]}"'
                 etag = etag[:-1] + '-scenic-' + state['scenic_catalog_version'] + '"'
+                etag = etag[:-1] + '-cities-' + state['city_metadata_version'] + '"'
                 if self.project_id != 'main':
                     etag = etag[:-1] + '-' + self.project_id + '"'
                 if self.headers.get("If-None-Match") == etag:
@@ -2181,10 +2236,51 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 return
 
             self.require_project_access()
+            if path == '/api/day-plan':
+                self.enforce_rate_limit('write')
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(201, daily_plan_store.change_day(sys.modules[__name__], self.db_path, self.read_json(), user_id))
+                return
+            if path in ('/api/day-plan/evaluate', '/api/day-plan/apply'):
+                self.enforce_rate_limit('write')
+                user_id = authenticate(self.db_path, self.session_token())
+                data = self.read_json()
+                if path.endswith('/evaluate'):
+                    result = daily_plan_store.evaluate(sys.modules[__name__], self.db_path, data, user_id, self.server.amap_service)
+                else:
+                    result = daily_plan_store.apply(sys.modules[__name__], self.db_path, data, user_id)
+                self.send_json(200, result)
+                return
+            if path in ('/api/maps/search', '/api/maps/route'):
+                authenticate(self.db_path, self.session_token())
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ApiError(400, '地图请求格式无效。')
+                city = self.metro_city(data.get('city_id'))
+                action = self.server.amap_service.search if path.endswith('/search') else self.server.amap_service.route
+                self.send_json(200, action(data, city['name']))
+                return
+            if path == '/api/day-plan/ai-apply':
+                self.enforce_rate_limit('write')
+                import daily_ai
+                data = self.read_json()
+                with self.server.project_store.lock:
+                    service, user_id, device_key = self.ai_request_context()
+                    try:
+                        result = daily_ai.apply_job(sys.modules[__name__], service, self.db_path, data, user_id, device_key)
+                    except (ValueError, TypeError, KeyError) as exc:
+                        raise ApiError(400, str(exc)) from None
+                self.send_json(200, result)
+                return
             if path == "/api/ai/jobs":
                 data = self.read_json()
                 with self.server.project_store.lock:
                     service, user_id, device_key = self.ai_request_context()
+                    if isinstance(data, dict) and data.get('purpose') in {'daily_select','daily_choose','daily_adjust','daily_duration','daily_hours'}:
+                        import daily_ai
+                        data['_daily_context'] = daily_ai.prepare(sys.modules[__name__], self.db_path, data, user_id)
+                    if isinstance(data, dict) and data.get('purpose') == 'travel_guidance':
+                        data['_guidance_context'] = travel_guidance.prepare(sys.modules[__name__], self.db_path, data)
                     result = service.create_job(user_id, device_key, data)
                 self.send_json(202, result)
                 return
@@ -2272,6 +2368,10 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.require_project_access()
             self.enforce_rate_limit("write")
             path = urlparse(self.path).path
+            if path == '/api/day-plan':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, daily_plan_store.save(sys.modules[__name__], self.db_path, self.read_json(), user_id))
+                return
             if path == '/api/project-itinerary':
                 user_id = authenticate(self.db_path, self.session_token())
                 self.send_json(200, change_city_itinerary(self.db_path, self.read_json(), user_id))
@@ -2317,6 +2417,10 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.require_project_access()
             self.enforce_rate_limit("write")
+            if path == '/api/day-plan':
+                user_id = authenticate(self.db_path, self.session_token())
+                self.send_json(200, daily_plan_store.change_day(sys.modules[__name__], self.db_path, self.read_json(), user_id, delete=True))
+                return
             if path == '/api/project-itinerary':
                 user_id = authenticate(self.db_path, self.session_token())
                 self.send_json(200, change_city_itinerary(self.db_path, self.read_json(), user_id, delete=True))
@@ -2343,7 +2447,10 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.handle_api_error(error)
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        print(f"{self.address_string()} [{self.log_date_time_string()}] {fmt % args}", file=sys.stderr)
+        message = fmt % args
+        if '/_AMapService/' in message:
+            message = re.sub(r'\?[^ ]*', '?[map-query-redacted]', message)
+        print(f"{self.address_string()} [{self.log_date_time_string()}] {message}", file=sys.stderr)
 
     def cookie_value(self, base_name: str) -> str:
         base_name = self.scoped_cookie_name(base_name)

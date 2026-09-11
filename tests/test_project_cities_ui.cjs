@@ -70,7 +70,7 @@ test('waits for an active editor to close and uses the latest snapshot for its w
   assert.equal(h.node('city-conflict-dialog').open, true);
   const list = h.node('city-conflict-list').children[0].children[1];
   assert.match(list.children[0].textContent, /09:00 · 上海 · <img onerror=alert\(1\)>/);
-  assert.match(list.children[1].textContent, /时间待定 · 北京/);
+  assert.match(list.children[1].textContent, /待安排 · 北京/);
   assert.equal(list.children[0].children.length, 0);
 });
 

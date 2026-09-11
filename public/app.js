@@ -4,7 +4,7 @@ const CATEGORY = {
   itinerary: {
     title: "行程规划",
     kicker: "按天安排",
-    description: "把每天的时间、地点和提醒排在一起。",
+    description: "先确认想去的地点，再按天安排并核对路线。",
     addLabel: "添加行程",
     accent: "#315ca8",
   },
@@ -14,13 +14,6 @@ const CATEGORY = {
     description: "地点信息和攻略链接都可以共同修改。",
     addLabel: "添加地点",
     accent: "#f05b3f",
-  },
-  transit: {
-    title: "公共交通",
-    kicker: "轻松换乘",
-    description: "查看轨道交通图，或打开地图查询实时路线。",
-    addLabel: "添加线路",
-    accent: "#087f73",
   },
   food: {
     title: "本地美食",
@@ -39,7 +32,12 @@ const CATEGORY = {
 const FIELDS = {
   itinerary: [
     { key: "date", label: "日期", required: true, maxlength: 10, type: "date" },
-    { key: "start_time", label: "开始时间", maxlength: 5, type: "time" },
+    { key: "time_block", label: "偏好时段", type: "select", options: (typeof window !== "undefined" ? window.TripDaily?.options : null) || [{value:"",label:"待安排"}] },
+    { key: "duration_minutes", label: "建议停留（分钟）", type: "number", placeholder: "留空表示待确认" },
+    { key: "priority", label: "优先级", type: "select", defaultValue: "preferred", options: [{value:"preferred",label:"想去"},{value:"must",label:"必去"},{value:"optional",label:"可选"}] },
+    { key: "visit_kind", label: "行程类别", help: "区分游览、用餐、休息和交通，用于计算每日安排。多地点行程需拆分后才能逐段规划路线。", type: "select", defaultValue: "place", options: [{value:"place",label:"地点"},{value:"attraction",label:"游览景点"},{value:"meal",label:"用餐"},{value:"rest",label:"休息"},{value:"transit",label:"交通枢纽"},{value:"legacy",label:"多地点行程（需拆分）"}] },
+    { key: "opening_start", label: "开放时间（可选）", type: "time", help: "不知道可先保存，再点行程卡片上的 AI 补充开放时间；AI 结果仅供参考。" },
+    { key: "opening_end", label: "关闭时间（可选）", type: "time" },
     { key: "title", label: "安排名称", required: true, maxlength: 80, placeholder: "例如：外滩日落散步" },
     { key: "category", label: "类型", maxlength: 30, placeholder: "例如：地点 / 用餐 / 交通" },
     { key: "location", label: "地点", maxlength: 120, placeholder: "例如：外滩观景平台" },
@@ -69,8 +67,8 @@ const FIELDS = {
     { key: "name", label: "地点名称", required: true, maxlength: 60, placeholder: "例如：外滩风景区" },
     {
       key: "scenic_rating", label: "景区级别", type: "select",
-      options: [{ value: "", label: "自动匹配 / 待核实" }, { value: "4A", label: "4A" }, { value: "5A", label: "5A" }],
-      help: "保存后按地点名称与城市匹配官方名录。手动填写但未匹配的级别仅作为待核实备注；没有匹配不代表未评级。",
+      options: [{ value: "", label: "自动匹配 / 暂不填写" }, { value: "4A", label: "4A" }, { value: "5A", label: "5A" }],
+      help: "可由 AI 补充或手动选择 4A、5A，保存后直接显示等级；留空时尝试自动匹配。",
     },
     { key: "district", label: "所在区县", maxlength: 30, placeholder: "例如：黄浦区" },
     { key: "category", label: "主分类", categoryKind: "attraction" },
@@ -96,38 +94,6 @@ const FIELDS = {
       type: "url",
       placeholder: "https://…",
       help: "只支持完整的 http:// 或 https:// 地址",
-    },
-  ],
-  transit: [
-    { key: "name", label: "线路名称", required: true, maxlength: 60, placeholder: "例如：2 号线" },
-    { key: "color", label: "卡片识别色", required: true, type: "color", defaultValue: "#087f73" },
-    {
-      key: "route",
-      label: "大致走向",
-      maxlength: 180,
-      multiline: true,
-      placeholder: "起点、终点和沿途重要区域",
-    },
-    {
-      key: "connections",
-      label: "重点连接",
-      maxlength: 220,
-      multiline: true,
-      placeholder: "机场、火车站、地点或重要换乘点",
-    },
-    {
-      key: "service_note",
-      label: "运营提醒",
-      maxlength: 220,
-      multiline: true,
-      placeholder: "例如：末班车时间请在出发前核对",
-    },
-    {
-      key: "link",
-      label: "官方线路链接",
-      maxlength: 500,
-      type: "url",
-      placeholder: "https://…",
     },
   ],
   food: [
@@ -170,7 +136,7 @@ const state = {
   cityId: window.TripUI.initialCity(),
   cities: [],
   projectName: "旅游规划",
-  tab: ["itinerary", "attraction", "transit", "food", "activity"].includes(location.hash.slice(1))
+  tab: ["itinerary", "attraction", "food", "activity"].includes(location.hash.slice(1))
     ? location.hash.slice(1)
     : "itinerary",
   items: { itinerary: [], attraction: [], transit: [], food: [] },
@@ -353,6 +319,7 @@ async function fetchSnapshot(force = false, quiet = false) {
       state.cacheInfo = data.cache_info || null;
       state.travelGuidance = data.travel_guidance || [];
       state.projectItinerary = data.project_itinerary || null;
+      state.dailyPlans = data.daily_plans || [];
       render();
       if (changedRemotely && quiet && !dom.editDialog.open) showToast("计划里有新的修改");
     }
@@ -441,14 +408,17 @@ function appendAttractionHighlights(container, value, links) {
   }
 }
 
-function itineraryCard(item) {
+function itineraryCard(item, { showTimeBlock = true } = {}) {
   const card = element("article", "plan-card itinerary-card");
   card.style.setProperty("--card-accent", CATEGORY.itinerary.accent);
   const body = element("div", "card-body");
   const top = element("div", "card-topline");
   const heading = element("div");
   const tags = element("div", "tags");
-  addTag(tags, item.start_time || "时间待定", true);
+  if (showTimeBlock) addTag(tags, window.TripDaily?.label(item.time_block) || "待安排", true);
+  addTag(tags, item.duration_minutes == null ? "待补充建议时长" : `${item.duration_source === "ai_estimate" ? "AI 推荐" : item.duration_source === "user" ? "停留" : "建议"} ${item.duration_minutes} 分钟`);
+  if (item.is_backup) addTag(tags, "备选");
+  addTag(tags, `优先级：${({must:"必去",preferred:"想去",optional:"可选"})[item.priority] || "想去"}`);
   addTag(tags, item.category);
   const links = Array.isArray(item.linked_attractions) ? item.linked_attractions.filter(link => link && link.id && typeof link.name === "string") : [];
   const title = element("h3");
@@ -463,6 +433,14 @@ function itineraryCard(item) {
     appendAttractionHighlights(location, item.location, links);
     row.append(element("dt", "", "地点"), location);
     details.append(row);
+  }
+  const hours = item.opening_start && item.opening_end ? `${item.opening_start}–${item.opening_end}` : "待补充";
+  const hoursRow = element("div", "detail-row");
+  hoursRow.append(element("dt", "", "开放时间"), element("dd", "", `${hours}${item.opening_note ? `（${item.opening_note}）` : ""}`));
+  details.append(hoursRow);
+  if (item.visit_kind === "legacy") {
+    const legacyRow = element("div", "detail-row");
+    legacyRow.append(element("dt", "", "行程状态"), element("dd", "", "包含多个地点，请在确定当天行程中拆分后规划路线。")); details.append(legacyRow);
   }
   body.append(details);
   if (links.length) {
@@ -545,15 +523,13 @@ function attractionCard(item) {
 
 function scenicRatingState(item) {
   const rating = ["4A", "5A"].includes(item?.scenic_rating) ? item.scenic_rating : "";
-  const info = item?.scenic_rating_info || {};
-  const verified = Boolean(rating && ["catalog", "reference"].includes(info.status));
-  return { rating, info, verified, label: verified ? `${rating} 景区` : rating ? `${rating} · 待核实` : "" };
+  return { rating, label: rating ? `${rating} 景区` : "" };
 }
 
 function scenicRatingBadge(item) {
-  const { rating, verified, label } = scenicRatingState(item);
+  const { rating, label } = scenicRatingState(item);
   if (!rating) return null;
-  return element("span", `tag scenic-rating ${verified ? "is-verified" : "is-unverified"}`, label);
+  return element("span", "tag scenic-rating", label);
 }
 
 function externalAnchor(label, url) {
@@ -577,32 +553,6 @@ function itemCity(item) {
 
 function amapUrl(city, keyword, options) {
   return window.TripLinks.amapSearch(city, keyword, options);
-}
-
-function renderTransport() {
-  window.TripUI.renderTransport();
-}
-
-function transitCard(item) {
-  const card = element("article", "plan-card");
-  card.style.setProperty("--card-accent", item.color || CATEGORY.transit.accent);
-  const body = element("div", "card-body");
-  const top = element("div", "card-topline");
-  const heading = element("div", "transit-name");
-  const dot = element("span", "line-dot");
-  dot.style.setProperty("--line-color", item.color || CATEGORY.transit.accent);
-  dot.setAttribute("aria-hidden", "true");
-  heading.append(dot, element("h3", "", item.name));
-  top.append(heading, editButton("transit", item));
-  body.append(top);
-  if (item.route) body.append(element("p", "card-description", item.route));
-  const details = element("dl", "details");
-  addDetail(details, "重点连接", item.connections);
-  addDetail(details, "运营提醒", item.service_note);
-  body.append(details);
-  card.append(body);
-  appendFooter(card, item, "线路资料");
-  return card;
 }
 
 function foodCard(item) {
@@ -662,6 +612,7 @@ async function copyFoodSearch(value) {
 }
 
 function renderItinerary(items) {
+  if (window.TripDaily) return window.TripDaily.render(items);
   const ordered = [...items].sort((left, right) =>
     `${left.date}|${left.start_time || "99:99"}|${String(left.position).padStart(6, "0")}`.localeCompare(
       `${right.date}|${right.start_time || "99:99"}|${String(right.position).padStart(6, "0")}`,
@@ -686,6 +637,10 @@ function renderItinerary(items) {
         replan.setAttribute("aria-label", `AI 重新规划 ${date} 这一天`);
         replan.addEventListener("click", () => window.TripUI.openReplan("replace_day", date));
         heading.append(replan);
+        const maps = element("button", "link-button", "地图与路线");
+        maps.type = "button";
+        maps.addEventListener("click", () => window.TripMaps?.open(date));
+        heading.append(maps);
       }
       group.append(heading);
       groups.push(group);
@@ -746,6 +701,7 @@ function render() {
   window.TripUI.renderCity();
   window.TripUI.renderCacheNotice();
   window.TripGuidance?.render();
+  window.TripMaps?.sync();
   window.TripCities?.render();
   document.querySelector("#project-name").textContent = state.projectName;
   const focusedEditId = document.activeElement?.dataset?.editId;
@@ -767,21 +723,21 @@ function render() {
   });
 
   const showingActivity = state.tab === "activity";
-  document.getElementById("ai-replan-all").hidden = state.tab !== "itinerary";
+  document.getElementById("ai-replan-all").hidden = state.tab !== "itinerary" || !count("itinerary");
   dom.cards.hidden = showingActivity;
   dom.cards.classList.toggle("is-itinerary", state.tab === "itinerary");
   dom.activityPanel.hidden = !showingActivity;
-  dom.addButton.hidden = showingActivity || state.tab === "transit";
+  dom.addButton.hidden = showingActivity;
   if (showingActivity) {
     renderActivity();
     return;
   }
 
   dom.addButton.lastElementChild.textContent = meta.addLabel;
-  if (state.tab === "transit") { renderTransport(); return; }
   dom.cards.setAttribute("aria-busy", "false");
   const cityItems = (state.items[state.tab] || []).filter((item) => item.city_id === state.cityId);
   const items = window.TripTypeFilter?.filter(cityItems) || cityItems;
+  if (state.tab === "itinerary" && window.TripDaily) { renderItinerary(items); return; }
   if (!items.length) {
     dom.cards.replaceChildren(window.TripTypeFilter?.emptyState() || emptyState(state.tab));
     return;
@@ -790,7 +746,7 @@ function render() {
     renderItinerary(items);
     return;
   }
-  const factories = { attraction: attractionCard, transit: transitCard, food: foodCard };
+  const factories = { attraction: attractionCard, food: foodCard };
   dom.cards.replaceChildren(...items.map((item) => window.TripBatch.decorate(factories[state.tab](item), state.tab, item)));
   if (focusedEditId) {
     dom.cards.querySelector(`[data-edit-id="${focusedEditId}"]`)?.focus({ preventScroll: true });
@@ -868,6 +824,7 @@ function makeField(definition, value, context = {}) {
     .slice(0, 10);
   if (isSelect) {
     for (const choice of options) {
+      if (definition.key === "visit_kind" && choice.value === "legacy" && value !== "legacy") continue;
       const option = element("option", "", choice.label);
       option.value = choice.value;
       input.append(option);
@@ -886,11 +843,26 @@ function makeField(definition, value, context = {}) {
     window.TripTaxonomy.enhanceTags(label, input, definition.tagsKind);
   }
   if (definition.help) label.append(element("small", "", definition.help));
+  if (definition.key === "time_block") {
+    const hint = element("small", "", "时段已锁定。请先在“确定当天行程”中解除时段锁定，再修改时段；其他信息仍可编辑。");
+    hint.id = "time-block-lock-hint"; hint.hidden = true; label.append(hint);
+  }
   if (definition.attractionNames) {
     title.htmlFor = input.id;
     enhanceAttractionNames(label, input, context.cityId || state.currentEdit?.item?.city_id || state.cityId);
   }
   return label;
+}
+
+function syncEditorTimeLock() {
+  if (state.currentEdit?.kind !== "itinerary") return;
+  const input = dom.editFields.querySelector('[name="time_block"]');
+  const hint = dom.editFields.querySelector('[id="time-block-lock-hint"]');
+  if (!input) return;
+  const locked = Boolean(state.currentEdit.item?.block_locked);
+  input.disabled = locked;
+  if (locked) input.value = state.currentEdit.item.time_block || "";
+  if (hint) hint.hidden = !locked;
 }
 
 function requireIdentity() {
@@ -916,6 +888,7 @@ function openEditor(kind, item = null) {
   dom.editFields.replaceChildren(
     ...FIELDS[kind].map((definition) => makeField(definition, item?.[definition.key])),
   );
+  syncEditorTimeLock();
   dom.editDialog.showModal();
   window.TripEditorAI?.open();
   requestAnimationFrame(() => dom.editFields.querySelector("input, textarea, select")?.focus());
@@ -974,6 +947,7 @@ function loadRemoteConflict() {
   dom.editConflict.hidden = true;
   dom.conflictDetails.replaceChildren();
   dom.editError.textContent = "已载入最新内容，你可以继续编辑。";
+  syncEditorTimeLock();
   state.editorDirty = false;
   window.TripEditorAI?.open();
 }
@@ -986,6 +960,7 @@ function keepLocalConflict() {
   dom.editConflict.hidden = true;
   dom.conflictDetails.replaceChildren();
   dom.editError.textContent = "已保留你的表单。再次点击保存将以这份内容覆盖最新版本。";
+  syncEditorTimeLock();
   state.editorDirty = true;
   window.TripEditorAI?.open();
 }
@@ -999,9 +974,16 @@ async function saveEditor(event) {
   const payload = Object.fromEntries(new FormData(dom.editForm).entries());
   if (kind === "attraction" || kind === "food") payload.tags = window.TripTaxonomy.parseTags(payload.tags);
   if (kind === "itinerary") {
+    if (item?.block_locked) payload.time_block = item.time_block || "";
     const error = attractionNamesError(payload.attraction_names);
     if (error) { dom.editError.textContent = error; return; }
     payload.attraction_names = parseAttractionNames(payload.attraction_names);
+    payload.duration_minutes = payload.duration_minutes === "" ? null : Number(payload.duration_minutes);
+    payload.duration_source = payload.duration_minutes === null ? "unknown" : item?.duration_minutes === payload.duration_minutes ? (item.duration_source || "user") : "user";
+    const sameHours = (item?.opening_start || "") === payload.opening_start && (item?.opening_end || "") === payload.opening_end;
+    payload.opening_source = sameHours ? (item?.opening_source || (payload.opening_start ? "user" : "unknown")) : payload.opening_start ? "user" : "unknown";
+    payload.opening_note = sameHours ? (item?.opening_note || "") : "";
+    if (payload.attraction_names.length > 1) payload.visit_kind = "legacy";
   }
   payload.city_id = item?.city_id || state.cityId;
   if (item) payload.version = item.version;
@@ -1458,7 +1440,8 @@ function registerWebMcpTools() {
             type: "object",
             properties: {
               date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
-              start_time: { type: "string", pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+              time_block: { type: "string", enum: ["", "morning", "midday", "lunch_rest", "afternoon", "flexible", "evening", "night"] },
+              duration_minutes: { type: "integer", minimum: 1, maximum: 1440 },
               title: { type: "string", minLength: 1, maxLength: 80 },
               category: { type: "string", maxLength: 30 },
               location: { type: "string", maxLength: 120 },
@@ -1476,6 +1459,10 @@ function registerWebMcpTools() {
             const payload = { city_id: state.cityId };
             for (const field of FIELDS.itinerary) payload[field.key] = input[field.key] || "";
             payload.attraction_names = parseAttractionNames(input.attraction_names);
+            payload.duration_minutes = input.duration_minutes ?? null;
+            payload.duration_source = "user";
+            payload.priority = input.priority || "preferred";
+            payload.visit_kind = input.visit_kind || "place";
             const { data } = await requestJson("/api/items/itinerary", {
               method: "POST",
               body: JSON.stringify(payload),

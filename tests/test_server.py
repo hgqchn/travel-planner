@@ -9,6 +9,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest.mock import patch
 
 import sys
 
@@ -163,7 +164,7 @@ class ApiTests(unittest.TestCase):
         self.assertGreaterEqual(len(snapshot["items"]["food"]), 8)
         self.assertEqual(snapshot["items"]["itinerary"], [])
         self.assertEqual(snapshot["revision"], 0)
-        self.assertEqual(response.headers["ETag"], f'"revision-0-scenic-{snapshot["scenic_catalog_version"]}"')
+        self.assertEqual(response.headers["ETag"], f'"revision-0-scenic-{snapshot["scenic_catalog_version"]}-cities-{snapshot["city_metadata_version"]}"')
 
         conditional = urllib.request.Request(
             self.running.base_url + "/api/snapshot",
@@ -172,6 +173,15 @@ class ApiTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as unchanged:
             self.opener.open(conditional, timeout=3)
         self.assertEqual(unchanged.exception.code, 304)
+
+        # Updating bundled province data must refresh clients even without edits.
+        with patch.object(server, 'city_metadata_version', return_value='new-province-data'):
+            with self.opener.open(conditional, timeout=3) as updated:
+                self.assertEqual(updated.status, 200)
+                refreshed = json.load(updated)
+                updated_etag = updated.headers['ETag']
+        self.assertEqual(refreshed['revision'], snapshot['revision'])
+        self.assertNotEqual(updated_etag, response.headers['ETag'])
 
     def test_users_can_switch_and_share_an_id_across_browsers(self) -> None:
         identity = self.claim("小鱼-01")

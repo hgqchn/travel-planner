@@ -49,7 +49,11 @@ class BulkDeleteTests(unittest.TestCase):
         with self.assertRaises(server.ApiError) as raised:
             server.batch_delete_items(self.db_path, kind, body, "bulk-tester")
         self.assertEqual(raised.exception.status, status)
-        self.assertEqual(server.snapshot(self.db_path), before)
+        after = server.snapshot(self.db_path)
+        # Wall-clock response metadata can cross a second without a DB write.
+        before.pop('server_time', None)
+        after.pop('server_time', None)
+        self.assertEqual(after, before)
 
     def test_selected_items_deleted_with_activity_and_revision(self):
         before = server.snapshot(self.db_path)

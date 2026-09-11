@@ -9,10 +9,13 @@ WORKDIR /app
 RUN groupadd --gid 10001 trip && useradd --uid 10001 --gid trip --no-create-home trip
 COPY server.py seed_data.json shanghai_extra.json ./
 COPY ai_service.py city_catalog.py city_catalog.json ./
+COPY daily_planner.py daily_plan_store.py daily_ai.py ai_planning_prompts.py ./
+COPY china_regions.py china_province_cities.json ./
 COPY place_cache.py project_store.py ./
 COPY place_taxonomy.py place_taxonomy.json ./
 COPY metro_maps.py metro_sources.json ./
-COPY scenic_catalog.py ./
+COPY amap_service.py ./
+COPY scenic_catalog.py scenic_aliases.py ./
 COPY itinerary_export.py itinerary_links.py travel_guidance.py project_itinerary.py ./
 COPY resources/scenic ./resources/scenic
 COPY backup_all.py ./

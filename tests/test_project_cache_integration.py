@@ -85,24 +85,19 @@ class SharedProjectPlacesTests(unittest.TestCase):
         place_cache.flush(self.path)
         self.assertEqual(place_cache.load_city(self.path, '北京')[0]['payload']['name'], food['name'])
 
-    def test_curated_migration_archives_removed_data_and_preserves_places_in_cache(self):
+    def test_expansion_preserves_custom_city_and_its_content_without_old_pruning(self):
+        import city_catalog
+        custom = server.create_city(self.path, {'name':'自定义旅行城'}, 'first-user')['city']
+        plan = server.create_item(self.path, 'itinerary', {'city_id':custom['id'], 'title':'原行程', 'date':'2026-10-01'}, 'first-user')['item']
         with server.connect_db(self.path) as db:
-            db.execute("DELETE FROM place_cache_state WHERE key='backfilled_v1'")
-            db.execute("DELETE FROM meta WHERE key='curated_cities_v2'")
-            db.execute("INSERT INTO cities VALUES('hangzhou','杭州',100,'old','old')")
-            db.execute("INSERT INTO items VALUES('old-place','hangzhou','attraction',1,?,1,'old','old','first-user','first-user')", (json.dumps({'name':'西湖'}),))
-            db.execute("INSERT INTO items VALUES('old-plan','hangzhou','itinerary',1,?,1,'old','old','first-user','first-user')", (json.dumps({'title':'旧行程','date':'2026-10-01'}),))
+            db.execute("DELETE FROM meta WHERE key IN ('curated_cities_v2', ?)", (city_catalog.CATALOG_EXPANSION_KEY,))
+            db.execute("DELETE FROM cities WHERE id='hangzhou'")
         server.init_database(self.path, 'ignored', self.seed)
-        self.assertEqual(len(server.snapshot(self.path)['cities']), 14)
-        with server.connect_db(self.path) as db:
-            archived = json.loads(db.execute("SELECT data FROM archived_cities WHERE id='hangzhou'").fetchone()[0])
-            self.assertEqual(len(archived['items']), 2)
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM items WHERE city_id='hangzhou'").fetchone()[0], 0)
-        self.assertEqual(place_cache.load_city(self.path, '杭州')[0]['payload']['name'], '西湖')
-        city = server.create_city(self.path, {'name':'杭州'}, 'first-user')['city']
-        self.assertEqual(server.snapshot(self.path, city['id'])['items']['attraction'][0]['name'], '西湖')
-        server.init_database(self.path, 'ignored', self.seed)
-        self.assertIn('杭州', [x['name'] for x in server.snapshot(self.path)['cities']])
+        state = server.snapshot(self.path, custom['id'])
+        self.assertIn('杭州', [city['name'] for city in state['cities']])
+        self.assertEqual(state['items']['itinerary'][0]['id'], plan['id'])
+        server.init_database(self.path, 'ignored-again', self.seed)
+        self.assertIn(custom['id'], [city['id'] for city in server.snapshot(self.path)['cities']])
 
     def test_hydration_quota_keeps_city_accessible_and_reports_remaining_cache(self):
         self.add('food','第一道')

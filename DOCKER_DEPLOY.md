@@ -78,6 +78,12 @@ SQLite 集合备份不包含线路图文件。内置图可从对应镜像恢复�
 
 ## 查看状态与日志
 
+### 每日计划与高德地图版本
+
+发布本版本时需同步仓库 `Dockerfile` 到 `/opt/travel-planner/deployment/Dockerfile`，新增每日规划、省市目录、高德和景区别名模块及资源必须一同进入镜像。保留现有 Compose 端口和数据挂载；在 `/etc/travel-planner/app.env` 配置 `AMAP_JS_KEY`、`AMAP_SECURITY_JS_CODE`、`AMAP_WEB_SERVICE_KEY` 和 `AMAP_DAILY_LIMIT`，文件权限保持 600。不要将本地密钥文件放入发布目录。
+
+现有整站 Nginx 代理会将 `/_AMapService/` 转发给后端，无需额外公开端口。高德控制台若设置了域名或 IP 白名单，需要包含实际网站和服务器出口。更新前执行集合备份，确认没有进行中的 AI 任务；新版本启动时为各项目补齐每日计划结构，并保留旧行程。涉及数据库结构升级时，回滚必须配套升级前的数据备份。
+
 ```bash
 docker compose --env-file /opt/travel-planner/current.env \
   -f /opt/travel-planner/deployment/compose.yaml ps

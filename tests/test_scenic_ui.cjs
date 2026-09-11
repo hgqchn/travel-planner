@@ -100,7 +100,7 @@ function harness({ record, importHandler } = {}) {
   env.window.TripTaxonomy.configure(JSON.parse(fs.readFileSync(path.join(__dirname, "../place_taxonomy.json"), "utf8")));
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../public/external-links.js"), "utf8"), env);
   vm.runInContext(appSource.slice(0, appSource.indexOf("const state =")), env);
-  for (const [start, end] of [["function validExternalUrl(", "function formatTime("], ["function attractionCard(", "function renderTransport("], ["function makeField(", "function askDelete("]])
+  for (const [start, end] of [["function validExternalUrl(", "function formatTime("], ["function attractionCard(", "function foodCard("], ["function makeField(", "function askDelete("]])
     vm.runInContext(appSource.slice(appSource.indexOf(start), appSource.indexOf(end)), env);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../public/ui-enhancements.js"), "utf8"), env);
   env.window.TripUI.init();
@@ -118,7 +118,8 @@ test("new and edited attractions use the same optional rating select", () => {
   const field = () => h.dom.editFields.querySelector('select[name="scenic_rating"]');
   assert.ok(field()); assert.equal(field().required, false); assert.equal(field().value, "");
   assert.deepEqual(field().children.map((option) => option.value), ["", "4A", "5A"]);
-  assert.match(allText(h.dom.editFields), /没有匹配不代表未评级/);
+  assert.match(allText(h.dom.editFields), /AI 补充或手动选择/);
+  assert.doesNotMatch(allText(h.dom.editFields), /待核实/);
   h.env.openEditor("attraction", { id: 1, name: "故宫", scenic_rating: "5A", scenic_rating_info: official });
   assert.equal(field().value, "5A");
   h.env.openEditor("attraction", { id: 2, name: "旧记录" }); assert.equal(field().value, "");
@@ -150,9 +151,9 @@ test("cards show only rating information without catalog names dates or links", 
   assert.match(allText(referenced), /4A 景区/);
   assert.doesNotMatch(allText(referenced), /待核实|维基百科|参考名录景区名称|名录截至|2026-09-10/);
   assert.ok(!referenced.querySelectorAll("a").some((link) => link.href === reference.source_url));
-  for (const status of ["unverified", "ambiguous", "unknown"]) {
+  for (const status of [undefined, "unverified", "ambiguous", "unknown"]) {
     const pending = h.env.attractionCard({ name: "景点", scenic_rating: "4A", scenic_rating_info: { ...official, status } });
-    assert.match(allText(pending), /4A · 待核实/); assert.doesNotMatch(allText(pending), /4A 景区|文化和旅游部/);
+    assert.match(allText(pending), /4A 景区/); assert.doesNotMatch(allText(pending), /待核实|文化和旅游部/);
   }
   for (const scenic_rating of [undefined, "", "3A", "其他"]) {
     const missing = h.env.attractionCard({ name: "旧景点", scenic_rating });
@@ -161,7 +162,7 @@ test("cards show only rating information without catalog names dates or links", 
   }
 });
 
-test("reference AI ratings show only the grade and become pending when edited", async () => {
+test("AI ratings keep displaying the grade after editing", async () => {
   const h = harness({ record: { name: "景点", scenic_rating: "4A", scenic_rating_info: reference } }); await h.openAi();
   const badge = () => h.card().querySelector(".ai-scenic-rating");
   assert.match(allText(badge()), /4A 景区/);
@@ -169,7 +170,8 @@ test("reference AI ratings show only the grade and become pending when edited", 
   assert.equal(badge().querySelectorAll("a").length, 0);
   const fields = h.card().querySelector(".ai-edit-fields");
   fields.querySelector('[name="0:name"]').value = "另一景点"; fields.events.input();
-  assert.match(allText(badge()), /4A · 待核实/);
+  assert.match(allText(badge()), /4A 景区/);
+  assert.doesNotMatch(allText(h.card()), /待核实/);
   await h.apply();
   const payload = h.requests.find((request) => request.url.endsWith("/import")).body;
   assert.equal(payload.items[0].data.scenic_rating, "4A");
@@ -177,14 +179,14 @@ test("reference AI ratings show only the grade and become pending when edited", 
 });
 
 test("old AI drafts gain an editable empty select and import no source metadata", async () => {
-  const h = harness({ record: { name: "旧草稿景点", description: "待核实介绍" } }); await h.openAi();
+  const h = harness({ record: { name: "旧草稿景点", description: "旧介绍" } }); await h.openAi();
   const rating = h.card().querySelector('select[name="0:scenic_rating"]');
   assert.ok(rating); assert.equal(rating.value, ""); assert.equal(rating.id, "ai-0-scenic_rating");
   assert.equal(h.card().querySelector(".ai-scenic-rating").hidden, true);
   assert.equal(h.card().querySelector(".scenic-rating"), null);
   rating.value = "4A"; h.card().querySelector(".ai-edit-fields").events.change();
   assert.equal(h.card().querySelector(".ai-scenic-rating").hidden, false);
-  assert.match(allText(h.card()), /4A · 待核实/);
+  assert.match(allText(h.card()), /4A 景区/);
   await h.apply();
   const imported = h.requests.find((request) => request.url.endsWith("/import")).body.items[0];
   assert.equal(imported.kind, "attraction"); assert.equal(imported.data.scenic_rating, "4A");
@@ -199,12 +201,12 @@ test("editing an AI draft's name or rating removes stale official attribution", 
   assert.doesNotMatch(allText(h.card().querySelector(".ai-scenic-rating")), /文化和旅游部|名录景区|名录截至|2025-12-31/);
   assert.equal(h.card().querySelector(".ai-scenic-rating").querySelectorAll('a').length, 0);
   fields.querySelector('[name="0:name"]').value = "新地点"; fields.events.input();
-  assert.match(allText(h.card().querySelector(".ai-scenic-rating")), /5A · 待核实/);
+  assert.match(allText(h.card().querySelector(".ai-scenic-rating")), /5A 景区/);
   assert.doesNotMatch(allText(h.card().querySelector(".ai-scenic-rating")), /文化和旅游部/);
   fields.querySelector('[name="0:name"]').value = "故宫"; fields.events.input();
   assert.match(allText(h.card().querySelector(".ai-scenic-rating")), /5A 景区/);
   fields.querySelector('[name="0:scenic_rating"]').value = "4A"; fields.events.change();
-  assert.match(allText(h.card().querySelector(".ai-scenic-rating")), /4A · 待核实/);
+  assert.match(allText(h.card().querySelector(".ai-scenic-rating")), /4A 景区/);
   await h.apply();
   const payload = h.requests.find((request) => request.url.endsWith("/import")).body;
   assert.equal(payload.items[0].data.scenic_rating, "4A"); assert.ok(!JSON.stringify(payload).includes("source_url"));

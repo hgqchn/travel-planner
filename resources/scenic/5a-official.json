@@ -20,6 +20,14 @@
     {
       "source_url": "https://zwgk.mct.gov.cn/zfxxgkml/zykf/202402/t20240206_951222.html",
       "note": "交叉核对2024年02月06日正式确定21家5A级旅游景区的公告，本名单包含该批次全部21家。"
+    },
+    {
+      "source_url": "https://sjfw.mct.gov.cn/site/dataservice/rural?type=10",
+      "checked_on": "2026-09-11",
+      "record_count": 359,
+      "unique_name_count": 358,
+      "source_sha256": "b6fb30aeccb43563edaf5f2cf840b194fb55f553800cffe13be5874ab44c3214",
+      "note": "重新下载官方名录HTML，去除条目尾部授予年份（含重新授予年份）后，359条名称及重复次数与本文件完全一致。页面记录日期仍为2025-03-11，未据检索日修改as_of，未发现可核实的新认定批次。"
     }
   ],
   "province_counts": {
@@ -71,7 +79,16 @@
       "rating": "5A",
       "awarded_in": "2019",
       "source_url": "https://sjfw.mct.gov.cn/site/dataservice/rural?type=10",
-      "city": ""
+      "city": "",
+      "aliases": ["圆明园"],
+      "alias_sources": [
+        {
+          "source_url": "https://gygl.beijing.gov.cn/mlgy/mlgy_lsmy/201911/t20191129_732079.html",
+          "source_name": "北京市公园管理中心：圆明园",
+          "note": "公园名称为圆明园，正文明确介绍如今的圆明园遗址公园。",
+          "checked_on": "2026-09-11"
+        }
+      ]
     },
     {
       "name": "北京奥林匹克公园",
@@ -3951,5 +3968,6 @@
     }
   ],
   "record_count": 359,
-  "unique_attraction_count": 358
+  "unique_attraction_count": 358,
+  "verified_at": "2026-09-11"
 }

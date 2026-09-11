@@ -63,34 +63,21 @@ class TravelGuidanceTests(unittest.TestCase):
     def guidance(self, city='shanghai'):
         return server.snapshot(self.path, city)['travel_guidance']
 
-    def test_import_persists_summary_notices_and_retry_does_not_duplicate(self):
+    def test_import_never_creates_guidance_even_if_provider_returns_notices(self):
         job = self.ready()
-        self.assertEqual(self.guidance(), [], 'unimported previews must remain private')
+        self.assertEqual(job['result']['notices'], [])
         self.apply(job)
-        before = server.snapshot(self.path, 'shanghai')
-        group = self.guidance()[0]
-        self.assertEqual(group['summary'], '')
-        self.assertEqual(group['notices'], job['result']['notices'])
-        self.assertEqual(group['dates'], ['2026-10-01', '2026-10-02'])
-        self.assertEqual(self.guidance('beijing'), [])
-        self.apply(job)
-        self.assertEqual(server.snapshot(self.path, 'shanghai')['revision'], before['revision'])
-        self.assertEqual(self.guidance(), [group])
-        with server.connect_db(self.path) as db:
-            db.execute('DELETE FROM ai_jobs')
-        server.init_database(self.path, 'test-code', self.seed)
-        self.assertEqual(self.guidance(), [group], 'saved tips survive expiring AI task records')
-
-    def test_replanning_shows_only_latest_city_tips_without_stacking(self):
-        first = self.ready(); self.apply(first)
-        second = self.ready(mode='replace_day', days=1); self.apply(second)
-        scopes = {group['id']: group['dates'] for group in self.guidance()}
-        self.assertEqual(scopes, {first['id']: ['2026-10-01', '2026-10-02']})
-        third = self.ready(mode='replace_all', start='2026-10-04', days=1); self.apply(third)
-        self.assertEqual([group['id'] for group in self.guidance()], [third['id']])
-        with server.connect_db(self.path) as db:
-            db.execute("DELETE FROM items WHERE kind='itinerary' AND city_id='shanghai'")
         self.assertEqual(self.guidance(), [])
+        self.apply(job)
+        server.init_database(self.path, 'test-code', self.seed)
+        self.assertEqual(self.guidance(), [])
+
+    def test_replanning_preserves_explicitly_saved_tips(self):
+        self.apply(self.ready()); self.edit(notices=['已确认提示'])
+        before = self.guidance()
+        self.apply(self.ready(mode='replace_day', days=1))
+        self.apply(self.ready(mode='replace_all', start='2026-10-04', days=1))
+        self.assertEqual(self.guidance(), before)
 
     def test_failure_rolls_back_tips_and_all_items(self):
         job = self.ready()
@@ -109,20 +96,20 @@ class TravelGuidanceTests(unittest.TestCase):
             db.execute('DELETE FROM travel_guidance')
             db.execute("DELETE FROM meta WHERE key='travel_guidance_v1'")
         server.init_database(self.path, 'test-code', self.seed)
-        self.assertEqual([group['id'] for group in self.guidance()], [job['id']])
+        self.assertEqual(self.guidance(), [])
         self.assertEqual(self.guidance('beijing'), [])
         before = self.guidance()
         server.init_database(self.path, 'test-code', self.seed)
         self.assertEqual(before, self.guidance())
 
-    def test_duplicate_only_import_saves_guidance_and_advances_snapshot_revision(self):
+    def test_duplicate_only_import_does_not_create_guidance(self):
         self.apply(self.ready())
         before = server.snapshot(self.path, 'shanghai')
         result = self.apply(self.ready())
         self.assertEqual(result['created'], 0)
         after = server.snapshot(self.path, 'shanghai')
-        self.assertGreater(after['revision'], before['revision'])
-        self.assertEqual(len(after['travel_guidance']), 1)
+        self.assertEqual(after['revision'], before['revision'])
+        self.assertEqual(after['travel_guidance'], [])
         self.assertEqual(after['items'], before['items'])
 
     def edit(self, summary='自己写的提示', notices=None, version=None, delete=False):
@@ -160,7 +147,7 @@ class TravelGuidanceTests(unittest.TestCase):
 
     def test_conflict_validation_and_city_isolation(self):
         self.apply(self.ready())
-        old = self.guidance()[0]['version']
+        old = server.guidance_state(self.path, 'shanghai')['version']
         self.edit()
         for deleting in (False, True):
             with self.assertRaises(server.ApiError) as error:
@@ -172,25 +159,25 @@ class TravelGuidanceTests(unittest.TestCase):
             self.assertEqual(error.exception.status, 400)
         self.assertEqual(self.guidance('beijing'), [])
 
-    def test_latest_ai_import_invalidates_existing_editor_version(self):
+    def test_ai_import_does_not_invalidate_guidance_editor(self):
         self.apply(self.ready())
-        old = self.guidance()[0]['version']
+        old = server.guidance_state(self.path, 'shanghai')['version']
         self.apply(self.ready())
-        with self.assertRaises(server.ApiError) as error:
-            self.edit(version=old)
-        self.assertEqual(error.exception.status, 409)
+        self.edit(version=old)
+        self.assertEqual(self.guidance()[0]['notices'], ['记得带相机'])
 
     def test_exports_include_scoped_tips_and_keep_formula_like_text_literal(self):
         shanghai = self.ready(); self.apply(shanghai)
         beijing = self.ready(city='beijing'); self.apply(beijing)
-        with server.connect_db(self.path) as db:
-            db.execute("UPDATE travel_guidance SET notices=? WHERE city_id='beijing'", (json.dumps(['北京专属提示']),))
+        self.edit(notices=['外滩步行建议', '=1+1 <原文> & 保留'])
+        current=server.guidance_state(self.path,'beijing')
+        server.change_guidance(self.path, {'city_id':'beijing','version':current['version'],'notices':['北京专属提示']}, self.user)
         data = server.itinerary_export_snapshot(self.path, 'shanghai')
         for build in (build_docx, build_xlsx):
             values = content(build(data))
             self.assertIn('出行提示', values)
             self.assertNotIn(shanghai['result']['summary'], values)
-            for notice in shanghai['result']['notices']:
+            for notice in self.guidance()[0]['notices']:
                 self.assertIn(notice, values)
             self.assertNotIn('北京专属提示', values)
             self.assertNotIn(self.user, values)

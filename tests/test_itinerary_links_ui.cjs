@@ -50,7 +50,7 @@ function harness() {
     document: { createElement: tag => element(tag), createTextNode: text => text },
     state, dom, element, Date, URL, requestAnimationFrame: callback => callback(),
     Event: class { constructor(type, options) { this.type = type; Object.assign(this, options); } },
-    FormData: class { constructor(form) { this.inputs = form.querySelectorAll('input,textarea,select'); } entries() { return this.inputs.filter(input => input.name).map(input => [input.name, input.value])[Symbol.iterator](); } },
+    FormData: class { constructor(form) { this.inputs = form.querySelectorAll('input,textarea,select'); } entries() { return this.inputs.filter(input => input.name && !input.disabled).map(input => [input.name, input.value])[Symbol.iterator](); } },
     showToast: message => toasts.push(message), fetchSnapshot: async () => {}, openIdentity() {}, showProjectGate() {},
     requestJson: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { data: {} }; },
     addTag: (container, text) => { if (text) container.append(element('span', 'tag', text)); },
@@ -116,6 +116,27 @@ test('old manual itineraries save an empty array for automatic identification', 
   assert.equal(h.names().value, ''); await h.save(); assert.deepEqual(h.requests[0].body.attraction_names, []);
 });
 
+test('locked editor preserves time block while saving other fields and reflects conflict locks', async () => {
+  const h = harness();
+  const item = {id:'i', version:1, title:'公园', time_block:'morning', block_locked:true};
+  h.env.openEditor('itinerary', item);
+  const block = () => h.dom.editFields.querySelector('[name="time_block"]');
+  assert.equal(block().disabled, true);
+  assert.equal(block().value, 'morning');
+  assert.match(text(h.dom.editFields), /解除时段锁定/);
+  h.dom.editFields.querySelector('[name="notes"]').value = '新备注';
+  await h.save();
+  assert.equal(h.requests.at(-1).body.time_block, 'morning');
+  assert.equal(h.requests.at(-1).body.notes, '新备注');
+  h.env.openEditor('itinerary', {...item, block_locked:false});
+  assert.equal(block().disabled, false);
+  block().value = 'afternoon';
+  h.env.showConflict({...item, version:2}); h.env.keepLocalConflict();
+  assert.equal(block().disabled, true); assert.equal(block().value, 'morning');
+  h.env.showConflict({...item, version:3, block_locked:false}); h.env.loadRemoteConflict();
+  assert.equal(block().disabled, false);
+});
+
 test('explicit names deduplicate separators, preserve official punctuation and reject oversized inputs', async () => {
   const h = harness();
   assert.deepEqual(plain(h.env.parseAttractionNames('故宫，景山\n故宫、苏州市苏州园林（拙政园－留园－虎丘）')), ['故宫', '景山', '苏州市苏州园林（拙政园－留园－虎丘）']);
@@ -132,4 +153,24 @@ test('conflict reload updates linked names while preserving explicit keep-local 
   h.env.loadRemoteConflict(); assert.equal(h.names().value, '景山');
   h.names().value = '故宫、景山'; h.env.showConflict({ id: 'i', attraction_names: ['天坛'], version: 3 });
   h.env.keepLocalConflict(); assert.equal(h.names().value, '故宫、景山'); assert.equal(h.state.currentEdit.item.version, 3);
+});
+
+test('itinerary cards expose priority and distinguish AI opening hours from confirmed inputs', () => {
+  const h=harness();
+  const card=h.env.itineraryCard({title:'公园',priority:'must',opening_start:'08:00',opening_end:'17:30',opening_source:'ai_estimate',opening_note:'以官方公告为准'});
+  assert.match(text(card),/优先级：必去/);assert.match(text(card),/08:00–17:30（以官方公告为准）/);
+  assert.doesNotMatch(text(card),/AI 参考，待核实/);
+  assert.match(text(h.env.itineraryCard({title:'未查询地点'})),/开放时间待补充/);
+});
+
+test('legacy is only offered for existing multi-place records; hours provenance survives unrelated edits', async () => {
+  const h=harness();h.env.openEditor('itinerary');
+  assert.equal(h.dom.editFields.querySelector('[name="visit_kind"]').children.some(n=>n.value==='legacy'),false);
+  const item={id:'i',version:1,title:'公园',date:'2030-01-01',city_id:'beijing',visit_kind:'legacy',duration_minutes:90,
+    opening_start:'08:00',opening_end:'17:00',opening_source:'ai_estimate',opening_note:'AI 参考',attraction_names:[]};
+  h.env.openEditor('itinerary',item);
+  assert.ok(h.dom.editFields.querySelector('[name="visit_kind"]').children.some(n=>n.value==='legacy'));
+  await h.save();assert.equal(h.requests.at(-1).body.opening_source,'ai_estimate');
+  h.env.openEditor('itinerary',item);h.dom.editFields.querySelector('[name="opening_end"]').value='18:00';
+  await h.save();assert.equal(h.requests.at(-1).body.opening_source,'user');assert.equal(h.requests.at(-1).body.opening_note,'');
 });
