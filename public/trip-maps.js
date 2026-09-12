@@ -495,10 +495,17 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     } catch (error) { if (valid(token) && !saving && plan.version === version) markConflict('无法核对共享日计划版本，请载入最新版后继续。'); }
     finally { if (generation === token) checking = false; }
   }
-  async function mountOverview(canvas, date, note) {
+  async function mountOverview(canvas, date, note, version) {
+    // Snapshot renders replace the surrounding cards, but an unchanged map keeps its DOM and SDK instance.
+    if (canvas && overview && overview.scope === scope() && overview.date === date && overview.version === version) {
+      if (canvas !== overview.canvas) canvas.replaceWith(overview.canvas);
+      overview.note = note;
+      if (overview.error) note.textContent = overview.error;
+      return;
+    }
     overview?.controller.abort(); overview?.map?.destroy(); overview = null;
     if (!canvas) return;
-    const current = { canvas, scope: scope(), controller: new AbortController(), map: null };
+    const current = { canvas, date, version, note, scope: scope(), controller: new AbortController(), map: null };
     overview = current;
     const validOverview = () => overview === current && current.scope === scope() && canvas.isConnected;
     try {
@@ -521,7 +528,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       if (overlays.length) overviewMap.setFitView(overlays, true, [45, 35, 45, 35], 16);
       canvas.setAttribute('aria-busy', 'false');
     } catch (error) {
-      if (validOverview()) { canvas.setAttribute('aria-busy', 'false'); note.textContent = '地图暂时无法加载：' + error.message + '。可点击下方按钮查看或重新规划。'; }
+      if (validOverview()) { canvas.setAttribute('aria-busy', 'false'); current.note.textContent = current.error = '地图暂时无法加载：' + error.message + '。可点击下方按钮查看或重新规划。'; }
     }
   }
   return { open, sync, mountOverview };

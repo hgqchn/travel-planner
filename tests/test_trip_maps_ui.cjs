@@ -338,3 +338,25 @@ test('itinerary street map fits every saved route and disposes on replacement', 
   assert.equal(h.maps[1].overlays.filter(x=>x.options.path).length,2);
   assert.equal(h.maps[1].fit.length,5);
 });
+
+test('snapshot rerenders reuse the map without requests; changed day version or scope replaces it', async () => {
+  const h=harness(), note={textContent:''};
+  const canvas=()=>({isConnected:true,setAttribute(){},replaceWith(node){this.replacement=node;}});
+  const first=canvas();
+  await h.env.window.TripMaps.mountOverview(first,'2026-09-12',note,'v1');
+  const requests=h.requests.length;
+  for(let i=0;i<5;i++) {
+    const replacement=canvas();
+    await h.env.window.TripMaps.mountOverview(replacement,'2026-09-12',note,'v1');
+    assert.equal(replacement.replacement,first);
+  }
+  assert.equal(h.maps.length,1); assert.equal(h.maps[0].destroyed,undefined);
+  assert.equal(h.requests.length,requests);
+  await h.env.window.TripMaps.mountOverview(canvas(),'2026-09-12',note,'v2');
+  assert.equal(h.maps.length,2); assert.equal(h.maps[0].destroyed,true);
+  await h.env.window.TripMaps.mountOverview(canvas(),'2026-09-13',note,'v2');
+  assert.equal(h.maps.length,3); assert.equal(h.maps[1].destroyed,true);
+  h.env.state.projectId='other';
+  await h.env.window.TripMaps.mountOverview(canvas(),'2026-09-13',note,'v2');
+  assert.equal(h.maps.length,4); assert.equal(h.maps[2].destroyed,true);
+});

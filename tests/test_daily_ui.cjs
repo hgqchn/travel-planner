@@ -51,6 +51,7 @@ test('saved route preview is scoped to the selected day and opens its route plan
   h.plan.route_preview={version:'saved-v1',planned:1,total:1,minutes:10,stops:[{number:1,name:'公园'},{number:2,name:'广场'}]};
   h.env.window.TripDaily.render(h.env.state.items.itinerary);
   assert.equal(mounted.at(-1)[1],'2030-01-01');
+  assert.equal(mounted.at(-1)[3],'saved-v1');
   assert.equal(mounted.at(-1)[0].className,'daily-route-map');
   h.nodes().find(n=>n.className==='daily-route-map-button').events.click();
   assert.deepEqual(opened,['2030-01-01']);

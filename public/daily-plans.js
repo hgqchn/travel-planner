@@ -432,7 +432,7 @@ window.TripDaily = (() => {
         const mapButton=button('查看全程 · 重新规划',()=>window.TripMaps?.open(day),'daily-route-map-button');
         mapButton.setAttribute('aria-label', `查看或调整 ${day} 的已保存路线`);
         const note=e('p','daily-hint',`点击地图可进入路线规划。${route.planned<route.total || route.incomplete ? '部分路段尚未规划或轨迹不完整。' : '已显示全部已保存路线，耗时为规划时参考。'}`);
-        shell.append(canvas,mapButton); overview={canvas,date:day,note};
+        shell.append(canvas,mapButton); overview={canvas,date:day,note,version:route.version};
         const places=e('div','daily-route-places');
         route.stops.forEach(stop=>places.append(e('span','daily-route-place',`${stop.number}. ${stop.name}`)));
         card.append(header,shell,places,note,button('查看 / 调整路线',()=>window.TripMaps?.open(day)));
@@ -476,7 +476,7 @@ window.TripDaily = (() => {
       wrapper.append(section);
     }
     dom.cards.replaceChildren(wrapper);
-    window.TripMaps?.mountOverview?.(overview?.canvas,overview?.date,overview?.note);
+    window.TripMaps?.mountOverview?.(overview?.canvas,overview?.date,overview?.note,overview?.version);
   }
   return { blocks, options, label, render, open, openHours, selectedDate: () => selectedDates.get(scope()) || '' };
 })();
