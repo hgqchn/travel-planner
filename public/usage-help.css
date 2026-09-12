@@ -45,3 +45,32 @@
 .usage-tour-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .usage-tour-actions button { min-height: 44px; margin: 0; padding: 9px 12px; width: auto; font-size: 13px; }
 .usage-tour-actions [data-tour-exit] { margin-right: auto; }
+
+.usage-tour[open] { display: grid; grid-template-columns: minmax(0, 1fr) 380px; background: #f3f8fe; color: #233f5d; }
+.usage-tour-preview { min-height: 0; overflow: auto; padding: 24px; overscroll-behavior: contain; scroll-padding-block: 24px; }
+.usage-tour-card { position: relative; z-index: 1; align-self: center; width: auto; margin: 16px; max-height: calc(100dvh - 32px); }
+.usage-tour-spot { pointer-events: none; }
+.usage-demo-page { max-width: 900px; margin: auto; padding-bottom: 24px; }
+.usage-demo-notice { font-size: 13px; color: #526c8a; margin: 0 0 20px; }
+.usage-demo-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.usage-demo-control { display: inline-block; padding: 10px 14px; border: 1px solid #c6d9f3; border-radius: 10px; background: #fff; font-size: 14px; }
+.usage-demo-cover { margin: 20px 0; padding: 30px; border-radius: 20px; background: #d9eaff url('/assets/sky-journey.svg') right center / cover; }
+.usage-demo-cover h2 { font-size: 32px; margin: 16px 0; }
+.usage-demo-ai { display: grid; gap: 10px; padding: 24px; border-radius: 16px; color: white; background: #3975cc; }
+.usage-demo-panel { padding: 20px; margin-top: 20px; border: 1px solid #d6e3f1; border-radius: 18px; background: white; }
+.usage-demo-panel h3 { margin: 8px 0; }
+.usage-demo-tools { justify-content: flex-start; margin-top: 16px; }
+.usage-demo-status { color: #326859; font-size: 14px; }
+.usage-demo-slots { display: block; line-height: 1.8; background: #eaf2ff; }
+.usage-demo-stop { margin: 16px 0; padding: 16px; border-left: 3px solid #8bbaff; background: #f3f8fe; border-radius: 8px; }
+.usage-demo-stop p, .usage-demo-empty { color: #526c8a; font-size: 14px; line-height: 1.8; }
+.usage-demo-map { padding: 24px; background: #e2f1e9; border-radius: 14px; line-height: 1.8; }
+@media (max-width: 760px) {
+  .usage-tour[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(100px, 1fr) auto; }
+  .usage-tour-preview { padding: 16px; }
+  .usage-tour-card { margin: 8px; padding: 16px; max-height: 55dvh; }
+  .usage-tour-card h2 { font-size: 18px; }
+  #usage-tour-description { margin: 8px 0; }
+  .usage-demo-panel { padding: 14px; }
+  .usage-demo-cover { padding: 20px; }
+}

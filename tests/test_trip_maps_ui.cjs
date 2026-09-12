@@ -133,7 +133,7 @@ test('shared node loading ignores backups and old HH:MM, while each leg defaults
   const h = harness({setup:p=>{p.visits[2].is_backup=true; p.visits[0].duration_minutes=null;}}); await h.open();
   assert.equal(h.get('.trip-map-segments').children.length,1);
   assert.equal(h.panel(0).querySelectorAll('.trip-mode-button').find(n=>n.getAttribute('aria-pressed')==='true').textContent,'公交 / 地铁');
-  assert.match(h.get('.trip-map-timeline').textContent,/上午 · 停留待确认/);
+  assert.match(h.get('.trip-map-timeline').textContent,/上午/);
   assert.doesNotMatch(h.get('.trip-map-timeline').textContent,/07:00|09:00/);
 });
 
@@ -192,16 +192,18 @@ test('map picking targets anchors and is cancelled on navigation and conflicts',
   assert.equal(h.get('.trip-map-picker').hidden,true);
   point(); assert.equal(h.document.visits[1].poi,null);
 });
-test('POI confirmation and visit edits persist through PUT and own snapshot does not close dialog', async () => {
-  const h=harness(); await h.open(); await h.confirm(0);
+test('POI confirmation persists without exposing or changing visit durations', async () => {
+  const h=harness({setup:p=>{p.visits[0].duration_source='ai_estimate';}}); await h.open(); await h.confirm(0);
   assert.equal(h.document.visits[0].poi.name,'甲'); assert.equal(h.get('dialog').open,true); assert.equal(h.refreshes,1);
-  const fields=h.get('.trip-map-stops').children[0].querySelectorAll('input'); fields[1].value='90';
-  await h.click(h.get('.trip-map-stops').children[0],'保存停留时长');
-  assert.equal(h.document.visits[0].duration_minutes,90); assert.equal(fields.length,2); assert.equal(h.document.visits[0].fixed_start,'');
-  assert.equal(h.requests.filter(r=>r.method==='PUT').at(-1).payload.version,'v2');
-  assert.equal(h.get('dialog').open,true);
-  h.get('dialog').close(); await h.open(); assert.doesNotMatch(h.get('.trip-map-timeline').textContent,/预约/);
+  assert.equal(h.get('.trip-map-stops').children[0].querySelectorAll('input').length,1);
+  assert.doesNotMatch(h.get('.trip-map-stops').textContent,/停留/);
+  assert.doesNotMatch(h.get('.trip-map-timeline').textContent,/停留/);
+  assert.equal(h.document.visits[0].duration_minutes,60);
+  assert.equal(h.document.visits[0].duration_source,'ai_estimate');
+  h.get('dialog').close(); await h.open();
+  assert.equal(h.document.visits[0].poi.name,'甲');
 });
+
 test('mode changes save a directed stable pair and independently query without third POI', async () => {
   const h=harness(); await h.open(); await h.confirm(0); await h.confirm(1);
   await h.click(h.panel(0),'步行');
@@ -233,16 +235,18 @@ test('return from preview never sends apply or writes a new order', async () => 
   await h.click(h.get('dialog'),'返回已保存顺序');
   assert.match(h.get('.trip-map-timeline').textContent,/1\. 甲/); assert.equal(h.requests.some(r=>r.method==='PUT'||r.url.endsWith('/apply')),false);
 });
-test('409 preserves edit fields, disables stale actions and requires explicit reload', async () => {
+test('409 preserves search drafts, disables stale actions and requires explicit reload', async () => {
   const h=harness(); await h.open();
-  const card=h.get('.trip-map-stops').children[0], fields=card.querySelectorAll('input'); fields[1].value='100';
+  const field=h.get('.trip-map-stops').children[0].querySelectorAll('input')[0];
+  field.value='新的地点'; field.events.input();
   h.setFailure(Object.assign(new Error('conflict'),{status:409}));
-  await h.click(card,'保存停留时长');
-  assert.equal(fields[1].value,'100'); assert.equal(h.get('[data-reload]').hidden,false);
+  await h.click(h.panel(0),'步行');
+  assert.equal(field.value,'新的地点'); assert.equal(h.get('[data-reload]').hidden,false);
   assert.equal(h.panel(0).querySelectorAll('.trip-mode-button')[0].disabled,true);
   h.setFailure(null); await h.click(h.get('dialog'),'载入最新日计划');
-  assert.equal(h.get('.trip-map-stops').children[0].querySelectorAll('input')[1].value,60);
+  assert.equal(h.get('.trip-map-stops').children[0].querySelectorAll('input')[0].value,'甲');
 });
+
 test('settings-only remote revision invalidates evaluation even with unchanged itinerary payload', async () => {
   const h=harness(); await h.open(); await h.click(h.get('dialog'),'核算全天');
   h.document.version='v2'; h.document.settings.buffer_minutes=30; h.env.state.revision++;
@@ -277,28 +281,23 @@ test('unlocated rest remains visible while traffic links and mode saves use real
   await h.click(h.panel(0),'步行');
   assert.equal(h.document.settings.leg_modes['["0","2"]'],'walking');
 });
-test('unrelated saves preserve unsaved stay drafts', async () => {
+test('unrelated saves preserve unsaved search drafts', async () => {
   const h=harness(); await h.open();
-  const inputs=h.get('.trip-map-stops').children[1].querySelectorAll('input');
-  inputs[1].value='75'; inputs[1].events.input();
+  const input=h.get('.trip-map-stops').children[1].querySelectorAll('input')[0];
+  input.value='乙入口'; input.events.input();
   await h.click(h.panel(0),'步行');
-  const retained=h.get('.trip-map-stops').children[1].querySelectorAll('input');
-  assert.equal(retained[1].value,'75');
-  assert.equal(h.document.visits[1].duration_minutes,60);
-  await h.click(h.get('.trip-map-stops').children[1],'保存停留时长');
-  assert.equal(h.document.visits[1].duration_minutes,75);
+  assert.equal(h.get('.trip-map-stops').children[1].querySelectorAll('input')[0].value,'乙入口');
 });
 
-test('saving unchanged stay preserves AI provenance until duration changes', async () => {
-  const h=harness({setup:p=>{p.visits[0].duration_source='ai_estimate';}}); await h.open();
-  let card=h.get('.trip-map-stops').children[0];
-  await h.click(card,'保存停留时长');
-  assert.equal(h.document.visits[0].duration_source,'ai_estimate');
-  card=h.get('.trip-map-stops').children[0];
-  card.querySelectorAll('input')[1].value='85';
-  await h.click(card,'保存停留时长');
-  assert.equal(h.document.visits[0].duration_minutes,85);
-  assert.equal(h.document.visits[0].duration_source,'user');
+test('missing duration does not block planning a route with confirmed endpoints', async () => {
+  const h=harness({setup:p=>{p.visits[0].duration_minutes=null;}}); await h.open();
+  await h.confirm(0); await h.confirm(1);
+  await h.click(h.panel(0),'规划本段路线');
+  assert.equal(h.routes().length,1);
+  assert.equal(h.routes()[0].payload.departure.provisional,true);
+  assert.equal(h.routes()[0].payload.departure.context,'missing-prefix');
+  assert.equal(h.document.visits[0].duration_minutes,null);
+  assert.match(h.panel(0).textContent,/参考出发/);
 });
 
 test('only selected endpoints and one route editor render; switching retains planned duration', async () => {

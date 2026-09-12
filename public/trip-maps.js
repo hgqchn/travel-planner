@@ -19,7 +19,6 @@ const TripMapPlan = (() => {
     const visits = (order ? order.map(id => active.find(v => v.id === id)) : active).map(v => ({
       id: v.id, name: v.location || v.title, query: v.location || v.title, time: '',
       stay: Number.isInteger(v.duration_minutes) && v.duration_minutes > 0 ? v.duration_minutes : null,
-      durationSource: v.duration_source || 'unknown',
       block: v.time_block || '', kind: v.visit_kind, poi: v.poi || null, anchor: false,
     }));
     const anchor = (id, poi, label) => ({ id, poi, anchor: true, name: poi.name || label, query: '', stay: 0, time: '', block: '', kind: 'anchor' });
@@ -44,7 +43,7 @@ const TripMapPlan = (() => {
     for (let i = 0; i <= index; i++) {
       const stop = stops[i];
       if (stop.stay === null || stop.kind === 'legacy') {
-        if (i === index) return null;
+        if (i === index && stop.kind === 'legacy') return null;
         known = false;
       }
       if (i && !(stop.kind === 'rest' && !stop.poi)) {
@@ -154,10 +153,6 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     try {
       const next = await dayRequest('PUT', '', body); if (!valid(token)) return false;
       written = true;
-      for (const update of body.updates || []) {
-        const draft = drafts.get(update.id);
-        if (draft && 'duration_minutes' in update.changes) { delete draft.stay; delete draft.fixed; }
-      }
       adopt(next, true);
       if (!await afterOwnSave(token)) return false;
       message('已保存到共享日计划。全天核算需要按最新设置重新进行。');
@@ -323,7 +318,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     stops.forEach((stop, i) => {
       const label = stop.id === '@start' ? '出发' : stop.id === '@end' ? '返回' : `${i + 1}`;
       const point = nav(`${label}. ${name(i)}`, () => focusStop(i), 'trip-overview-stop');
-      if (!stop.anchor) point.append(el('small', '', `${blockName(stop)} · ${stop.stay === null ? '停留待确认' : `停留 ${stop.stay} 分钟`}`));
+      if (!stop.anchor) point.append(el('small', '', blockName(stop)));
       point.setAttribute('aria-pressed', String(!!legs[selectedLeg] && endpoints(legs[selectedLeg]).includes(stop)));
       if (stop.kind === 'legacy') point.append(el('small', 'trip-map-warning', '多地点行程待拆分'));
       view.timeline.append(point);
@@ -343,7 +338,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       });
       panel.append(group);
       const dep = refDeparture(segmentIndex);
-      panel.append(el('p', 'trip-map-note', dep ? `${dep.provisional ? '参考' : '核算'}出发：${TripMapPlan.clock(dep.minutes)}${dep.provisional ? '（仅供独立查路参考，请核算全天）' : ''}` : '请先确认出发地点的停留时间，多地点行程需先拆分。'));
+      panel.append(el('p', 'trip-map-note', dep ? `${dep.provisional ? '参考' : '核算'}出发：${TripMapPlan.clock(dep.minutes)}${dep.provisional ? '（仅供独立查路参考，请核算全天）' : ''}` : '请先在每日计划拆分多地点行程。'));
       const actions = el('div', 'trip-map-actions'); actions.append(button(leg.result ? '重新规划本段' : '规划本段路线', () => calculate(segmentIndex), 'primary-button'));
       for (const endpoint of [i, toIndex]) if (!stops[endpoint].poi) actions.append(nav(`确认地点 ${endpoint + 1}`, () => focusStop(endpoint)));
       panel.append(actions, el('p', leg.error ? 'trip-map-warning' : 'trip-segment-status', leg.error || legText(leg)));
@@ -374,7 +369,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     visible.forEach((stop, endpointIndex) => {
       const index = stops.indexOf(stop);
       const card = el('article', 'trip-map-stop'); card.setAttribute('data-stop-id', stop.id); card.append(el('small', 'trip-endpoint-label', visible.length > 1 ? (endpointIndex === 0 ? '起点' : '终点') : '行程地点'), el('strong', '', stop.name));
-      if (stop.kind === 'legacy') { card.append(el('p', 'trip-map-warning', '此行程含多个地点，请返回每日计划拆分后再规划路线与各点时长。')); view.list.append(card); return; }
+      if (stop.kind === 'legacy') { card.append(el('p', 'trip-map-warning', '此行程含多个地点，请返回每日计划拆分后再规划路线。')); view.list.append(card); return; }
       const draft = drafts.get(stop.id) || {}; drafts.set(stop.id, draft);
       const row = el('div', 'trip-map-search'), input = el('input'), results = el('div', 'trip-map-search-results');
       input.value = draft.query ?? stop.query; stop.query = input.value; input.maxLength = 100; input.setAttribute('aria-label', `搜索 ${stop.name} 的具体地点`);
@@ -393,16 +388,6 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       const endpointLabel = visible.length > 1 ? (endpointIndex === 0 ? '起点' : '终点') : '地点';
       card.append(button(`地图选择${endpointLabel}`, () => startPick(stop, endpointLabel), 'secondary-button trip-map-pick-button'));
       if (stop.poi) card.append(nav(`已确认：${stop.poi.name} · ${stop.poi.address}`, () => { map?.setZoomAndCenter(16, stop.poi.location.split(',').map(Number)); view.canvas.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 'secondary-button trip-map-selected'));
-      if (stop.anchor) { view.list.append(card); return; }
-      const fields = el('div', 'trip-map-controls'), stayLabel = el('label', '', '停留（分钟）'), stay = el('input');
-      stay.type = 'number'; stay.min = '1'; stay.max = '1440'; stay.value = draft.stay ?? stop.stay ?? ''; stay.placeholder = '请确认时长'; stayLabel.append(stay);
-      fields.append(stayLabel); card.append(fields);
-      stay.addEventListener('input', () => { draft.stay = stay.value; });
-      card.append(button('保存停留时长', async () => {
-        const duration = stay.value === '' ? null : Number(stay.value);
-        if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) { message('停留需为 1–1440 的整数分钟，或留空待确认。'); return; }
-        await savePatch({ updates: [{ id: stop.id, changes: { duration_minutes: duration, duration_source: duration === null ? 'unknown' : duration === stop.stay ? stop.durationSource : 'user' } }] });
-      }));
       view.list.append(card);
     });
   }
@@ -411,7 +396,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     if ([from, to].some(s => s.kind === 'legacy')) throw new Error('请先在每日计划拆分多地点行程。');
     if (!from.poi || !to.poi) throw new Error('请先确认本段两端的具体地点。');
     const departure = TripMapPlan.referenceDeparture(stops, legs, stops.indexOf(from), plan);
-    if (!departure) throw new Error('请先填写出发地点的建议停留分钟。');
+    if (!departure) throw new Error('请先在每日计划拆分多地点行程。');
     const previousDuration = leg.result?.duration;
     clearLeg(leg); leg.status = 'loading'; reconcile(); render();
     try {

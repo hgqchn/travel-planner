@@ -29,9 +29,9 @@ test('candidate reference validation rejects duplicated, missing and backup node
   for (const order of [['a'],['a','a'],['a','backup']]) assert.throws(() => plan.nodes(fixture(), order));
   assert.deepEqual(plan.nodes(fixture(), ['a','b']).map(s => s.id), ['a','b']);
 });
-test('local route times are always provisional and unknown stays are not treated as zero', () => {
+test('unknown stays allow provisional route lookup using the block start', () => {
   const p = fixture(); const stops = plan.nodes(p, ['a','b']);
-  assert.equal(plan.referenceDeparture(stops, plan.segments(stops), 0, p), null);
+  assert.deepEqual(plan.referenceDeparture(stops, plan.segments(stops), 0, p), {minutes:540, provisional:true, context:'missing-prefix'});
   assert.deepEqual(plan.referenceDeparture(stops, plan.segments(stops), 1, p), {minutes:600, provisional:true, context:'missing-prefix'});
 });
 test('buffer uses maximum of fixed and proportion, not their sum', () => {
