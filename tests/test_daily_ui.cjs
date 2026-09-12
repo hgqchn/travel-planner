@@ -181,3 +181,16 @@ test('night slot accepts a drop and restores backups even with the legacy night 
   await backup.nodes().find(n=>n.textContent==='添加到行程中').events.click();
   assert.deepEqual(backup.requests[0].updates,[{id:'a',changes:{is_backup:false}}]);
 });
+
+test('time navigation includes empty slots and jumps to the selected day section', () => {
+  const h=harness();
+  const links=h.nodes().filter(n=>n.className==='daily-slot-link');
+  assert.equal(links.length,7);
+  const target=h.nodes().find(n=>n.dataset.blockId==='night');
+  let scrolled=false,focused=false;
+  target.scrollIntoView=opts=>{scrolled=opts.block==='start';};
+  target.focus=opts=>{focused=opts.preventScroll;};
+  links.find(n=>n.attrs['aria-controls']===target.id).events.click();
+  assert.equal(scrolled,true); assert.equal(focused,true);
+  assert.match(links.at(-1).attrs['aria-label'],/夜间，0项行程/);
+});

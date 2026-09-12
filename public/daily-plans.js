@@ -393,11 +393,26 @@ window.TripDaily = (() => {
         card.append(header,shell,places,note,button('查看 / 调整路线',()=>window.TripMaps?.open(day)));
         section.append(card);
       }
+      const layout=e('div','daily-schedule-layout'), slots=e('div','daily-schedule-slots');
+      const navigation=e('nav','daily-slot-nav'); navigation.setAttribute('aria-label','当天时段快速跳转');
+      navigation.append(e('h4','','时段导航'));
+      const links=e('div','daily-slot-links'); navigation.append(links);
+      layout.append(slots,navigation);
       const groups = [...(visits.some(v => groupId(v) === "") ? [["", "待安排", "", ""]] : []), ...blocks,
         ...(visits.some(v => v.is_backup) ? [["backup", "备选行程", "", ""]] : [])];
       for (const [id, name, start, end] of groups) {
         const members = visits.filter(v => groupId(v) === id), group = e("section", "daily-slot"), header = e("div", "daily-slot-heading");
         group.dataset.blockId = id;
+        group.id = 'daily-slot-' + (id || 'unscheduled');
+        group.setAttribute('tabindex','-1');
+        const jump=button('',()=>{
+          group.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',block:'start'});
+          group.focus({preventScroll:true});
+        },'daily-slot-link');
+        jump.setAttribute('aria-label',`跳转到${name}，${members.length}项行程`);
+        jump.setAttribute('aria-controls',group.id);
+        jump.append(e('span','daily-slot-link-title',name),e('span','daily-slot-link-time',start ? `${start}–${end}` : '当天安排'),e('span','daily-slot-link-count',`${members.length} 项`));
+        links.append(jump);
         const title = e("h4", "daily-block", start ? `${name} ${start}–${end}` : name);
         header.append(title);
         if (id !== "backup") {
@@ -424,8 +439,9 @@ window.TripDaily = (() => {
           if (actions.children.length) card.append(actions);
           group.append(card);
         });
-        section.append(group);
+        slots.append(group);
       }
+      section.append(layout);
       wrapper.append(section);
     }
     dom.cards.replaceChildren(wrapper);
