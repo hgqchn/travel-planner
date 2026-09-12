@@ -367,6 +367,8 @@ window.TripDaily = (() => {
       const section = e("section", "itinerary-day"), heading = e("div", "itinerary-day-heading");
       heading.append(e("h3", "", formatItineraryDate(day)), button("确定当天行程", () => open(day)),
         button("规划路线", () => window.TripMaps?.open(day)));
+      heading.children[1].setAttribute("data-tour-target", "daily-confirm");
+      heading.children[2].setAttribute("data-tour-target", "daily-route");
       const dayMore = e("details", "daily-day-more"); dayMore.append(e("summary", "", "更多"),
         button("AI 重排这一天", () => window.TripUI?.openReplan("replace_day", day)));
       heading.append(dayMore);

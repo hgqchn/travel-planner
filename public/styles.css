@@ -1408,3 +1408,10 @@ noscript {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Shared project entry and administrator link. */
+.admin-entry { font-size: .8rem; white-space: nowrap; color: var(--text-secondary, #52647b); }
+#project-form select, #project-form input:not([type="checkbox"]) { width: 100%; min-height: 44px; }
+#project-form [hidden] { display: none; }
+.project-gate { max-height: 90dvh; overflow-y: auto; }
+@media (max-width: 600px) { .topbar-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; } }

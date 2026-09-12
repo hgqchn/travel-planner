@@ -130,8 +130,8 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def validate_project_code(value: Any) -> str:
-    if not isinstance(value, str) or not value or len(value) > 200:
+def validate_project_code(value: Any, *, allow_empty: bool = False) -> str:
+    if not isinstance(value, str) or (not value and not allow_empty) or len(value) > 200:
         raise ValueError("项目口令不能为空，最多 200 个字符，可自由设置。")
     return value
 
@@ -1149,7 +1149,7 @@ def projects_matching_code(store: ProjectStore, code: str, exclude: str | None =
 
 
 def require_unique_project_code(store: ProjectStore, code: str, exclude: str | None = None) -> None:
-    if projects_matching_code(store, code, exclude):
+    if code and projects_matching_code(store, code, exclude):
         raise ApiError(409, "该口令已用于其他项目，请使用不同的项目口令。")
 
 
@@ -1615,9 +1615,11 @@ def admin_change(db_path: Path, method: str, resource: str, data: Any) -> dict[s
         if resource == "project" and method == "PUT":
             name = validate_project_name(data.get("name"))
             code = data.get("project_code", "")
-            if code:
+            if code or data.get("remove_password") is True:
+                if data.get("remove_password") is True:
+                    code = ""
                 try:
-                    validate_project_code(code)
+                    validate_project_code(code, allow_empty=True)
                 except ValueError as error:
                     raise ApiError(400, str(error)) from error
                 salt, digest = create_secret_record(code)
@@ -1914,7 +1916,7 @@ class TripHTTPServer(ThreadingHTTPServer):
                 path = self.project_store.resolve(project_id)
             except KeyError as error:
                 raise ApiError(404, '项目已删除或不存在。') from error
-            if project_id == 'main':
+            if project_id == 'main' and self.ai_service:
                 return self.ai_service
             if not self._ai_api_key:
                 return None
@@ -1923,7 +1925,50 @@ class TripHTTPServer(ThreadingHTTPServer):
                     from ai_service import AIService
                     self._ai_services[project_id] = AIService(path, api_key=self._ai_api_key, model=self._ai_model,
                         get_context=partial(ai_context,path), normalize_item=validate_payload, import_items=partial(import_ai_items,path))
+                if project_id == 'main':
+                    self.ai_service = self._ai_services[project_id]
                 return self._ai_services[project_id]
+
+    API_FIELDS = {"DEEPSEEK_API_KEY", "AMAP_JS_KEY", "AMAP_SECURITY_JS_CODE", "AMAP_WEB_SERVICE_KEY"}
+
+    def api_settings_status(self) -> dict:
+        values = {"DEEPSEEK_API_KEY": self._ai_api_key, "AMAP_JS_KEY": self.amap_service.js_key,
+                  "AMAP_SECURITY_JS_CODE": self.amap_service.security_code,
+                  "AMAP_WEB_SERVICE_KEY": self.amap_service.web_key}
+        return {"configured": {key: bool(value) for key, value in values.items()}}
+
+    def apply_api_settings(self, values: dict) -> None:
+        if "DEEPSEEK_API_KEY" in values:
+            self._ai_api_key = values["DEEPSEEK_API_KEY"]
+            for service in set(self._ai_services.values()) | ({self.ai_service} if self.ai_service else set()):
+                service._api_key = self._ai_api_key
+                service.enabled = bool(self._ai_api_key)
+        for key, attr in (("AMAP_JS_KEY", "js_key"), ("AMAP_SECURITY_JS_CODE", "security_code"),
+                          ("AMAP_WEB_SERVICE_KEY", "web_key")):
+            if key in values:
+                setattr(self.amap_service, attr, values[key])
+
+    def save_api_settings(self, data: Any) -> dict:
+        if not isinstance(data, dict) or set(data) - self.API_FIELDS:
+            raise ApiError(400, "API 配置字段不正确。")
+        if any(not isinstance(value, str) or len(value) > 500 or any(c.isspace() for c in value)
+               for value in data.values()):
+            raise ApiError(400, "密钥最多 500 个字符，不能包含空白字符。")
+        with self.project_store.lock:
+            path = self.db_path.parent / "api-settings.json"
+            values = json.loads(path.read_text()) if path.exists() else {}
+            values.update(data)
+            temporary = path.with_name(".api-settings-" + secrets.token_hex(8) + ".tmp")
+            try:
+                with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as file:
+                    json.dump(values, file)
+                    file.flush()
+                    os.fsync(file.fileno())
+                os.replace(temporary, path)
+            finally:
+                temporary.unlink(missing_ok=True)
+            self.apply_api_settings(values)
+            return self.api_settings_status()
 
     def delete_project(self, project_id: str, confirm_name: str) -> dict:
         # AI submission/import and deletion share this lock: a job cannot be
@@ -2096,6 +2141,9 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                     {"status": "ok", "revision": revision, "time": utc_now()},
                 )
                 return
+            if path == "/api/projects":
+                self.send_json(200, {"projects": self.server.project_store.list_projects()})
+                return
             if path == "/api/project-session":
                 self.send_json(
                     HTTPStatus.OK,
@@ -2103,13 +2151,16 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 )
                 return
             if path == "/api/config":
-                self.send_json(HTTPStatus.OK, {"project_code_required": True})
+                self.send_json(HTTPStatus.OK, {"project_code_required": not verify_project_code(self.db_path, "")})
                 return
             if path == "/api/admin/session":
                 self.send_json(200, {"authenticated": self.has_admin_access(), "enabled": bool(self.server.admin_password)})
                 return
             if path.startswith("/api/admin/"):
                 self.require_admin_access()
+                if path == "/api/admin/api-settings":
+                    self.send_json(200, self.server.api_settings_status())
+                    return
                 if path == '/api/admin/projects':
                     self.send_json(200, {'projects': self.server.project_store.list_projects(), 'current_project_id': self.project_id})
                     return
@@ -2223,6 +2274,27 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.validate_write_request()
             if path.startswith("/api/admin/"):
                 self.handle_admin_write("POST", path)
+                return
+            if path == "/api/projects":
+                self.enforce_rate_limit("access")
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ApiError(400, "项目资料格式不正确。")
+                name = validate_project_name(data.get("name"))
+                try:
+                    code = validate_project_code(data.get("project_code", ""), allow_empty=True)
+                    with self.server.project_store.lock:
+                        require_unique_project_code(self.server.project_store, code)
+                        for existing in self.server.project_store.list_projects():
+                            flush_place_cache(self.server.project_store.resolve(existing['id']))
+                        project = self.server.project_store.create(name, code)
+                        record = project_auth_record(self.server.project_store.resolve(project['id']))
+                except ValueError as error:
+                    raise ApiError(400, str(error)) from error
+                token = create_project_access_token(record['session_secret'], record['access_version'])
+                self.send_json(201, {'project': project, 'project_id': project['id'], 'unlocked': True},
+                               extra_headers={'Set-Cookie': self.build_cookie('trip_project', token,
+                                              PROJECT_ACCESS_MAX_AGE, project_id=project['id'])})
                 return
             if path == "/api/project-entry":
                 data = self.read_json()
@@ -2541,12 +2613,15 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(200, {"authenticated": False}, extra_headers={"Set-Cookie": self.clear_cookie("trip_admin")})
             return
         self.require_admin_access()
+        if path == "/api/admin/api-settings" and method == "PUT":
+            self.send_json(200, self.server.save_api_settings(data))
+            return
         if path == '/api/admin/projects' and method == 'POST':
             if not isinstance(data, dict):
                 raise ApiError(400, '项目资料格式不正确。')
             name = validate_project_name(data.get('name'))
             try:
-                code = validate_project_code(data.get('project_code'))
+                code = validate_project_code(data.get('project_code', ''), allow_empty=True)
                 import place_cache
                 with self.server.project_store.lock:
                     require_unique_project_code(self.server.project_store, code)
@@ -2572,7 +2647,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(200, result)
             return
         with self.server.project_store.lock:
-            if path == '/api/admin/project' and method == 'PUT' and isinstance(data, dict) and data.get('project_code'):
+            if path == '/api/admin/project' and method == 'PUT' and isinstance(data, dict) and data.get('project_code') and data.get('remove_password') is not True:
                 try:
                     code = validate_project_code(data['project_code'])
                 except ValueError as error:
@@ -2679,10 +2754,10 @@ def create_server(
     ai_api_key: str = "",
     ai_model: str = "deepseek-v4-flash-vision-exp",
 ) -> TripHTTPServer:
-    project_code = validate_project_code(project_code)
+    project_code = validate_project_code(project_code, allow_empty=True)
     db_path = data_dir / "trip.db"
     init_database(db_path, project_code)
-    projects = ProjectStore(db_path, init_database)
+    projects = ProjectStore(db_path, init_database, verify_project_code)
     handler = partial(TripRequestHandler, directory=str(public_dir))
     httpd = TripHTTPServer(
         (host, port),
@@ -2709,6 +2784,9 @@ def create_server(
         except Exception:
             httpd.server_close()
             raise
+    settings_path = data_dir / "api-settings.json"
+    if settings_path.exists():
+        httpd.apply_api_settings(json.loads(settings_path.read_text()))
     return httpd
 
 
@@ -2802,7 +2880,7 @@ def main() -> None:
         print(destination)
         return
     try:
-        project_code = validate_project_code(os.environ.get("TRIP_PROJECT_CODE", ""))
+        project_code = validate_project_code(os.environ.get("TRIP_PROJECT_CODE", ""), allow_empty=True)
         admin_password = os.environ.get("TRIP_ADMIN_PASSWORD", "")
         public_origin = validate_public_origin(os.environ.get("TRIP_PUBLIC_ORIGIN", ""))
     except ValueError as error:

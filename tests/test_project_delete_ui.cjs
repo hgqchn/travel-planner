@@ -53,6 +53,7 @@ async function harness({ currentId = "main", initialProjects = [main, another], 
       requests.push({ url, method: options.method, body });
       let data, status = 200;
       if (url === "/api/admin/session") data = { authenticated: true, enabled: true };
+      else if (url === "/api/admin/api-settings") data = { configured: {} };
       else if (url === "/api/admin/projects") data = { projects: activeProjects, current_project_id: currentId };
       else if (url === "/api/admin/state") {
         assert.ok(state.project, "must not request state for a missing project");

@@ -50,6 +50,7 @@
           <span aria-hidden="true">我</span>
           <b id="identity-label">设置 ID</b>
           </button>
+          <a class="admin-entry" href="/admin.html" data-project-path="/admin.html">管理员入口</a>
         </div>
       </header>
 
@@ -58,7 +59,7 @@
           <div><strong id="project-name">旅游规划</strong><button id="city-select" class="city-switch" type="button" aria-haspopup="dialog"><span aria-hidden="true">⌖</span> <b id="city-current-name">选择城市</b><span aria-hidden="true">⌄</span></button><button id="city-metro-open" class="city-metro-entry" type="button" aria-haspopup="dialog" aria-controls="city-metro-dialog" hidden>轨道交通图</button></div>
           <div class="help-toolbar-actions">
             <button class="help-open" type="button" data-help-open aria-haspopup="dialog" aria-controls="usage-help-dialog">使用帮助</button>
-            <a href="/admin.html" data-project-path="/admin.html">项目管理</a>
+            <button id="project-switch" class="help-open" type="button" aria-haspopup="dialog" aria-controls="project-dialog">切换项目</button>
           </div>
         </div>
         <section class="trip-cover" aria-labelledby="page-title">
@@ -193,26 +194,18 @@
         <div class="gate-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21 3-7 18-4-7-7-4 18-7Z"/><path d="m10 14 5-5"/></svg></div>
         <p class="eyebrow dark">即刻出发</p>
         <p class="dialog-lead">基于 AI 的多人共享旅行规划</p>
-        <h1 id="project-title">输入项目口令</h1>
-        <p class="dialog-lead" id="project-description">
-          在主页输入口令即可进入对应项目。口令通过后，再选择你的编辑署名。
-        </p>
-        <label class="field">
-          <span>项目口令</span>
-          <input
-            id="project-code-input"
-            name="project_code"
-            type="password"
-            maxlength="200"
-            autocomplete="current-password"
-            placeholder="向项目创建者索取"
-            required
-          />
-        </label>
+        <h1 id="project-title">开启一段旅行</h1>
+        <p class="dialog-lead" id="project-description">每个人都可以新建项目，或进入已有项目共同编辑。</p>
+        <label class="field"><span>选择操作</span><select id="project-mode"><option value="join">进入已有项目</option><option value="create">新建项目</option></select></label>
+        <label class="field" id="project-list-field"><span>已有项目</span><select id="project-list" required></select></label>
+        <button id="project-list-refresh" class="text-button" type="button">刷新项目列表</button>
+        <label class="field" id="project-create-name-field" hidden><span>新项目名称</span><input id="project-create-name" maxlength="60" placeholder="例如：国庆成都之旅" disabled></label>
+        <label class="field" id="project-password-mode-field" hidden><span>项目密码</span><select id="project-password-mode"><option value="none">无密码，好友可直接进入</option><option value="password">设置密码</option></select></label>
+        <label class="field" id="project-code-field"><span>项目密码</span><input id="project-code-input" name="project_code" type="password" maxlength="200" autocomplete="current-password" placeholder="输入项目密码"></label>
         <p class="form-error" id="project-error" role="alert"></p>
         <button class="primary-button" type="submit">进入项目</button>
         <button class="help-open help-gate-open" type="button" data-help-open aria-haspopup="dialog" aria-controls="usage-help-dialog">第一次使用？查看操作说明</button>
-        <p class="privacy-note">项目口令只用于验证访问权限，不会显示在页面内容中。</p>
+        <p class="privacy-note">所有用户拥有相同的旅行编辑权限；有密码的项目需验证后进入。</p>
         <a href="/admin.html" data-project-path="/admin.html">管理员入口</a>
       </form>
     </dialog>
@@ -224,16 +217,17 @@
       </header>
       <div class="usage-help-content" tabindex="0" role="region" aria-label="操作说明，可上下滚动">
         <p id="usage-help-intro">进入项目并选好城市后，可以让 AI 整体规划，也可以先收集地点、美食，再自己按天安排。两条流程最后都要确认具体路线。</p>
+        <div class="help-tour-entry"><button class="primary-button" type="button" data-help-tour>开始流程引导</button><p data-help-tour-hint>逐步聚焦主要入口，只介绍操作，不会生成或修改行程。可随时退出。</p></div>
         <ol class="help-quick-start">
-          <li><strong>输入口令，选择署名</strong><span>在主页输入项目口令即可进入对应项目，无需完整链接。随后选择已有用户 ID，或创建自己的 ID，用来标记你的修改。</span></li>
+          <li><strong>进入项目，选择署名</strong><span>在弹窗中新建项目或选择已有项目；有密码时输入密码。随后选择已有用户 ID，或创建自己的 ID，用来标记你的修改。</span></li>
           <li><strong>方式一：AI 整体规划</strong><span>选择“整体规划：地点＋美食＋行程”，填写日期和偏好，生成后核对、编辑并保存草稿。不必提前新增日期。</span></li>
-          <li><strong>方式二：自己按天安排</strong><span>选择“只收集地点和美食”，确认保存清单；再“新增一天”，从时段旁的“添加地点”选入多个地点，也可以自行填写活动。</span></li><li><strong>共同最后一步：规划路线</strong><span>每天点击“规划路线”，确认地图位置、出发地和返回地、交通方式及全天预算。不满意可在当天“更多”中选择“AI 重排这一天”，确认新草稿后重新核对路线。</span></li>
+          <li><strong>方式二：自己按天安排</strong><span>选择“只收集地点和美食”，确认保存清单；再“新增一天”，从时段旁的“添加地点”选入多个地点，也可以自行填写活动。</span></li><li><strong>共同最后一步：规划路线</strong><span>每天点击“规划路线”，确认各地点的地图位置及交通方式，逐段规划并自动保存路线。不满意可在当天“更多”中选择“AI 重排这一天”，确认新草稿后重新核对路线。</span></li>
         </ol>
         <h3 class="help-section-title">按操作查看</h3>
         <details class="help-topic">
           <summary>如何进入项目、切换用户？</summary>
-          <p>向项目创建者索取口令，在主页输入后点击“进入项目”。每个项目有自己的口令和旅行内容。第一次使用时，选择已有用户 ID 或输入新的 ID；ID 是编辑署名，不需要单独设置密码。</p>
-          <p>进入后点击页面右上角的用户 ID 可以切换署名。如果口令失效，请向管理员确认最新口令；新建项目、修改口令或管理用户，请使用“项目管理”或登录页的“管理员入口”。</p>
+          <p>在进入网站时的弹窗中选择已有项目，按提示输入密码；无密码项目可以直接进入。也可以选择“新建项目”，填写名称并选择是否设置密码。第一次使用时，选择已有用户 ID 或输入新的 ID；ID 是编辑署名，不需要单独设置密码。</p>
+          <p>进入后点击页面右上角的用户 ID 可以切换署名。如果项目密码失效，请向管理员确认最新密码；切换或新建项目请使用“切换项目”；修改项目设置、管理用户与 API 密钥请使用右上角的“管理员入口”。</p>
         </details>
         <details class="help-topic">
           <summary>如何选择城市、添加地点和美食？</summary>
@@ -244,24 +238,24 @@
           <summary>如何安排一天的行程？</summary>
           <p>行程页每次显示一天，可用“选择行程日期”跳转，也可点击“上一天 / 下一天”。新增日期时点击“新增一天”，默认日期为已有行程的下一天，也可自行选择；创建后自动切换到新日期，已有日期不会重复添加。点击“确定当天行程”，再通过“从地点清单添加”把地点加入当天，也可添加行程，默认使用当前选中的日期。</p>
           <p>每个日期标题的“更多 → 删除这一天”会先显示确认提示。确认后会删除当前城市当天的全部安排（含备选）、每日设置和路线核算结果；地点、美食清单及其他日期保留。若当天内容已被同行者修改，请刷新核对后重新确认。</p>
-          <p>在“确定当天行程”中调整地点；展开“出发地、返回地与时间预算”可修改起终点和休息预算。停留时长和时段可在地点编辑中修改。同一时段可容纳多个地点，空时段保留，可拖入地点。暂时不确定的地点可转为备选；需要保留时段的安排可锁定。新 AI 行程会填入推荐停留时长，从地点清单添加时继承已有建议；旧行程可点击“AI 补全停留时长”，预览后应用。每个地点均可手动修改，已填写的时长不会被补全操作覆盖。</p>
-          <p>确认具体地点后，可以“核算全天”，或打开“地图与路线”查看。地点、顺序或每日设置变更后，请重新核算路线。</p>
+          <p>在“确定当天行程”中调整地点；展开“出发地与返回地”可设置住处或车站。停留时长和时段可在地点编辑中修改。同一时段可容纳多个地点，空时段保留，可拖入地点。暂时不确定的地点可转为备选；需要保留时段的安排可锁定。新 AI 行程会填入推荐停留时长，从地点清单添加时继承已有建议；旧行程可点击“AI 补全停留时长”，预览后应用。每个地点均可手动修改，已填写的时长不会被补全操作覆盖。</p>
+          <p>时段从上午一直到夜间 20:00–22:00，夜间无需额外开启。电脑端右侧“时段导航”显示时间和行程数量，点击可快速跳转；手机上横向滑动导航选择时段。</p>
         </details>
         <details class="help-topic">
           <summary>如何使用 AI 旅行助手？</summary>
-          <p>点击主页的“AI 旅行助手”，选择需要的内容，填写日期、天数、节奏和偏好，然后生成建议。生成后先核对预览，编辑并勾选需要的内容，再确认导入；仅生成不会自动加入行程。</p>
+          <p>点击主页蓝色的“AI 帮你，安排旅程”入口，选择需要的内容，填写日期、天数、节奏和偏好，然后生成建议。生成后先核对预览，编辑并勾选需要的内容，再确认导入；仅生成不会自动加入行程。</p>
           <p>想小幅修改时，在“确定当天行程”中使用“AI 微调当天安排”；想重新生成这一天的行程时，使用日期旁“更多 → AI 重排这一天”。两种建议都先预览再确认，修改后重新核对路线。重排仅替换所选日期的行程，地点、美食和其他日期保留。</p>
           <p>如果提示 AI 暂不可用，请联系管理员配置；仍可手动添加、编辑和规划。</p>
         </details>
         <details class="help-topic">
           <summary>如何查看地图、交通和出行提示？</summary>
-          <p>地点卡片的“高德导航”可用于查找目的地。行程中的“地图与路线”用于查看当天地点与交通；已收录轨道交通图的城市还可从城市名称旁打开线路图，放大查看。</p>
+          <p>地点卡片的“高德导航”可用于查找目的地。点击“规划路线”确认起终点，选择公交/地铁、步行、骑行或驾车，再规划本段。路线会自动保存；行程页的高德地图显示已保存的全程路线，点击可再次进入规划，默认显示全程。修改地点或顺序后，需重新规划受影响路段。已收录轨道交通图的城市还可从城市名称旁打开线路图，放大查看。</p>
           <p>完成当前城市的地点、顺序和路线规划后，点击“AI 生成行程提示”，确认规划完毕后生成，编辑并保存。行程草稿不再附带出行提示。已有提示仍可手动编辑或删除。美食卡片可以复制搜索词，方便粘贴到常用应用。出发前请核实营业时间、预约要求和交通情况。</p>
         </details>
         <details class="help-topic">
           <summary>如何共享、导出和查看他人的修改？</summary>
-          <p>点击封面的“分享”，把项目链接发给同行者，并告知项目口令。每个人进入同一项目后都能共同编辑；保存的内容会自动同步，在“动态”中可以查看最近修改及署名。</p>
-          <p>“行程”页的“导出行程”可下载 Word 或 Excel，选择当前城市或全部城市。导出包含已保存的内容；网页之后有更新时，需要重新下载文件。</p>
+          <p>点击封面的“分享”，把项目链接发给同行者；项目设有密码时，再单独告知密码。每个人进入同一项目后都能共同编辑；保存的内容会自动同步，在“动态”中可以查看最近修改及署名。</p>
+          <p>“行程”页的“导出行程”可下载 Word 或 Excel，选择当前城市或全部城市。导出包含已保存的行程和路线轨迹图（离线示意图，不含街道底图）；网页之后有更新时，需要重新下载文件。</p>
           <p>如果提示有人已修改，请先查看最新内容，再决定如何处理自己的草稿。删除前请核对当前城市和所选条目，并阅读确认提示。</p>
         </details>
       </div>

@@ -1298,12 +1298,20 @@ async function submitProject(event) {
   submit.disabled = true;
   dom.projectError.textContent = "";
   try {
-    const { data } = await requestJson(window.TripProject.entryByCode ? "/api/project-entry" : "/api/project-session", {
-      method: "POST",
-      body: JSON.stringify({ project_code: dom.projectCodeInput.value }),
+    const creating = document.querySelector("#project-mode").value === "create";
+    const projectId = document.querySelector("#project-list").value;
+    const payload = { project_code: dom.projectCodeInput.disabled ? "" : dom.projectCodeInput.value };
+    if (creating) payload.name = document.querySelector("#project-create-name").value;
+    const response = await fetch(creating ? "/api/projects" : "/api/project-session", {
+      method: "POST", headers: { "Content-Type": "application/json", ...(creating ? {} : { "X-Trip-Project": projectId }) },
+      body: JSON.stringify(payload),
     });
-    if (data.project_id && data.project_id !== window.TripProject.id) {
-      location.assign(window.TripProject.url(`/${location.hash}`, data.project_id));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "暂时无法进入项目，请重试。");
+    const selectedId = data.project_id || projectId;
+    if (selectedId !== window.TripProject.id || !window.TripProject.valid) {
+      sessionStorage.setItem("trip-enter-selected", selectedId);
+      location.assign(window.TripProject.url(`/${location.hash}`, selectedId));
       return;
     }
     await enterUnlockedProject();
@@ -1327,6 +1335,7 @@ async function lockProject() {
       body: JSON.stringify({}),
     });
     showProjectGate();
+    await refreshProjectChoices();
   } catch (error) {
     dom.identityError.textContent = error.message;
   } finally {
@@ -1559,23 +1568,69 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) fetchSnapshot(false, true);
 });
 
+let availableProjects = [];
+function updateProjectChoice() {
+  const creating = document.querySelector("#project-mode").value === "create";
+  const selected = availableProjects.find((p) => p.id === document.querySelector("#project-list").value);
+  const password = creating ? document.querySelector("#project-password-mode").value === "password" : Boolean(selected?.password_required);
+  document.querySelector("#project-list-field").hidden = creating;
+  document.querySelector("#project-list-refresh").hidden = creating;
+  document.querySelector("#project-list").disabled = creating;
+  document.querySelector("#project-create-name-field").hidden = !creating;
+  document.querySelector("#project-create-name").disabled = !creating;
+  document.querySelector("#project-create-name").required = creating;
+  document.querySelector("#project-password-mode-field").hidden = !creating;
+  document.querySelector("#project-code-field").hidden = !password;
+  dom.projectCodeInput.disabled = !password;
+  dom.projectCodeInput.required = password;
+  dom.projectForm.querySelector('[type="submit"]').textContent = creating ? "创建并进入项目" : "进入项目";
+  dom.projectForm.querySelector('[type="submit"]').disabled = !creating && !selected;
+}
+async function refreshProjectChoices() {
+  dom.projectForm.querySelector('[type="submit"]').disabled = true;
+  try {
+    const response = await fetch("/api/projects");
+    if (!response.ok) throw new Error("暂时无法加载项目列表，请点击刷新重试。");
+    const data = await response.json();
+    availableProjects = data.projects;
+    const select = document.querySelector("#project-list");
+    const previous = select.value || window.TripProject.id;
+    select.replaceChildren(...availableProjects.map((project) => {
+      const option = document.createElement("option");
+      option.value = project.id;
+      option.textContent = `${project.name} · ${project.password_required ? "需要密码" : "无密码"}`;
+      return option;
+    }));
+    if (availableProjects.some((p) => p.id === previous)) select.value = previous;
+    if (!availableProjects.length) document.querySelector("#project-mode").value = "create";
+    updateProjectChoice();
+  } catch (error) { dom.projectError.textContent = error.message; }
+}
+for (const id of ["project-mode", "project-list", "project-password-mode"]) {
+  document.getElementById(id).addEventListener("change", () => {
+    dom.projectCodeInput.value = "";
+    dom.projectError.textContent = "";
+    updateProjectChoice();
+  });
+}
+document.querySelector("#project-list-refresh").onclick = refreshProjectChoices;
+document.querySelector("#project-switch").onclick = async () => {
+  if (!window.TripBatch.canNavigate()) return;
+  if (state.editorDirty && !confirm("切换项目会放弃尚未保存的修改，确定继续吗？")) return;
+  showProjectGate();
+  await refreshProjectChoices();
+};
 async function start() {
   registerWebMcpTools();
   showProjectGate();
-  setProjectGateChecking(true);
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 8000);
-  try {
-    const { data } = await requestJson("/api/project-session", { signal: controller.signal });
-    setProjectGateChecking(false);
-    if (data.unlocked) await enterUnlockedProject();
-  } catch (error) {
-    setProjectGateChecking(false);
-    // The homepage remains a code entry point even after main is deleted.
-    if (error.status === 404 && window.TripProject.entryByCode) return;
-    dom.projectError.textContent = error.status === 404 ? error.message : "暂时无法连接项目，请稍后重试。";
-  } finally {
-    window.clearTimeout(timeout);
+  await refreshProjectChoices();
+  const selected = sessionStorage.getItem("trip-enter-selected");
+  sessionStorage.removeItem("trip-enter-selected");
+  if (selected === window.TripProject.id) {
+    try {
+      const { data } = await requestJson("/api/project-session");
+      if (data.unlocked) await enterUnlockedProject();
+    } catch (error) { dom.projectError.textContent = error.message; }
   }
 }
 

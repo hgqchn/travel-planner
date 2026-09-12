@@ -11,9 +11,13 @@ from typing import Callable
 
 
 class ProjectStore:
-    def __init__(self, default_db: Path, initialize: Callable):
+    def __init__(self, default_db: Path, initialize: Callable, verify_code: Callable | None = None):
         self.default_db = default_db
         self.initialize = initialize
+        if verify_code is None:
+            from server import verify_project_code
+            verify_code = verify_project_code
+        self.verify_code = verify_code
         self.lock = threading.RLock()
         with sqlite3.connect(default_db) as db:
             db.execute("CREATE TABLE IF NOT EXISTS project_registry (id TEXT PRIMARY KEY, filename TEXT NOT NULL UNIQUE, deleted_at TEXT)")
@@ -53,7 +57,8 @@ class ProjectStore:
                 path = self.resolve(project_id)
                 with sqlite3.connect(path) as db:
                     name = db.execute('SELECT project_name FROM project_settings WHERE singleton=1').fetchone()[0]
-                result.append({'id': project_id, 'name': name, 'url': '/' if project_id == 'main' else f'/?project={project_id}'})
+                password_required = not self.verify_code(path, '')
+                result.append({'id': project_id, 'name': name, 'password_required': password_required, 'url': '/' if project_id == 'main' else f'/?project={project_id}'})
             return result
 
     def create(self, name: str, code: str) -> dict[str, str]:

@@ -116,6 +116,7 @@ function render(data) {
 }
 
 async function loadAdmin() {
+  renderApiSettings(await api("api-settings"));
   const allProjects = await api("projects");
   renderProjects(allProjects);
   if (projects.some((project) => project.id === window.TripProject.id)) render(await api("state"));
@@ -214,7 +215,10 @@ document.querySelector("#project-settings").onsubmit = (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   perform(async () => {
-    const data = await api("project", "PUT", Object.fromEntries(new FormData(form)));
+    const payload = Object.fromEntries(new FormData(form));
+    payload.remove_password = form.elements.remove_password.checked;
+    const data = await api("project", "PUT", payload);
+    form.elements.remove_password.checked = false;
     render(data);
     form.elements.project_code.value = "";
     renderProjects({ projects: projects.map((project) => project.id === window.TripProject.id ? { ...project, name: data.project.name } : project) });
@@ -230,7 +234,7 @@ document.querySelector("#project-create").onsubmit = (event) => {
     renderProjects({ projects: [...projects, project] });
     const result = document.querySelector("#project-created");
     result.dataset.projectId = project.id;
-    result.replaceChildren(node("p", `“${project.name}”已创建。将项目链接分享给同行者，并单独告知你刚设置的口令。首次进入需要输入该口令。`), projectLink("打开新项目 ↗", project.id), projectLink("管理新项目", project.id, "/admin.html"));
+    result.replaceChildren(node("p", `“${project.name}”已创建。好友可从网站入口选择项目，也可以使用下方链接进入；若设置了密码，请单独告知好友。`), projectLink("打开新项目 ↗", project.id), projectLink("管理新项目", project.id, "/admin.html"));
     result.hidden = false;
     return "新项目已创建，可通过下方链接进入或管理。";
   });
@@ -264,3 +268,32 @@ perform(async () => {
   else if (!session.enabled) throw new Error("请部署者配置 TRIP_ADMIN_PASSWORD 并重启服务。");
   else return "输入管理员密码后，可以创建或管理项目。";
 });
+
+function renderApiSettings(data) {
+  const fields = document.querySelector("#api-settings-fields");
+  fields.replaceChildren();
+  for (const [key, label] of Object.entries({ DEEPSEEK_API_KEY: "DeepSeek API Key", AMAP_JS_KEY: "高德 JS API Key", AMAP_SECURITY_JS_CODE: "高德安全密钥", AMAP_WEB_SERVICE_KEY: "高德 Web 服务 API Key" })) {
+    const field = node("label"); field.className = "field";
+    field.append(node("span", `${label} · ${data.configured[key] ? "已配置" : "未配置"}`));
+    const input = node("input"); input.name = key; input.type = "password"; input.maxLength = 500; input.autocomplete = "new-password"; input.placeholder = "输入新密钥，留空不修改";
+    field.append(input);
+    const clearLabel = node("label");
+    const clear = node("input"); clear.type = "checkbox"; clear.name = `clear_${key}`;
+    clear.onchange = () => { input.disabled = clear.checked; };
+    clearLabel.append(clear, node("span", " 清除该配置"));
+    fields.append(field, clearLabel);
+  }
+}
+document.querySelector("#api-settings").onsubmit = (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  perform(async () => {
+    const payload = {};
+    for (const key of ["DEEPSEEK_API_KEY", "AMAP_JS_KEY", "AMAP_SECURITY_JS_CODE", "AMAP_WEB_SERVICE_KEY"]) {
+      if (form.elements[`clear_${key}`].checked) payload[key] = "";
+      else if (form.elements[key].value.trim()) payload[key] = form.elements[key].value.trim();
+    }
+    renderApiSettings(await api("api-settings", "PUT", payload));
+    return "API 密钥已保存并生效；地图页面请刷新后使用。";
+  });
+};

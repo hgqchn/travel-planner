@@ -188,12 +188,15 @@ dialog::backdrop { background: rgb(32 57 88 / 30%); backdrop-filter: blur(7px); 
   .nav-item:hover, .edit-card-button:hover { background: #e9f2ff; }
   .add-button:hover { background: #2867b6; }
 }
+@media (min-width: 960px) {
+  .app-shell > main { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
 @media (min-width: 1100px) {
   .travel-guidance-list { columns: 2; column-gap: 36px; }
   .travel-guidance-list li { break-inside: avoid; }
 }
 @media (max-width: 1199px) and (min-width: 960px) {
-  .app-shell > main { margin-left: 180px; padding-inline: 24px; grid-template-columns: minmax(0,1fr) 215px; }
+  .app-shell > main { margin-left: 180px; padding-inline: 24px; }
   .bottom-nav { width: 154px; left: 16px; }
   .trip-cover-content { padding: 24px; }
   .trip-cover h1 { font-size: 32px; }
