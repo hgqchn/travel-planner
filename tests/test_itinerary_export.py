@@ -57,14 +57,24 @@ class ExportFormatTests(unittest.TestCase):
             dict(id='a',title='起点公园',poi=dict(location='121.1,31.1')),
             dict(id='b',title='终点广场',poi=dict(location='121.2,31.2'))],routes=[dict(from_ref='a',to_ref='b',mode='walking',result=dict(
                 duration=600,parts=[[[121.1,31.1],[121.15,31.12],[121.2,31.2]]],instructions=['沿河向北步行']))])]
+        from unittest.mock import Mock
+        from itinerary_image import build_office_maps
+        from route_image import route_map
+        amap = Mock()
+        amap.static_map.return_value = (route_map(self.data['daily_plans'][0])[0], 'image/png')
+        self.data.update(build_office_maps(self.data, amap))
         for builder in (export.build_docx,export.build_xlsx):
             body=builder(self.data); parts=xml_parts(body)
             with zipfile.ZipFile(io.BytesIO(body)) as archive:
                 images=[name for name in archive.namelist() if name.endswith('.png')]
-                self.assertEqual(len(images),1)
+                self.assertEqual(len(images),2)
                 self.assertTrue(archive.read(images[0]).startswith(b'\x89PNG'))
             self.assertNotIn('沿河向北步行',content(body))
-            self.assertIn('起点公园 → 终点广场 · 步行', content(body))
+            self.assertIn('1. 起点公园 → 2. 终点广场 · 步行', content(body))
+            self.assertIn('整体行程图', content(body))
+            self.assertNotIn('无街道底图', content(body))
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                self.assertEqual(archive.read(images[0]), self.data['overall_route_map'][0])
             self.assertTrue(any(node.attrib.get('Type','').endswith('/image') for root in parts.values() for node in root.iter()))
 
     def test_excel_typed_dates_times_and_formula_like_text(self):
@@ -181,10 +191,16 @@ class ExportApiTests(unittest.TestCase):
             self.assertEqual(data['days'][0]['stops'], ['1. 实际景区东门'])
             self.assertTrue(data['map']['image'].startswith('data:image/png;base64,'))
             service.assert_called_once()
+            for fmt in ('docx', 'xlsx'):
+                response, office = self.download(f'format={fmt}&scope=all')
+                self.assertIn('整体行程图', content(office))
+                self.assertIn('实际景区东门', content(office))
+                with zipfile.ZipFile(io.BytesIO(office)) as archive:
+                    self.assertEqual(len([n for n in archive.namelist() if n.endswith('.png')]), 2)
             with self.assertRaises(urllib.error.HTTPError) as caught:
                 self.download('format=image&scope=all', opener=opener_with_cookies())
             self.assertEqual(caught.exception.code, 401)
-            service.assert_called_once()
+            self.assertEqual(service.call_count, 3)
 
     def test_projects_are_isolated_for_both_header_and_query_selection(self):
         self.add('shanghai', '主项目专属安排')

@@ -35,42 +35,27 @@
 .help-tour-entry { padding: 16px; margin-bottom: 20px; background: #eaf2ff; border: 1px solid #c6d9f3; border-radius: 14px; }
 .help-tour-entry .primary-button { margin: 0; width: auto; padding: 10px 18px; }
 .help-tour-entry p { margin: 8px 0 0; font-size: 13px; color: #526c8a; }
-.usage-tour { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
-.usage-tour::backdrop { background: transparent; backdrop-filter: none; }
-.usage-tour-spot { position: absolute; pointer-events: none; border-radius: 14px; outline: 3px solid #8bbaff; box-shadow: 0 0 0 100vmax rgb(15 31 55 / 65%); }
-.usage-tour-card { position: absolute; box-sizing: border-box; width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 22px; border-radius: 18px; background: #fff; color: #233f5d; box-shadow: 0 12px 50px #10254045; }
-.usage-tour-card h2 { margin: 8px 0 12px; font-size: 21px; }
+/* The frame retains the real viewport width and all application breakpoints. */
+.usage-tour { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: #f3f8fe; color: #233f5d; }
+.usage-tour[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.usage-tour::backdrop { background: #f3f8fe; }
+.usage-tour-banner { margin: 0; padding: 8px 16px; background: #eaf2ff; color: #3a5e85; font-size: 12px; text-align: center; }
+.usage-tour-stage { position: relative; min-height: 0; overflow: hidden; }
+.usage-tour-preview { display: block; width: 100%; height: 100%; border: 0; pointer-events: none; }
+.usage-tour-spot { position: absolute; pointer-events: none; border-radius: 10px; outline: 3px solid #8bbaff; box-shadow: 0 0 0 100vmax rgb(15 31 55 / 48%); }
+.usage-tour-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 24px; background: white; border-top: 1px solid #c6d9f3; max-height: 45dvh; overflow: auto; }
+.usage-tour-copy { max-width: 780px; min-width: 0; }
+.usage-tour-card h2 { margin: 4px 0 8px; font-size: 19px; }
 .usage-tour-progress { margin: 0; font-size: 12px; color: #527fba; }
-#usage-tour-description { line-height: 1.75; font-size: 14px; }
-.usage-tour-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+#usage-tour-description { margin: 0; line-height: 1.7; font-size: 14px; }
+.usage-tour-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; max-width: 420px; }
 .usage-tour-actions button { min-height: 44px; margin: 0; padding: 9px 12px; width: auto; font-size: 13px; }
-.usage-tour-actions [data-tour-exit] { margin-right: auto; }
-
-.usage-tour[open] { display: grid; grid-template-columns: minmax(0, 1fr) 380px; background: #f3f8fe; color: #233f5d; }
-.usage-tour-preview { min-height: 0; overflow: auto; padding: 24px; overscroll-behavior: contain; scroll-padding-block: 24px; }
-.usage-tour-card { position: relative; z-index: 1; align-self: center; width: auto; margin: 16px; max-height: calc(100dvh - 32px); }
-.usage-tour-spot { pointer-events: none; }
-.usage-demo-page { max-width: 900px; margin: auto; padding-bottom: 24px; }
-.usage-demo-notice { font-size: 13px; color: #526c8a; margin: 0 0 20px; }
-.usage-demo-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.usage-demo-control { display: inline-block; padding: 10px 14px; border: 1px solid #c6d9f3; border-radius: 10px; background: #fff; font-size: 14px; }
-.usage-demo-cover { margin: 20px 0; padding: 30px; border-radius: 20px; background: #d9eaff url('/assets/sky-journey.svg') right center / cover; }
-.usage-demo-cover h2 { font-size: 32px; margin: 16px 0; }
-.usage-demo-ai { display: grid; gap: 10px; padding: 24px; border-radius: 16px; color: white; background: #3975cc; }
-.usage-demo-panel { padding: 20px; margin-top: 20px; border: 1px solid #d6e3f1; border-radius: 18px; background: white; }
-.usage-demo-panel h3 { margin: 8px 0; }
-.usage-demo-tools { justify-content: flex-start; margin-top: 16px; }
-.usage-demo-status { color: #326859; font-size: 14px; }
-.usage-demo-slots { display: block; line-height: 1.8; background: #eaf2ff; }
-.usage-demo-stop { margin: 16px 0; padding: 16px; border-left: 3px solid #8bbaff; background: #f3f8fe; border-radius: 8px; }
-.usage-demo-stop p, .usage-demo-empty { color: #526c8a; font-size: 14px; line-height: 1.8; }
-.usage-demo-map { padding: 24px; background: #e2f1e9; border-radius: 14px; line-height: 1.8; }
+.usage-tour-actions button:disabled { opacity: .55; cursor: wait; }
 @media (max-width: 760px) {
-  .usage-tour[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(100px, 1fr) auto; }
-  .usage-tour-preview { padding: 16px; }
-  .usage-tour-card { margin: 8px; padding: 16px; max-height: 55dvh; }
-  .usage-tour-card h2 { font-size: 18px; }
-  #usage-tour-description { margin: 8px 0; }
-  .usage-demo-panel { padding: 14px; }
-  .usage-demo-cover { padding: 20px; }
+  .usage-tour-card { display: block; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); max-height: 46dvh; }
+  .usage-tour-card h2 { font-size: 17px; }
+  #usage-tour-description { font-size: 13px; }
+  .usage-tour-actions { margin-top: 12px; max-width: none; }
+  .usage-tour-actions [data-tour-next] { flex: 1; }
+  .usage-tour-banner { padding: 6px 10px; font-size: 11px; }
 }

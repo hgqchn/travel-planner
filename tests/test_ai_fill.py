@@ -71,7 +71,7 @@ class FillItemTests(unittest.TestCase):
         self.assertEqual(job["status"], "ready", job["error"])
         self.assertEqual(job["result"]["foods"][0]["name"], "生煎")
         payload = self.service._post.call_args.args[0]
-        self.assertEqual(payload["model"], "custom-model")
+        self.assertEqual(payload["model"], self.service.model)
         prompt = json.loads(payload["input"])
         self.assertEqual(prompt["request"]["item"]["name"], "生煎")
         self.assertNotIn("existing", prompt)

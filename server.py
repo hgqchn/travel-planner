@@ -43,7 +43,7 @@ from amap_service import AMapError, AMapService
 from scenic_catalog import RATINGS, enrich_attraction, get_catalog as get_scenic_catalog, rated_payload
 from itinerary_export import MIME_TYPES as EXPORT_MIME_TYPES, build_docx, build_xlsx, filename as export_filename
 import itinerary_links
-from itinerary_image import build_image_data
+from itinerary_image import build_image_bundle, build_office_maps
 import project_itinerary
 import daily_planner
 import daily_plan_store
@@ -897,6 +897,9 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
     with connect_db(db_path) as db:
         db.execute("BEGIN")
         revision = db.execute("SELECT value FROM meta WHERE key = 'revision'").fetchone()["value"]
+        itinerary_edit_count = db.execute(
+            "SELECT COUNT(*) FROM activity WHERE kind = 'itinerary' AND action IN ('create', 'update', 'delete')"
+        ).fetchone()[0]
         project = db.execute(
             "SELECT project_name FROM project_settings WHERE singleton = 1"
         ).fetchone()
@@ -951,6 +954,7 @@ def snapshot(db_path: Path, city_id: str | None = None) -> dict[str, Any]:
     itinerary_links.annotate_items(grouped, links)
     return {
         "revision": revision,
+        "itinerary_edit_count": itinerary_edit_count,
         "project": {"name": project["project_name"]},
         "cities": [city_metadata(row) for row in city_rows],
         "city_metadata_version": city_metadata_version(),
@@ -1930,15 +1934,19 @@ class TripHTTPServer(ThreadingHTTPServer):
                     self.ai_service = self._ai_services[project_id]
                 return self._ai_services[project_id]
 
-    API_FIELDS = {"DEEPSEEK_API_KEY", "AMAP_JS_KEY", "AMAP_SECURITY_JS_CODE", "AMAP_WEB_SERVICE_KEY"}
+    API_FIELDS = {"DEEPSEEK_MODEL", "DEEPSEEK_API_KEY", "AMAP_JS_KEY", "AMAP_SECURITY_JS_CODE", "AMAP_WEB_SERVICE_KEY"}
 
     def api_settings_status(self) -> dict:
         values = {"DEEPSEEK_API_KEY": self._ai_api_key, "AMAP_JS_KEY": self.amap_service.js_key,
                   "AMAP_SECURITY_JS_CODE": self.amap_service.security_code,
                   "AMAP_WEB_SERVICE_KEY": self.amap_service.web_key}
-        return {"configured": {key: bool(value) for key, value in values.items()}}
+        return {"configured": {key: bool(value) for key, value in values.items()}, "model": self._ai_model}
 
     def apply_api_settings(self, values: dict) -> None:
+        if "DEEPSEEK_MODEL" in values:
+            self._ai_model = values["DEEPSEEK_MODEL"]
+            for service in set(self._ai_services.values()) | ({self.ai_service} if self.ai_service else set()):
+                service.model = self._ai_model
         if "DEEPSEEK_API_KEY" in values:
             self._ai_api_key = values["DEEPSEEK_API_KEY"]
             for service in set(self._ai_services.values()) | ({self.ai_service} if self.ai_service else set()):
@@ -1955,6 +1963,8 @@ class TripHTTPServer(ThreadingHTTPServer):
         if any(not isinstance(value, str) or len(value) > 500 or any(c.isspace() for c in value)
                for value in data.values()):
             raise ApiError(400, "密钥最多 500 个字符，不能包含空白字符。")
+        if "DEEPSEEK_MODEL" in data and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,199}", data["DEEPSEEK_MODEL"]):
+            raise ApiError(400, "模型 ID 必须为 1–200 个字母、数字或 . _ : / - 字符，并以字母或数字开头。")
         with self.project_store.lock:
             path = self.db_path.parent / "api-settings.json"
             values = json.loads(path.read_text()) if path.exists() else {}
@@ -2219,8 +2229,9 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                     raise ApiError(400, '请选择要导出的城市。')
                 data = itinerary_export_snapshot(self.db_path, city_id if scope == 'city' else None)
                 if file_format == 'image':
-                    self.send_json(200, build_image_data(data, self.server.amap_service))
+                    self.send_json(200, build_image_bundle(data, self.server.amap_service))
                     return
+                data.update(build_office_maps(data, self.server.amap_service))
                 body = (build_docx if file_format == 'docx' else build_xlsx)(data)
                 name = export_filename(data, file_format)
                 self.send_response(200)
@@ -2240,7 +2251,7 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 self.db_path  # Validate the requested project before creating a worker.
                 service = self.server.project_ai(self.project_id)
                 self.send_json(200, {"enabled": bool(service and service.enabled),
-                                     "model": service.model if service else os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash-vision-exp")})
+                                     "model": service.model if service else self.server._ai_model})
                 return
             ai_match = re.fullmatch(r"/api/ai/jobs/([a-zA-Z0-9_-]+)", path)
             if ai_match:

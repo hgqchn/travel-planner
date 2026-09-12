@@ -324,8 +324,8 @@ class AIService:
             db.execute("UPDATE ai_jobs SET status='failed', error=?, updated_at=? "
                        "WHERE status IN ('queued','running')",
                        ("服务已重启，上次生成未完成；请重新生成。不会自动重复调用 AI。", _now()))
-            # Retain drafts for 30 days. Legacy daily quota tables are no longer used.
-            cutoff = time.time() - 30 * 86400
+            # Retain drafts for 3 days. Legacy daily quota tables are no longer used.
+            cutoff = time.time() - 3 * 86400
             db.execute("DELETE FROM ai_jobs WHERE created_epoch < ? AND status IN ('ready','failed','imported')",
                        (cutoff,))
         self._thread = threading.Thread(target=self._worker, name="travel-ai", daemon=True)
@@ -513,7 +513,7 @@ class AIService:
         if self._closed.is_set():
             raise AIError(503, "AI 服务正在重启，请稍后重试。")
         request = self._validate_request(data)
-        request["model"] = _text(data.get("model", self.model), "模型 ID", 200, required=True)
+        request["model"] = _text(self.model, "模型 ID", 200, required=True)
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,199}", request["model"]):
             raise AIError(400, "模型 ID 只能包含字母、数字、点、下划线、冒号、斜线和短横线。")
         request_id = data.get("request_id")
@@ -835,7 +835,16 @@ class AIService:
         return result
 
     def _worker(self) -> None:
+        next_cleanup = 0.0
         while not self._closed.is_set():
+            if time.monotonic() >= next_cleanup:
+                try:
+                    with self._db() as db:
+                        db.execute("DELETE FROM ai_jobs WHERE created_epoch < ? AND status IN ('ready','failed','imported')",
+                                   (time.time() - 3 * 86400,))
+                except sqlite3.Error:
+                    pass  # A transient database lock must not stop the job worker.
+                next_cleanup = time.monotonic() + 60
             try:
                 job_id = self._queue.get(timeout=0.2)
             except queue.Empty:

@@ -101,22 +101,28 @@ class AIServiceTests(unittest.TestCase):
         self.assertEqual(job["status"], "ready", job["error"])
         return job
 
-    def test_selected_model_is_persisted_sent_and_part_of_idempotency(self):
-        service = self.make_service(cls=ai.AIService)
+    def test_admin_model_cannot_be_overridden_by_request(self):
+        service = self.make_service(cls=ai.AIService, model="admin-model")
         service._post = Mock(return_value=provider_response())
         job = self.ready(service, model="custom-model-id", request_id="model-choice")
-        self.assertEqual(job["model"], "custom-model-id")
-        self.assertEqual(job["request"]["model"], "custom-model-id")
-        self.assertEqual(service._post.call_args.args[0]["model"], "custom-model-id")
-        self.assertEqual(service.model, ai.DEFAULT_MODEL)
-        same = service.create_job("测试用户", "device-a", self.request(model="custom-model-id", request_id="model-choice"))
+        self.assertEqual(job["model"], "admin-model")
+        self.assertEqual(service._post.call_args.args[0]["model"], "admin-model")
+        same = service.create_job("测试用户", "device-a", self.request(model="other", request_id="model-choice"))
         self.assertEqual(same["id"], job["id"])
-        with self.assertRaises(ai.AIError) as caught:
-            service.create_job("测试用户", "device-a", self.request(model=ai.DEFAULT_MODEL, request_id="model-choice"))
-        self.assertEqual(caught.exception.status, 409)
-        with self.assertRaises(ai.AIError):
-            service.create_job("测试用户", "device-a", self.request(model="invalid model id"))
         self.assertEqual(service._post.call_count, 1)
+
+    def test_three_day_retention_preserves_newer_drafts(self):
+        service = self.make_service()
+        old = self.ready(service)
+        recent = self.ready(service)
+        service.close()
+        with service._db() as db:
+            db.execute("UPDATE ai_jobs SET created_epoch=? WHERE id=?", (time.time() - 4 * 86400, old["id"]))
+            db.execute("UPDATE ai_jobs SET created_epoch=? WHERE id=?", (time.time() - 2 * 86400, recent["id"]))
+        restarted = self.make_service()
+        with self.assertRaises(ai.AIError):
+            restarted.get_job("测试用户", "device-a", old["id"])
+        self.assertEqual(restarted.get_job("测试用户", "device-a", recent["id"])["status"], "ready")
 
     def test_generation_validation_duplicates_and_usage(self):
         service = self.make_service()

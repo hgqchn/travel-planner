@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 function harness(handler) {
-  const nodes = new Map(), requests = [], downloads = [], timers = new Map(), painted = [];
+  const nodes = new Map(), requests = [], downloads = [], timers = new Map(), painted = [], blobs = [];
   let nextTimer = 0, gated = false;
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, {
@@ -19,15 +19,15 @@ function harness(handler) {
   const state = { projectUnlocked: true, tab: 'itinerary', cityId: 'shanghai',
     cities: [{ id: 'shanghai', name: '上海' }, { id: 'beijing', name: '北京' }] };
   const env = {
-    state, AbortController, URLSearchParams, decodeURIComponent, DOMException,
+    state, AbortController, URLSearchParams, decodeURIComponent, DOMException, TextEncoder, Blob,
     Image: class { set src(value) { if (value) this.onload(); } },
-    URL: { createObjectURL: () => 'blob:download', revokeObjectURL() {} },
+    URL: { createObjectURL: blob => { blobs.push(blob); return 'blob:download'; }, revokeObjectURL() {} },
     setTimeout: (fn) => { timers.set(++nextTimer, fn); return nextTimer; },
     clearTimeout: (id) => timers.delete(id),
     document: { getElementById: node, body: { append() {} }, createElement: (tag) => tag === 'canvas' ? {
       getContext: () => new Proxy({ measureText: value => ({ width: value.length * 22 }),
         fillText: value => painted.push(value) }, { get: (obj, key) => obj[key] || (() => {}) }),
-      toBlob: callback => callback({ type: 'image/png' }),
+      toBlob: callback => callback(new Blob([new Uint8Array([137,80,78,71])], { type: 'image/png' })),
     } : ({
       click() { downloads.push({ href: this.href, name: this.download }); }, remove() {},
     }) },
@@ -43,7 +43,7 @@ function harness(handler) {
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/itinerary-export.js'), 'utf8'), env);
   env.window.TripExport.init();
-  return { node, state, requests, downloads, timers, painted, api: env.window.TripExport, gated: () => gated,
+  return { node, state, requests, downloads, timers, painted, blobs, api: env.window.TripExport, gated: () => gated,
     click: (id) => node(id).events.click() };
 }
 
@@ -123,4 +123,28 @@ test('image export composes a PNG with every day and actual endpoints', async ()
 test('switching projects cancels an export even with the same city', () => {
   const h = harness(); h.click('export-open'); h.state.projectId = 'another'; h.api.sync();
   assert.equal(h.node('export-dialog').open, false);
+});
+
+test('image bundle downloads one overview and separate daily PNG entries in a ZIP', async () => {
+  const day = date => ({ date, city: '上海', color: '#2458bd', stops: ['酒店'], segments: [], backups: [] });
+  const h = harness(() => ({ ok: true, headers: { get: () => null }, json: async () => ({
+    filename: '旅行.zip', title: '假期', scope: '上海', map: null,
+    days: [day('2026-10-01'), day('2026-10-02')],
+    daily_images: ['2026-10-01','2026-10-02'].map(date => ({ filename: `${date}-当天行程.png`, title: '假期', scope: date, map: null, days: [day(date)] })),
+  }) }));
+  h.click('export-open'); await h.click('export-image');
+  assert.equal(h.downloads[0].name, '旅行.zip');
+  assert.equal(h.blobs[0].type, 'application/zip');
+  const bytes = Buffer.from(await h.blobs[0].arrayBuffer());
+  const entries = [];
+  let offset = 0;
+  while (bytes.readUInt32LE(offset) === 0x04034b50) {
+    const size = bytes.readUInt32LE(offset+18), length = bytes.readUInt16LE(offset+26);
+    entries.push(bytes.subarray(offset+30, offset+30+length).toString('utf8'));
+    assert.equal(bytes.readUInt32BE(offset+30+length), 0x89504e47);
+    offset += 30 + length + size;
+  }
+  assert.deepEqual(entries, ['00-所有天整体行程.png','2026-10-01-当天行程.png','2026-10-02-当天行程.png']);
+  assert.equal(bytes.readUInt32LE(offset), 0x02014b50);
+  assert.equal(bytes.readUInt16LE(bytes.length-12), 3);
 });

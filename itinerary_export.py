@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import daily_planner
-from route_image import route_map, route_stops, stop_name
+from route_image import route_stops, stop_name
 
 import io
 import math
@@ -129,6 +129,24 @@ def build_docx(data: dict) -> bytes:
     images = {}
     body = [paragraph(f'{data["project_name"]} 行程安排', 'Title')]
     body.extend(paragraph(f'{label}：{value}') for label, value in overview(data))
+    rels = [('rId1', 'styles', 'styles.xml', False), ('rId2', 'footer', 'footer1.xml', False)]
+
+    def append_map(mapped, title):
+        body.append(paragraph(title, 'Heading2'))
+        if not mapped:
+            body.append(paragraph('尚无已确认的地图地点，请先确认地点并规划路线。'))
+            return
+        png, legend = mapped
+        number = len(images) + 1
+        rid = f'rId{len(rels)+1}'
+        images[f'word/media/route{number}.png'] = png
+        rels.append((rid, 'image', f'media/route{number}.png', False))
+        body.append(paragraph('高德地图底图；彩色轨迹为已保存路线，待规划路段不绘制连线。').replace('<w:p>', '<w:p><w:pPr><w:keepNext/></w:pPr>', 1))
+        body.append(word_picture(rid, number))
+        body.extend(paragraph(line) for line in legend)
+
+    if data.get('overall_route_map'):
+        append_map(data['overall_route_map'], '所有天整体行程图')
     if data.get('travel_guidance'):
         body.append(paragraph('出行提示', 'Heading1'))
         body.append(paragraph('以下为随计划保存的 AI 摘要与注意事项。'))
@@ -137,22 +155,13 @@ def build_docx(data: dict) -> bytes:
             if group.get('summary'):
                 body.append(paragraph(group['summary']))
             body.extend(paragraph(f'• {notice}') for notice in group.get('notices', []))
-    rels = [('rId1', 'styles', 'styles.xml', False), ('rId2', 'footer', 'footer1.xml', False)]
     for day, entries in groupby(data['items'], key=lambda item: item['date']):
-        body.append(paragraph(day, 'Heading1'))
+        body.append(paragraph(day, 'Heading1').replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>', 1))
+        if day in data.get('daily_route_maps', {}):
+            append_map(data['daily_route_maps'][day], f'{day} 当天行程图')
         for plan in data.get('daily_plans',[]):
             if plan['date']==day:
                 body.extend(paragraph(line) for line in daily_summary(plan))
-                mapped = route_map(plan)
-                if mapped:
-                    png, legend = mapped
-                    number = len(images)+1; image_path = f'word/media/route{number}.png'
-                    images[image_path] = png
-                    rid = f'rId{len(rels)+1}'; rels.append((rid,'image',f'media/route{number}.png',False))
-                    body.append(paragraph(f"{plan.get('city_name','')} · 已保存路线图",'Heading2'))
-                    body.append(paragraph('按已保存高德轨迹绘制，北向上，无街道底图；仅展示已规划路段，耗时为规划时参考。'))
-                    body.append(word_picture(rid,number))
-                    body.extend(paragraph(line) for line in legend)
         for item in entries:
             body.append(paragraph(f'{daily_planner.block_label(item) if item.get("plan_version")==2 else item.get("start_time") or "时间待定"}  {item["title"]}', 'Heading2'))
             details = [f'城市：{item["city_name"]}']
@@ -328,20 +337,25 @@ def build_xlsx(data: dict) -> bytes:
             ('rId4', 'worksheet', 'worksheets/sheet3.xml', False),
         ])
         content_types['xl/worksheets/sheet3.xml'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'
-    maps = [(plan,route_map(plan)) for plan in data.get('daily_plans',[])]
-    maps = [(plan,mapped) for plan,mapped in maps if mapped]
+    maps = [('所有天整体行程图', data['overall_route_map'])] if data.get('overall_route_map') else []
+    maps.extend((f'{day} 当天行程图', mapped) for day, mapped in sorted(data.get('daily_route_maps', {}).items()))
     if maps:
         sheet_number = 4 if data.get('travel_guidance') else 3
         sheet_path = f'xl/worksheets/sheet{sheet_number}.xml'
-        parts['xl/workbook.xml'] = parts['xl/workbook.xml'].replace('</sheets>',f'<sheet name="路线图" sheetId="{sheet_number}" r:id="rIdRoutes"/></sheets>')
+        parts['xl/workbook.xml'] = parts['xl/workbook.xml'].replace('<sheets>',f'<sheets><sheet name="整体行程图" sheetId="{sheet_number}" r:id="rIdRoutes"/>')
         extra = relationships([('rIdRoutes','worksheet',f'worksheets/sheet{sheet_number}.xml',False)]).split('>',1)[1].removesuffix('</Relationships>')
         parts['xl/_rels/workbook.xml.rels'] = parts['xl/_rels/workbook.xml.rels'].replace('</Relationships>',extra+'</Relationships>')
         rows, anchors, image_rels = [], [], []
         row = 1
-        for number,(plan,(png,legend)) in enumerate(maps,1):
-            rows.append(f'<row r="{row}" ht="30" customHeight="1">'+cell(f'A{row}',f"{plan.get('city_name','')} {plan['date']} · 已保存路线图",1)+'</row>')
+        for number,(title,mapped) in enumerate(maps,1):
+            rows.append(f'<row r="{row}" ht="30" customHeight="1">'+cell(f'A{row}',title,1)+'</row>')
             row += 1
-            rows.append(f'<row r="{row}" ht="36" customHeight="1">'+cell(f'A{row}','北向上，无街道底图；仅展示已规划路段，耗时为规划时参考。')+'</row>')
+            if not mapped:
+                rows.append(f'<row r="{row}" ht="36" customHeight="1">'+cell(f'A{row}','尚无已确认的地图地点，请先确认地点并规划路线。')+'</row>')
+                row += 3
+                continue
+            png, legend = mapped
+            rows.append(f'<row r="{row}" ht="36" customHeight="1">'+cell(f'A{row}','高德地图底图；彩色轨迹为已保存路线，待规划路段不绘制连线。')+'</row>')
             anchors.append(f'<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx="6000000" cy="3600000"/>'
                            +picture(f'rId{number}',number).replace('pic:','xdr:').replace('xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"','')+'<xdr:clientData/></xdr:oneCellAnchor>')
             row += 12

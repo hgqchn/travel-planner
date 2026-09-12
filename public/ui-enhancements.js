@@ -27,7 +27,7 @@ window.TripUI = (() => {
     try {
       const all = taskHistory().filter((item) => item.jobId !== ai.job.id);
       all.unshift({ jobId: ai.job.id, userId: state.userId, cityName: ai.job.city_name || ai.cityName, status: ai.job.status });
-      localStorage.setItem(taskHistoryKey(), JSON.stringify(all));
+      localStorage.setItem(taskHistoryKey(), JSON.stringify(all.slice(0, 5)));
     } catch { /* Tasks continue when optional browser storage is unavailable. */ }
     renderTaskHistory();
   }
@@ -36,7 +36,9 @@ window.TripUI = (() => {
   function taskHistory() {
     try {
       const items = JSON.parse(localStorage.getItem(taskHistoryKey()) || "[]");
-      return Array.isArray(items) ? items.filter((item) => item?.userId === state.userId && /^[0-9a-f]{32}$/.test(item.jobId)) : [];
+      const history = Array.isArray(items) ? items.filter((item) => item?.userId === state.userId && /^[0-9a-f]{32}$/.test(item.jobId)).slice(0, 5) : [];
+      localStorage.setItem(taskHistoryKey(), JSON.stringify(history));
+      return history;
     } catch { return []; }
   }
   function taskSwitchBlocked() { return Boolean(ai.pendingRequest) || ai.importing || ai.restoring || (ai.busy && !["queued", "running"].includes(ai.job?.status)); }
@@ -622,15 +624,13 @@ window.TripUI = (() => {
     $("ai-replan-scope").textContent = `${ai.cityName || "当前城市"}的${scope}将被新方案替换。确认应用前原行程保留，游玩点、美食与其他城市的行程保留。`;
     $("ai-replan-range-note").hidden = mode !== "replace_all" || !ai.longRange;
     $("ai-replan-range-note").textContent = ai.longRange ? `已有行程跨度为 ${ai.longRange} 天，将按所选日期和天数重新规划。` : "";
-    $("ai-model-input").disabled = locked || !ai.config?.enabled;
-    $("ai-generate").disabled = !ai.config?.enabled || busyJob() || !formInput("model").value.trim();
+    $("ai-generate").disabled = !ai.config?.enabled || busyJob();
     if (!busyJob()) $("ai-generate").textContent = ai.pendingRequest ? "重试本次请求" : replan ? "✧ 生成新的行程方案" : "✧ 生成旅行灵感";
     $("ai-target-change").hidden = ai.cityId === state.cityId || locked;
     updateDateRequired();
   }
 
   function restoreRequestForm(request) {
-    if (request.model) formInput("model").value = request.model;
     ai.formMode = planningMode(request);
     ai.longRange = 0;
     for (const name of ["start_date", "target_date", "days", "people", "budget", "pace", "preferences", "requirements"]) {
@@ -710,7 +710,6 @@ window.TripUI = (() => {
       if (epoch !== ai.epoch) return;
       ai.config = data;
       $("ai-model").textContent = ai.job?.model ? ` · 本次结果：${ai.job.model}` : "";
-      if (!formInput("model").value && data.model) formInput("model").value = data.model;
       if (!data.enabled) $("ai-error").textContent = "AI 服务尚未配置，请联系项目管理员。你仍可手动添加旅行内容。";
       $("ai-generate").disabled = !data.enabled || busyJob();
     } catch (error) { if (epoch === ai.epoch) handleError(error, "ai-error"); }
@@ -783,7 +782,6 @@ window.TripUI = (() => {
       }
       if (ai.job?.status === "ready" && !window.confirm("当前 AI 预览尚未应用。重新生成会替换这份预览，原行程保留，继续吗？")) return;
       ai.pendingRequest = {
-        model: String(form.get("model") || "").trim(),
         city_id: ai.cityId, kinds, planning_mode: mode, start_date: startDate || "", days,
         people: Number(form.get("people")), budget: form.get("budget") ? Number(form.get("budget")) : "",
         pace: form.get("pace"), preferences: form.get("preferences") || "", requirements: form.get("requirements") || "",
@@ -1102,7 +1100,6 @@ window.TripUI = (() => {
     metro.loading = false; metro.submitting = false; metro.checkedAt = 0; metro.timer = null;
     clearTimeout(ai.timer);
     ai.epoch += 1;
-    $("ai-model-input").value = "";
     $("ai-model").textContent = "";
     ai.job = null; ai.pendingRequest = null; ai.previewId = null; ai.rows = []; ai.config = null;
     ai.importing = false;
@@ -1159,7 +1156,6 @@ window.TripUI = (() => {
     $("ai-form").addEventListener("submit", generateAi);
     $("ai-new-task").addEventListener("click", () => switchTask());
     $("ai-task-select").addEventListener("change", () => switchTask($("ai-task-select").value));
-    $("ai-model-input").addEventListener("input", updateModeControls);
     $("ai-target-change").addEventListener("click", () => {
       choosePlanningMode("append", "", true);
     });

@@ -23,7 +23,7 @@ const CATEGORY = {
     accent: "#d58d16",
   },
   activity: {
-    title: "协作动态",
+    title: "编辑动态",
     kicker: "谁改了什么",
     description: "最近 30 次修改按时间排列。",
   },
@@ -146,6 +146,7 @@ const state = {
   activity: [],
   users: [],
   revision: null,
+  itineraryEditCount: null,
   snapshotEtag: null,
   userId: "",
   projectUnlocked: false,
@@ -300,6 +301,7 @@ async function fetchSnapshot(force = false, quiet = false) {
       const hadRevision = state.revision !== null;
       const changedRemotely = hadRevision && data.revision > state.revision;
       state.revision = data.revision;
+      state.itineraryEditCount = Number.isSafeInteger(data.itinerary_edit_count) ? data.itinerary_edit_count : null;
       state.snapshotEtag = response.headers.get("ETag");
       state.cities = data.cities || [];
       state.projectName = data.project?.name || "旅游规划";
@@ -324,7 +326,7 @@ async function fetchSnapshot(force = false, quiet = false) {
       if (changedRemotely && quiet && !dom.editDialog.open) showToast("计划里有新的修改");
     }
     if (requestId !== state.snapshotRequestId) return;
-    setSyncStatus("online", state.revision ? `已同步 · 版本 ${state.revision}` : "已同步");
+    setSyncStatus("online", state.itineraryEditCount !== null ? `数据已同步 · 行程修改次数 ${state.itineraryEditCount}` : "数据已同步");
     if (state.previouslyOffline) {
       state.previouslyOffline = false;
       showToast("已恢复连接并同步最新计划");
@@ -335,6 +337,7 @@ async function fetchSnapshot(force = false, quiet = false) {
       state.cityId = "";
       state.snapshotEtag = null;
       state.revision = null;
+      state.itineraryEditCount = null;
       state.items = { itinerary: [], attraction: [], transit: [], food: [] };
       state.cacheInfo = null;
       state.activity = [];
@@ -1209,6 +1212,7 @@ function resetProjectState() {
   state.projectItinerary = null;
   state.activity = [];
   state.revision = null;
+  state.itineraryEditCount = null;
   state.snapshotEtag = null;
   state.snapshotRequestId += 1;
   window.TripUI.reset();
@@ -1642,4 +1646,5 @@ window.TripEditorAI?.init();
 window.TripExport?.init();
 window.TripCities?.init();
 window.TripCityEditor?.init();
-start();
+if (document.documentElement?.dataset?.usageDemo === "true" && window.TripUsageTour?.boot) window.TripUsageTour.boot();
+else start();

@@ -30,8 +30,13 @@ window.TripExport = (() => {
     }
     text(data.title, 36, '#123b3a');
     text(`${data.scope} · 整体行程`, 24, '#55706e', 22);
-    const mapY = y; y += 628;
-    text('地图：高德地图 · 彩色轨迹为已保存路段', 17, '#667876', 24);
+    const mapY = y;
+    if (data.map) {
+      y += 628;
+      text('地图：高德地图 · 彩色轨迹为已保存路段', 17, '#667876', 24);
+    } else {
+      text('尚无已确认的地图地点，请先确认地点并规划路线。', 20, '#667876', 24);
+    }
     for (const day of data.days) {
       text(`${day.date} · ${day.city}`, 28, day.color);
       text(day.stops.join(' → ') || '当天暂无已安排地点', 20, '#55706e');
@@ -48,6 +53,7 @@ window.TripExport = (() => {
       ctx.font = `${row.size}px ${font}`; ctx.fillStyle = row.color;
       ctx.fillText(row.value, 44, row.y);
     }
+    if (data.map) {
     const bitmap = await new Promise((resolve, reject) => {
       const img = new Image();
       const abort = () => { img.src = ''; reject(new DOMException('Aborted', 'AbortError')); };
@@ -87,8 +93,47 @@ window.TripExport = (() => {
       ctx.fillStyle = '#ffffff'; ctx.fillText(label, x, yy);
     }
     ctx.restore();
+    }
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片生成失败，请缩小导出范围后重试。')), 'image/png'));
+  }
+
+  async function imageArchive(data, signal) {
+    const entries = [{ ...data, filename: '00-所有天整体行程.png' }, ...data.daily_images];
+    const chunks = [], directory = [];
+    let offset = 0;
+    const encoder = new TextEncoder();
+    const crc32 = bytes => {
+      let crc = 0xffffffff;
+      for (const byte of bytes) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    };
+    for (const [index, item] of entries.entries()) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      $('export-status').textContent = `正在生成行程图 ${index + 1}/${entries.length}…`;
+      const bytes = new Uint8Array(await (await imageBlob(item, signal)).arrayBuffer());
+      const name = encoder.encode(item.filename), crc = crc32(bytes);
+      const local = new Uint8Array(30), l = new DataView(local.buffer);
+      l.setUint32(0, 0x04034b50, true); l.setUint16(4, 20, true); l.setUint16(6, 0x800, true);
+      l.setUint16(12, 33, true); l.setUint32(14, crc, true);
+      l.setUint32(18, bytes.length, true); l.setUint32(22, bytes.length, true); l.setUint16(26, name.length, true);
+      const central = new Uint8Array(46), c = new DataView(central.buffer);
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x800, true);
+      c.setUint16(14, 33, true); c.setUint32(16, crc, true);
+      c.setUint32(20, bytes.length, true); c.setUint32(24, bytes.length, true); c.setUint16(28, name.length, true);
+      c.setUint32(42, offset, true);
+      chunks.push(local, name, bytes); directory.push(central, name);
+      offset += local.length + name.length + bytes.length;
+    }
+    const size = directory.reduce((sum, part) => sum + part.length, 0);
+    const end = new Uint8Array(22), e = new DataView(end.buffer);
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true);
+    e.setUint32(12, size, true); e.setUint32(16, offset, true);
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    return new Blob([...chunks, ...directory, end], { type: 'application/zip' });
   }
 
   function busy(value) {
@@ -150,7 +195,7 @@ window.TripExport = (() => {
       }
       if (controller !== current || current.signal.aborted) return;
       const data = format === 'image' ? await response.json() : null;
-      const blob = data ? await imageBlob(data, current.signal) : await response.blob();
+      const blob = data ? await (data.daily_images ? imageArchive(data, current.signal) : imageBlob(data, current.signal)) : await response.blob();
       if (controller !== current || current.signal.aborted || !state.projectUnlocked || state.projectId !== openedProjectId) return;
       let name = data?.filename || `行程安排.${format}`;
       const encodedName = response.headers.get("Content-Disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];

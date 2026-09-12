@@ -49,8 +49,9 @@ class ProjectHubTests(unittest.TestCase):
         httpd = self.running.httpd
         self.assertEqual(httpd.project_ai('main')._api_key, 'test-deepseek')
         self.assertEqual(httpd.project_ai(self.project_id)._api_key, 'test-deepseek')
-        self.request('/api/admin/api-settings', 'PUT', {'DEEPSEEK_API_KEY': 'test-new'})
+        self.request('/api/admin/api-settings', 'PUT', {'DEEPSEEK_API_KEY': 'test-new', 'DEEPSEEK_MODEL': 'admin-model'})
         self.assertEqual(httpd.ai_service._api_key, 'test-new')
+        self.assertEqual(httpd.project_ai(self.project_id).model, 'admin-model')
         self.assertEqual(httpd.amap_service.web_key, 'test-web')
         config = httpd.db_path.parent / 'api-settings.json'
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)
@@ -58,6 +59,8 @@ class ProjectHubTests(unittest.TestCase):
                                          data_dir=httpd.db_path.parent, project_code='', ai_api_key='env-old')
         try:
             self.assertEqual(restarted._ai_api_key, 'test-new')
+            self.assertEqual(restarted._ai_model, 'admin-model')
+            self.assertEqual(restarted.project_ai(self.project_id).model, 'admin-model')
             self.assertEqual(restarted.amap_service.web_key, 'test-web')
         finally:
             restarted.server_close()

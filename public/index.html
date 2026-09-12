@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/sky-theme.css" />
     <link rel="stylesheet" href="/trip-maps.css" />
     <link rel="stylesheet" href="/usage-help.css" />
+    <script src="/usage-tour-demo.js" defer></script>
     <script src="/usage-help.js" defer></script>
     <script src="/project-scope.js" defer></script>
     <script src="/place-taxonomy.js" defer></script>
@@ -42,10 +43,12 @@
           <span class="brand-copy">
             <strong>即刻出发</strong>
             <span class="site-subtitle">和同行的人，去向往的地方</span>
+            <!-- 网页版本按最近一次代码改动日期更新。 -->
+            <span class="web-version" title="网页最近改动日期">网页版本 <time datetime="2026-09-12">2026-09-12</time></span>
           </span>
         </a>
         <div class="topbar-actions">
-          <span id="sync-status" role="status" aria-live="polite"><i></i><span id="sync-label">正在连接</span></span>
+          <span id="sync-status" role="status" aria-live="polite" title="行程修改次数按整个项目的行程新增、修改、删除记录累计；批量操作按记录条数计，不含景点和美食资料导入。"><i></i><span id="sync-label">正在连接</span></span>
           <button class="identity-button" id="identity-button" type="button" aria-label="查看或切换用户 ID">
           <span aria-hidden="true">我</span>
           <b id="identity-label">设置 ID</b>
@@ -179,7 +182,7 @@
           <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3v5a3 3 0 0 0 6 0V3M7 3v18M17 3c-3 3-3 8 0 9h3V3h-3Zm3 9v9"/></svg></span><b>美食</b>
         </button>
         <button class="nav-item" type="button" data-tab="activity">
-          <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6a9 9 0 1 1-1 8M4 3v5h5m3-1v5l3 2"/></svg></span><b>动态</b>
+          <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6a9 9 0 1 1-1 8M4 3v5h5m3-1v5l3 2"/></svg></span><b>编辑动态</b>
         </button>
       </nav>
     </div>
@@ -217,7 +220,7 @@
       </header>
       <div class="usage-help-content" tabindex="0" role="region" aria-label="操作说明，可上下滚动">
         <p id="usage-help-intro">进入项目并选好城市后，可以让 AI 整体规划，也可以先收集游玩点、美食，再自己按天安排。两条流程最后都要确认具体路线。</p>
-        <div class="help-tour-entry"><button class="primary-button" type="button" data-help-tour>开始流程引导</button><p data-help-tour-hint>通过示例页面逐步模拟规划操作，无需已有行程，不会修改实际数据。可随时退出。</p></div>
+        <div class="help-tour-entry"><button class="primary-button" type="button" data-help-tour>开始流程引导</button><p data-help-tour-hint>使用真实页面布局，逐步演示操作与结果。输入、AI 草稿和路线均为预设示例，可随时退出。</p></div>
         <ol class="help-quick-start">
           <li><strong>进入项目，选择署名</strong><span>在弹窗中新建项目或选择已有项目；有密码时输入密码。随后选择已有用户 ID，或创建自己的 ID，用来标记你的修改。</span></li>
           <li><strong>方式一：AI 整体规划</strong><span>选择“整体规划：游玩点＋美食＋行程”，填写日期和偏好，生成后核对、编辑并保存草稿。不必提前新增日期。</span></li>
@@ -254,7 +257,7 @@
         </details>
         <details class="help-topic">
           <summary>如何共享、导出和查看他人的修改？</summary>
-          <p>点击封面的“分享”，把项目链接发给同行者；项目设有密码时，再单独告知密码。每个人进入同一项目后都能共同编辑；保存的内容会自动同步，在“动态”中可以查看最近修改及署名。</p>
+          <p>点击封面的“分享”，把项目链接发给同行者；项目设有密码时，再单独告知密码。每个人进入同一项目后都能共同编辑；保存的内容会自动同步，在“编辑动态”中可以查看最近修改及署名。</p>
           <p>“行程”页的“导出行程”可下载 Word 或 Excel，选择当前城市或全部城市。导出包含已保存的行程和路线轨迹图（离线示意图，不含街道底图）；网页之后有更新时，需要重新下载文件。</p>
           <p>如果提示有人已修改，请先查看最新内容，再决定如何处理自己的草稿。删除前请核对当前城市和所选条目，并阅读确认提示。</p>
         </details>
@@ -324,14 +327,6 @@
             <button class="secondary-button" id="editor-ai-fill" type="button">AI 补充基本信息</button>
           </div>
           <p class="editor-ai-help" id="editor-ai-help">先填写名称，AI 会补充空白的分类、标签和基本信息，特色菜肴还会补充具体菜系。已有内容和链接会保留。游玩点还可按明确对应的官方名录修正名称。补充后请核对，再点击保存。</p>
-          <details class="editor-ai-settings">
-            <summary>模型设置</summary>
-            <label class="field" for="editor-ai-model">
-              <span>DeepSeek 模型 ID</span>
-              <input id="editor-ai-model" type="text" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="editor-ai-model-help" />
-              <small id="editor-ai-model-help">默认使用当前配置的模型，可手动修改；留空使用默认模型。</small>
-            </label>
-          </details>
           <p class="ai-status" id="editor-ai-status" role="status" aria-live="polite"></p>
           <p class="form-error" id="editor-ai-error" role="alert"></p>
           <ul class="ai-notices" id="editor-ai-notices" hidden></ul>
@@ -442,7 +437,6 @@
         </div>
         <form id="ai-form">
           <div class="ai-flow-choices" aria-label="选择 AI 的帮助方式"><button type="button" data-ai-flow="full">整体规划：游玩点＋美食＋行程</button><button type="button" data-ai-flow="collect">只收集游玩点和美食</button></div>
-          <label class="field"><span>DeepSeek 模型 ID</span><input id="ai-model-input" name="model" type="text" maxlength="200" required autocomplete="off" spellcheck="false" aria-describedby="ai-model-hint" /><small id="ai-model-hint">默认使用当前配置的模型，可手动填写其他模型 ID。本次生成使用这里填写的模型。</small></label>
           <div class="ai-field-grid">
             <label class="field"><span>如何处理已有行程</span><select name="planning_mode" id="ai-planning-mode"><option value="append">保留已有内容，生成新草稿</option><option value="replace_all">重新规划全部行程</option><option value="replace_day">重新规划某一天</option></select></label>
             <label class="field" id="ai-target-date-field" hidden><span>重新规划的日期</span><input name="target_date" id="ai-target-date" type="date" /></label>
@@ -497,13 +491,13 @@
           <div><p class="section-kicker">本地查看</p><h2 id="export-title">导出行程</h2></div>
           <button class="icon-button" id="export-close" type="button" aria-label="关闭导出窗口">×</button>
         </div>
-        <p class="dialog-lead" id="export-description">将整体行程和地图保存为一张图片，方便分享和离线查看。每段仅展示实际规划的起点、终点和交通方式。</p>
+        <p class="dialog-lead" id="export-description">先看所有天的整体行程图，再按天查看当天地图。每段仅展示实际规划的起点、终点和交通方式。</p>
         <label class="field"><span>导出范围</span><select id="export-scope"><option value="city" id="export-city-option">当前城市</option><option value="all">当前项目的全部城市</option></select></label>
         <p class="export-note">起终点使用路线规划中已确认的地图地点。请先保存行程并规划路线；修改后需重新导出。</p>
         <div class="export-options">
-          <button class="primary-button" id="export-image" type="button"><strong>下载整体行程图</strong><span>.png · 地图与每日行程合为一张图</span></button>
-          <button class="secondary-button" id="export-word" type="button"><strong>下载 Word</strong><span>.docx · 按天阅读，适合打印</span></button>
-          <button class="secondary-button" id="export-excel" type="button"><strong>下载 Excel</strong><span>.xlsx · 表格整理，方便筛选</span></button>
+          <button class="primary-button" id="export-image" type="button"><strong>下载行程图</strong><span>.zip · 总览一张，每天各一张独立 PNG</span></button>
+          <button class="secondary-button" id="export-word" type="button"><strong>下载 Word</strong><span>.docx · 含地图底图与完整行程路线</span></button>
+          <button class="secondary-button" id="export-excel" type="button"><strong>下载 Excel</strong><span>.xlsx · 含整体行程图与行程明细</span></button>
         </div>
         <p id="export-status" role="status" aria-live="polite"></p>
         <p class="form-error" id="export-error" role="alert"></p>

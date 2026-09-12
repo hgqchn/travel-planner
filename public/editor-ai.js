@@ -27,7 +27,6 @@ window.TripEditorAI = (() => {
     const retryJob = session.attempt?.job && !session.busy;
     $("editor-ai-fill").disabled = session.loading || session.busy || state.saving || dom.identityDialog.open || Boolean(session.edit.conflict) || session.config?.enabled === false;
     $("editor-ai-fill").textContent = session.loading ? "连接 AI 服务…" : session.busy ? "正在补充…" : retryJob ? "重试查询结果" : session.attempt ? "重试本次补充" : "AI 补充基本信息";
-    $("editor-ai-model").disabled = session.loading || Boolean(session.attempt) || state.saving;
     $("editor-ai").setAttribute("aria-busy", String(session.loading || session.busy));
   }
 
@@ -63,7 +62,6 @@ window.TripEditorAI = (() => {
       const { data } = await requestJson("/api/ai/config");
       if (!isCurrent(owner)) return false;
       owner.config = data;
-      if (!$("editor-ai-model").value) $("editor-ai-model").value = data.model || "";
       $("editor-ai-error").textContent = data.enabled ? "" : "AI 服务尚未配置，仍可手动填写和保存。";
       return Boolean(data.enabled);
     } catch (error) {
@@ -83,7 +81,6 @@ window.TripEditorAI = (() => {
       config: null, loading: false, busy: false, attempt: null, timer: null,
     };
     $("editor-ai").hidden = false;
-    $("editor-ai-model").value = "";
     invalidate();
     await loadConfig(owner);
   }
@@ -196,14 +193,8 @@ window.TripEditorAI = (() => {
         $("editor-ai-status").textContent = "基本信息已填写完整；清空需要重新补充的字段后再试。";
         return;
       }
-      const model = $("editor-ai-model").value.trim();
-      if (model && !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/.test(model)) {
-        $("editor-ai-error").textContent = "请输入有效的模型 ID（英文字母、数字或 . _ : / -）。";
-        $("editor-ai-model").focus();
-        return;
-      }
       owner.attempt = { fields, touched: new Set(), job: null, request: {
-        purpose: "fill_item", city_id: owner.cityId, kinds: [owner.edit.kind], item, ...(model ? { model } : {}),
+        purpose: "fill_item", city_id: owner.cityId, kinds: [owner.edit.kind], item,
         request_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       } };
     }

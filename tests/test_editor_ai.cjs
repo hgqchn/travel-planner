@@ -86,13 +86,12 @@ test("new attraction fills only basic blank fields, using configured model and c
   const h = harness({ initial: { name: "外滩", description: "自己写的简介", link: "https://example.com/travel", navigation_link: "https://example.com/map" } });
   await h.open();
   assert.equal(h.node("editor-ai").hidden, false);
-  assert.equal(h.node("editor-ai-model").value, "deepseek-v4-flash-vision-exp");
   await h.generate();
   const payload = h.posts()[0].body;
   assert.equal(payload.purpose, "fill_item");
   assert.deepEqual(payload.kinds, ["attraction"]);
   assert.equal(payload.city_id, "shanghai");
-  assert.equal(payload.model, "deepseek-v4-flash-vision-exp");
+  assert.equal(payload.model, undefined);
   assert.equal(payload.item.link, undefined);
   assert.equal(payload.item.navigation_link, undefined);
   assert.equal(h.inputs.get("description").value, "自己写的简介");
@@ -106,13 +105,12 @@ test("new attraction fills only basic blank fields, using configured model and c
   assert.equal(h.requests.some((request) => /\/import$|\/api\/items/.test(request.url)), false);
 });
 
-test("editing a food uses the item's city and selected model", async () => {
+test("editing a food uses the item's city and leaves model selection to the server", async () => {
   const h = harness({ kind: "food", initial: { name: "生煎", category: "风味小吃", tags: "早餐" }, item: { id: "food-id", city_id: "beijing", version: 2 } });
   await h.open();
-  h.node("editor-ai-model").value = "deepseek-custom";
   await h.generate();
   assert.equal(h.posts()[0].body.city_id, "beijing");
-  assert.equal(h.posts()[0].body.model, "deepseek-custom");
+  assert.equal(h.posts()[0].body.model, undefined);
   assert.equal(h.inputs.get("category").value, "风味小吃");
   assert.equal(h.inputs.get("tags").value, "早餐");
   assert.deepEqual(h.posts()[0].body.item.tags, ["早餐"]);
@@ -296,7 +294,6 @@ test("ambiguous POST failures retry with the same request id and snapshot", asyn
   const h = harness({ post: (body, makeJob) => { if (++calls === 1) throw failure(502); return { data: { job: makeJob(body) } }; } });
   await h.open(); await h.generate();
   assert.match(h.node("editor-ai-status").textContent, /同一次补充/);
-  assert.equal(h.node("editor-ai-model").disabled, true);
   await h.edit("description", "重试前手动填写");
   await h.generate();
   assert.deepEqual(h.posts()[0].body, h.posts()[1].body);
@@ -394,8 +391,7 @@ test("unconfigured AI, conflicts, and other categories keep manual editing avail
 
 test("model input cannot pollute item FormData or block a normal save", () => {
   const html = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
-  const modelInput = html.match(/<input\s+id="editor-ai-model"[^>]+>/)[0];
-  assert.doesNotMatch(modelInput, /\b(?:name|pattern|required)=/);
+  assert.doesNotMatch(html, /id="(?:editor-ai-model|ai-model-input)"/);
   const section = html.slice(html.indexOf('<section class="editor-ai"'), html.indexOf('<div class="edit-fields"'));
   assert.doesNotMatch(section, /<button[^>]+type="submit"/);
 });

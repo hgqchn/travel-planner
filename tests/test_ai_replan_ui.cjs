@@ -486,15 +486,12 @@ test("itinerary day buttons preserve each group's own date and omit undated grou
   assert.deepEqual(maps, [firstDate, secondDate]);
 });
 
-test("manual model defaults to configured value and is sent without a model list request", async () => {
+test("generation leaves model selection to the administrator", async () => {
   const h = harness();
   await h.controller.openReplan("replace_day", firstDate);
-  assert.equal(h.input("model").value, "test-offline");
-  h.input("model").value = "deepseek-v4-pro";
-  assert.equal(h.input("model").value, "deepseek-v4-pro");
   assert.ok(!h.requests.some((request) => request.url.startsWith("/api/ai/models")));
   await h.submit();
-  assert.equal(h.generations()[0].body.model, "deepseek-v4-pro");
+  assert.equal(h.generations()[0].body.model, undefined);
 });
 
 test("restored running task keeps its own model and locks model selection", async () => {
@@ -502,8 +499,6 @@ test("restored running task keeps its own model and locks model selection", asyn
   job.status = "running"; job.model = "deepseek-v4-pro"; job.request.model = job.model;
   const h = harness({ storedJob: job });
   await h.controller.openReplan("replace_day", firstDate);
-  assert.equal(h.input("model").value, job.model);
-  assert.equal(h.input("model").disabled, true);
   assert.match(h.node("ai-model").textContent, /deepseek-v4-pro/);
 });
 
@@ -537,6 +532,11 @@ test("a running task can be left in history while another task is submitted", as
   await h.submit();
   assert.equal(h.generations().length, 2);
   assert.equal(h.node("ai-task-select").children.length, 3);
+  for (let i = 0; i < 6; i++) {
+    await h.click("ai-new-task"); await h.submit();
+  }
+  assert.equal(h.node("ai-task-select").children.length, 6);
+  assert.equal(h.node("ai-task-select").children[1].value, "8".padStart(32, "0"));
 });
 
 test("a previous task can be reopened after starting a new task", async () => {

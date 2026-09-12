@@ -2,10 +2,11 @@
 import base64
 import json
 import math
+import zlib
 
 from amap_service import AMapError
 from itinerary_export import filename
-from route_image import route_stops, stop_name
+from route_image import route_stops, stop_name, route_map
 
 MODES = {'walking': '步行', 'transit': '公交 / 地铁', 'driving': '驾车', 'bicycling': '骑行'}
 COLORS = ['#2458bd', '#bd4b18', '#12815f', '#8750bd', '#bd3765']
@@ -77,3 +78,58 @@ def build_image_data(data, amap):
     return dict(filename=filename(data, 'png'), title=data['project_name'], scope=data['scope_name'],
                 days=days, map=dict(image=f'data:{mime};base64,' + base64.b64encode(image).decode('ascii'),
                                     center=mercator(point(location)), zoom=zoom, pins=pins, paths=paths))
+
+
+def build_office_map(data, amap):
+    """One embedded map covering every day in the selected export scope."""
+    if not any(point((s.get('poi') or {}).get('location'))
+               for p in data.get('daily_plans', []) for s in route_stops(p)):
+        return None
+    snapshot = build_image_data(data, amap)
+    spec = snapshot['map']
+    visits = [dict(id=str(pin['number']), title=str(pin['number']),
+                   poi=dict(location=','.join(map(str, pin['point'])))) for pin in spec['pins']]
+    routes = [dict(from_ref='', to_ref='', mode='walking',
+                   color=tuple(int(path['color'][i:i+2], 16) for i in (1, 3, 5)),
+                   result=dict(parts=[path['points']], duration=0)) for path in spec['paths']]
+    try:
+        png, _ = route_map(dict(settings={}, visits=visits, routes=routes),
+                           background=base64.b64decode(spec['image'].split(',', 1)[1]), viewport=spec)
+    except (ValueError, IndexError, zlib.error) as error:
+        raise AMapError(502, '整体行程地图生成失败，请重试。') from error
+    legend = []
+    for day in snapshot['days']:
+        legend.append(f"{day['date']} · {day['city']}")
+        legend.extend(day['segments'] or day['stops'])
+    return png, legend
+
+
+def build_office_maps(data, amap):
+    """Build an overview followed by one map per date (including all its cities)."""
+    overall = build_office_map(data, amap)
+    dates = sorted({plan['date'] for plan in data.get('daily_plans', [])})
+    daily = {}
+    for day in dates:
+        daily[day] = overall if len(dates) == 1 else build_office_map(
+            {**data, 'daily_plans': [p for p in data['daily_plans'] if p['date'] == day]}, amap)
+    return dict(overall_route_map=overall, daily_route_maps=daily)
+
+
+def build_image_bundle(data, amap):
+    overall = build_image_data(data, amap)
+    dates = sorted({p['date'] for p in data['daily_plans']})
+    daily = []
+    for day in dates:
+        plans = [p for p in data['daily_plans'] if p['date'] == day]
+        scoped = {**data, 'daily_plans': plans}
+        if not any(point((s.get('poi') or {}).get('location')) for p in plans for s in route_stops(p)):
+            # A day without confirmed locations still gets its own image.
+            item = dict(title=data['project_name'], scope=day, map=None, days=[dict(
+                date=day, city=p.get('city_name', ''), color=COLORS[i % len(COLORS)],
+                stops=[stop_name(s) for s in route_stops(p)], segments=[],
+                backups=[s.get('title', '') for s in p['visits'] if s.get('is_backup')]) for i,p in enumerate(plans)])
+        else:
+            item = dict(overall) if len(dates) == 1 else build_image_data(scoped, amap)
+        item['filename'] = f'{day}-当天行程.png'
+        daily.append(item)
+    return {**overall, 'filename': filename(data, 'zip'), 'daily_images': daily}

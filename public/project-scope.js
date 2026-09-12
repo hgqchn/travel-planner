@@ -20,7 +20,7 @@ window.TripProject = (() => {
   }
 
   function url(path = "/", projectId = id) {
-    const result = new URL(path, location.origin);
+    const result = new URL(path, document.baseURI || location.origin);
     if (projectId === "main") result.searchParams.delete("project");
     else result.searchParams.set("project", projectId);
     return `${result.pathname}${result.search}${result.hash}`;

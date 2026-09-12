@@ -35,6 +35,7 @@ button:disabled { cursor: not-allowed; }
 .brand-copy strong { font-size: 21px; font-weight: 750; letter-spacing: .03em; }
 .brand-copy { margin-left: 12px; }
 .site-subtitle { color: #778aa1; font-size: 11px; letter-spacing: .02em; }
+.web-version { color: #607791; font-size: 10px; line-height: 1.5; white-space: nowrap; }
 .identity-button { border-color: #d9e6f7; background: white; color: #36577c; box-shadow: none; }
 .identity-button span { background: #e8f1fd; color: #3767a1; }
 #sync-status { color: #607791; }
@@ -223,7 +224,7 @@ dialog::backdrop { background: rgb(32 57 88 / 30%); backdrop-filter: blur(7px); 
   .brand-copy strong { font-size: 20px; }
   .site-subtitle { font-size: 10px; }
   .topbar-actions { gap: 8px; }
-  #sync-status { font-size: 9px; max-width: none; white-space: nowrap; }
+  #sync-status { font-size: 9px; max-width: 130px; white-space: normal; }
   .project-toolbar { padding: 0; width: 100%; }
   .project-toolbar > div > strong { max-width: 130px; font-size: 11px; }
   .project-toolbar > div { gap: 8px; }

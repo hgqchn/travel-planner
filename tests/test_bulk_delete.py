@@ -44,6 +44,23 @@ class BulkDeleteTests(unittest.TestCase):
             {"id": item["id"], "version": item["version"]} for item in items
         ]}
 
+    def test_itinerary_edit_count_excludes_places_and_survives_activity_limit(self):
+        self.assertEqual(server.snapshot(self.db_path)['itinerary_edit_count'], 0)
+        payload = {'city_id': self.city_id, 'date': '2026-10-01',
+                   'start_time': '09:00', 'title': '集合'}
+        for _ in range(31):
+            item = server.create_item(self.db_path, 'itinerary', payload, 'bulk-tester')['item']
+        updated = server.update_item(self.db_path, 'itinerary', item['id'],
+                                     {**payload, 'title': '出发', 'version': item['version']},
+                                     'bulk-tester')['item']
+        server.delete_item(self.db_path, 'itinerary', item['id'],
+                           {'version': updated['version']}, 'bulk-tester')
+        snapshot = server.snapshot(self.db_path)
+        self.assertEqual(len(snapshot['activity']), 30)
+        self.assertEqual(snapshot['itinerary_edit_count'], 33)
+        self.assertEqual(server.snapshot(self.db_path, 'beijing')['itinerary_edit_count'], 33)
+        self.assertEqual(server.snapshot(self.db_path)['itinerary_edit_count'], 33)
+
     def assert_rejected_unchanged(self, body, status, kind="attraction"):
         before = server.snapshot(self.db_path)
         with self.assertRaises(server.ApiError) as raised:

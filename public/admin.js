@@ -272,6 +272,12 @@ perform(async () => {
 function renderApiSettings(data) {
   const fields = document.querySelector("#api-settings-fields");
   fields.replaceChildren();
+  const modelField = node("label"); modelField.className = "field";
+  modelField.append(node("span", "DeepSeek 模型 ID"));
+  const model = node("input"); model.name = "DEEPSEEK_MODEL"; model.type = "text";
+  model.maxLength = 200; model.required = true; model.value = data.model || "";
+  model.autocomplete = "off"; model.spellcheck = false;
+  modelField.append(model); fields.append(modelField);
   for (const [key, label] of Object.entries({ DEEPSEEK_API_KEY: "DeepSeek API Key", AMAP_JS_KEY: "高德 JS API Key", AMAP_SECURITY_JS_CODE: "高德安全密钥", AMAP_WEB_SERVICE_KEY: "高德 Web 服务 API Key" })) {
     const field = node("label"); field.className = "field";
     field.append(node("span", `${label} · ${data.configured[key] ? "已配置" : "未配置"}`));
@@ -288,12 +294,12 @@ document.querySelector("#api-settings").onsubmit = (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   perform(async () => {
-    const payload = {};
+    const payload = { DEEPSEEK_MODEL: form.elements.DEEPSEEK_MODEL.value.trim() };
     for (const key of ["DEEPSEEK_API_KEY", "AMAP_JS_KEY", "AMAP_SECURITY_JS_CODE", "AMAP_WEB_SERVICE_KEY"]) {
       if (form.elements[`clear_${key}`].checked) payload[key] = "";
       else if (form.elements[key].value.trim()) payload[key] = form.elements[key].value.trim();
     }
     renderApiSettings(await api("api-settings", "PUT", payload));
-    return "API 密钥已保存并生效；地图页面请刷新后使用。";
+    return "API 配置已永久保存并生效；地图页面请刷新后使用。";
   });
 };
