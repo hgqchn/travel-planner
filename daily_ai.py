@@ -36,7 +36,7 @@ def prepare(s, db_path, data, user_id):
                        'selected_refs':[k for k,v in refs.items() if v['type']=='visit' and not v['data']['is_backup']],
                        'preserve_selection':data.get('preserve_selection',False),
                        'visits':[p for p in places if p['ref'].startswith('v')],
-                       'night_enabled':plan['settings']['night_enabled'], 'time_blocks':planner.BLOCKS,
+                       'night_enabled':True, 'time_blocks':planner.BLOCKS,
                        'locked_constraints':{'before':[[inverse.get(a),inverse.get(b)] for a,b in plan['settings']['before']]},
                        'requirements':data.get('requirements',''),'pace':plan['settings']['pace']}
     if type(context['input']['preserve_selection']) is not bool:
@@ -177,7 +177,7 @@ def proposal(result, context):
             visit=refs[ref]['data']
             patch=changes.setdefault(visit['id'],{})
             if name=='move_to_block':
-                if value not in planner.BLOCK_IDS or (value=='night' and not plan['settings']['night_enabled']): raise ValueError('时段无效。')
+                if value not in planner.BLOCK_IDS: raise ValueError('时段无效。')
                 if visit['block_locked']: raise ValueError('不能修改已锁定活动的时段。')
                 patch['time_block']=value
             elif name=='set_duration':

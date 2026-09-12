@@ -948,7 +948,7 @@ class AIService:
             instructions = instructions.replace('schema_version 固定为 1', 'schema_version 固定为 2')
             instructions = instructions.replace('start_time 用 24 小时制 HH:MM 或空字符串。', 'time_block 使用提供的时段 ID 或空字符串。')
             instructions = instructions.replace('date,start_time,title', 'date,time_block,title')
-            instructions += "\n本阶段仅提出选点和分天草稿，尚未核算高德路线。每项行程只包含一个具体地点，不合并多个景点。禁止输出 start_time；每项必须输出 time_block、duration_minutes（1–1440整数分钟）、duration_source=ai_estimate。默认夜游关闭，不主动安排night；每天2–3个主要游览地点，保留午餐、晚餐、午休与机动，不填满所有时段。只有在用户明确需要夜游时建议夜间。不要声称交通或时间已经验证。"
+            instructions += "\n本阶段仅提出选点和分天草稿，尚未核算高德路线。每项行程只包含一个具体地点，不合并多个景点。禁止输出 start_time；每项必须输出 time_block、duration_minutes（1–1440整数分钟）、duration_source=ai_estimate。night 为可规划的 20:00–22:00 时段；每天2–3个主要游览地点，保留午餐、晚餐、午休与机动，不填满所有时段。结合用户偏好和开放时间安排夜间，可留空休息。不要声称交通或时间已经验证。"
             import daily_planner
             prompt_input['time_blocks'] = daily_planner.BLOCKS
         if filling:

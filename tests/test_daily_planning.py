@@ -74,6 +74,15 @@ class PlannerTests(unittest.TestCase):
         ev=p.evaluate([self.visit(time_block='night',opening_start='09:00',opening_end='10:00')],self.settings(),'2026-09-12',self.route)
         self.assertEqual(ev['constraint_status'],'conflict')
 
+    def test_night_is_available_with_legacy_settings_without_changing_saved_context(self):
+        settings=self.settings()
+        original=copy.deepcopy(settings)
+        ev=p.evaluate([self.visit(time_block='night',duration_minutes=30)],settings,'2026-09-12',self.route)
+        self.assertEqual(settings,original)
+        self.assertGreaterEqual(ev['rows'][0]['begin'],1200)
+        self.assertFalse(any('未开启夜游' in issue['message'] for issue in ev['issues']))
+        self.assertNotEqual(ev['time_fit'],'overflow')
+
     def test_long_activity_is_not_split_or_overlap_rest(self):
         ev=p.evaluate([self.visit(duration_minutes=180)],self.settings(),'2026-09-12',self.route)
         self.assertEqual(ev['visit_minutes'],180)

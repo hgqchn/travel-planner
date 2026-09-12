@@ -199,6 +199,9 @@ def evaluate(visits, settings, day, route):
     settings = normalize_settings(settings)
     visits = [normalize_visit(v) for v in visits if not v.get('is_backup')]
     start, end = minutes(settings['start_time']), minutes(settings['end_time'])
+    # Night is always schedulable; retain legacy settings to preserve saved route contexts.
+    if any(v['time_block'] == 'night' for v in visits):
+        end = max(end, 22 * 60)
     issues, rows, legs, occupied = [], [], [], []
     totals = dict(travel_minutes=0, buffer_minutes=0, visit_minutes=0, meal_minutes=0, rest_minutes=0)
     def issue(code, message, ref=None):
@@ -283,10 +286,8 @@ def evaluate(visits, settings, day, route):
                 unknown = True
             legs.append(leg)
         block = next((b for b in BLOCKS if b['id'] == visit['time_block']), None)
-        if block and (block['id'] != 'night' or settings['night_enabled']):
+        if block:
             ready = max(ready, minutes(block['start']))
-        elif block and block['id'] == 'night':
-            issue('constraint_conflict', '该地点安排在夜间，但当天未开启夜游。', ref)
         arrival = ready
         estimated_hours = visit.get('opening_source') == 'ai_estimate'
         if estimated_hours:

@@ -38,7 +38,7 @@ window.TripDaily = (() => {
     const result = await api("/api/day-plan", { ...identity(), ...changes }, "PUT");
     if (!valid(token)) return;
     current = result; await fetchSnapshot(true, true);
-    if (valid(token)) { settingsView(); status.textContent = "每日计划已同步。路线需按新设置重新核算。"; }
+    if (valid(token)) { settingsView(); status.textContent = "每日计划已同步，可按新设置重新规划路线。"; }
   }
   function init() {
     if (dialog) return;
@@ -64,12 +64,12 @@ window.TripDaily = (() => {
   function anchor(parent, key, title, draft) {
     const box = e("section", "daily-anchor"); box.append(e("h4", "", title)); parent.append(box);
     const query = field(box, "搜索住处、车站或具体入口", "text", draft[key]?.name || "");
-    const selected = e("p", "", draft[key] ? `已选：${draft[key].name} · ${draft[key].address}` : "尚未设置，首末交通无法完整核算");
+    const selected = e("p", "", draft[key] ? `已选：${draft[key].name} · ${draft[key].address}` : "尚未设置，可补充首末接驳地点");
     const results = e("div", "daily-choices"); box.append(selected, results);
     const setSelected = poi => {
       draft[key] = poi ? structuredClone(poi) : null;
       query.value = poi?.name || "";
-      selected.textContent = poi ? `已选：${poi.name} · ${poi.address}` : "尚未设置，首末交通无法完整核算";
+      selected.textContent = poi ? `已选：${poi.name} · ${poi.address}` : "尚未设置，可补充首末接驳地点";
       results.replaceChildren();
     };
     box.append(button("搜索", () => work(async token => {
@@ -93,8 +93,8 @@ window.TripDaily = (() => {
     const preferences = e("details", "daily-preferences daily-settings-card");
     const summary = e("summary", "daily-settings-summary"), summaryText = e("span", "daily-settings-copy");
     const summaryTitle = e("span", "daily-settings-title");
-    summaryTitle.append(e("strong", "", "出发地、返回地与时间预算"), e("span", "daily-settings-optional", "可选设置"));
-    summaryText.append(summaryTitle, e("span", "daily-settings-description", "设置住处或车站，并为交通、用餐和休息留出时间。"));
+    summaryTitle.append(e("strong", "", "出发地与返回地"), e("span", "daily-settings-optional", "可选设置"));
+    summaryText.append(summaryTitle, e("span", "daily-settings-description", "设置当天出发和返回的住处或车站。"));
     const toggle = e("span", "daily-settings-toggle", "展开设置");
     summary.append(summaryText, toggle); preferences.append(summary); content.append(preferences);
     preferences.addEventListener("toggle", () => { toggle.textContent = preferences.open ? "收起设置" : "展开设置"; });
@@ -107,32 +107,11 @@ window.TripDaily = (() => {
       setReturnAnchor(draft.start_anchor);
       status.textContent = "返回地点已设为出发地点，点击保存每日设置后生效。";
     }));
-    preferences.append(e("h3", "", "时间与休息"));
-    preferences.append(e("p", "daily-hint", "这些设置用于“规划路线 → 全天预算与顺序优化 → 核算全天”：计算交通缓冲、用餐休息和剩余机动时间，检查当天是否排得下。保存设置不会自动重排行程。"));
-    const grid = e("div", "daily-grid"); preferences.append(grid);
-    const start = field(grid, "当天开始", "time", draft.start_time), end = field(grid, "返回终点前结束", "time", draft.end_time);
-    const paceLabel = e("label", "field"), pace = e("select");
-    paceLabel.append(e("span", "", "游览节奏"), pace); grid.append(paceLabel);
-    for (const [value, text] of [["relaxed", "轻松"], ["balanced", "适中"], ["packed", "紧凑"]]) {
-      const option = e("option", "", text); option.value = value; pace.append(option);
-    }
-    pace.value = draft.pace;
-    const nightLabel = e("label", "field"), night = e("input"); night.type = "checkbox"; night.checked = draft.night_enabled;
-    nightLabel.append(night, e("span", "", "开启夜游（20:00–22:00）")); grid.append(nightLabel);
-    night.addEventListener("change", () => { end.value = night.checked ? "22:00" : "20:00"; });
-    const numbers = {};
-    for (const [key, title] of [["lunch_minutes", "午餐分钟"], ["dinner_minutes", "晚餐分钟"], ["rest_minutes", "午休分钟"],
-      ["slack_target", "目标机动余量（分钟）"], ["buffer_minutes", "每段最低缓冲（分钟）"]]) numbers[key] = field(grid, title, "number", draft[key], 0, 180);
-    pace.addEventListener("change", () => { numbers.slack_target.value = pace.value === "relaxed" ? 90 : pace.value === "packed" ? 30 : 60; });
-    preferences.append(button("保存每日设置", () => work(token => {
-      const settings = { ...draft, pace: pace.value, start_time: start.value, end_time: end.value, night_enabled: night.checked };
-      for (const [key, input] of Object.entries(numbers)) { if (input.value === "") throw new Error("请填写分钟数，允许填写 0。"); settings[key] = Number(input.value); }
-      return save({ settings }, token);
-    }), "primary-button"));
+    preferences.append(button("保存每日设置", () => work(token => save({ settings: { start_anchor: draft.start_anchor, end_anchor: draft.end_anchor } }, token)), "primary-button"));
     content.append(e("h3", "", "当天行程与顺序"));
     const help = e("div", "daily-action-help");
     for (const [title, description] of [
-      ["转为备选", "暂时移出当天路线和时间核算，保留内容与原时段；之后可点击“添加到行程中”恢复。"],
+      ["转为备选", "暂时移出当天路线，保留内容与原时段；之后可点击“添加到行程中”恢复。"],
       ["锁定时段", "固定所属时段，手动编辑、跨时段拖动和 AI 微调都不能更换时段。其他信息仍可编辑；换时段前请先解除锁定。"],
     ]) {
       const line = e("p"); line.append(e("strong", "", `${title}：`), e("span", "", description)); help.append(line);
@@ -157,11 +136,6 @@ window.TripDaily = (() => {
       content.append(row);
     }
     content.append(button("下一步：规划路线", () => { const date = current.date; dialog.close(); window.TripMaps?.open(date); }, "primary-button"));
-    const more = e("details", "daily-preferences"); more.append(e("summary", "", "更多 AI 建议与时间核算")); content.append(more);
-    more.append(button("AI 帮我选地点", () => aiView("daily_select")), button("核算全天", () => work(async token => {
-      const data = await api("/api/day-plan/evaluate", { ...identity(), optimize: false });
-      if (valid(token)) { evaluationView(data); status.textContent = "已完成全天核算。"; }
-    })), button("比较顺序并请 AI 推荐", () => aiView("daily_choose")));
   }
   function poolView(block = "") {
     content.replaceChildren(); content.append(button("返回当天行程", settingsView), e("h3", "", "从地点清单选择"));
@@ -179,23 +153,6 @@ window.TripDaily = (() => {
       const date = current.date; dialog.close(); openEditor("itinerary"); dom.editForm.elements.namedItem("date").value = date;
       dom.editForm.elements.namedItem("time_block").value = block;
     }));
-  }
-  function evaluationView(data) {
-    const wrap = e("section", "daily-evaluation"); wrap.append(e("h3", "", "全天核算"));
-    const states = { fits: "时间可容纳", tight: "安排偏紧", unknown: "待补充资料", overflow: "安排超时" };
-    for (const [i, candidate] of data.candidates.entries()) {
-      const ev = candidate.evaluation, box = e("article", "daily-candidate");
-      box.append(e("h4", "", `方案 ${i + 1} · ${states[ev.time_fit] || ev.time_fit}`),
-        e("p", "", candidate.order.map(id => current.visits.find(v => v.id === id)?.title || id).join(" → ")),
-        e("p", "", `已核算交通 ${ev.travel_minutes} 分钟 · 缓冲 ${ev.buffer_minutes} 分钟 · ${ev.slack_minutes === null ? "机动余量尚不确定" : `机动余量 ${ev.slack_minutes} 分钟`}`));
-      for (const issue of ev.issues) box.append(e("p", "daily-issue", `${current.visits.find(v => v.id === issue.visit_ref)?.title || ""} ${issue.message}`));
-      if (data.candidates.length > 1 && ev.constraint_status !== "conflict") box.append(button("应用这个顺序", () => work(async token => {
-        const result = await api("/api/day-plan/apply", { ...identity(), candidate_ref: candidate.candidate_ref });
-        if (!valid(token)) return; current = result; await fetchSnapshot(true, true); if (valid(token)) settingsView();
-      })));
-      wrap.append(box);
-    }
-    content.querySelector(".daily-evaluation")?.remove(); content.append(wrap);
   }
   const jobKey = () => window.TripProject.storageKey(`daily-ai:${state.userId}:${current.date}`);
   async function aiView(purpose, visitId = null) {
@@ -278,7 +235,6 @@ window.TripDaily = (() => {
       if (!latest || latest.version !== visit.version) throw new Error("该行程已变化，请刷新后重试。");
       if (!latest.is_backup) { await fetchSnapshot(true, true); return; }
       const changes = { is_backup:false };
-      if (latest.time_block === 'night' && !plan.settings.night_enabled) changes.time_block = '';
       await api('/api/day-plan', {city_id:plan.city_id,date,version:plan.version,updates:[{id:visit.id,changes}]}, 'PUT');
       if (active === scope()) { await fetchSnapshot(true, true); showToast("已添加到当天行程，请规划相邻路线。"); }
     } catch (error) { if (active === scope()) showToast(error.message); }
@@ -299,7 +255,6 @@ window.TripDaily = (() => {
       const source = plan.visits[i], target = plan.visits[j];
       const destination = block ?? groupId(target);
       if (destination !== groupId(source) && (source.block_locked)) throw new Error("请先在“确定当天行程”中解除时段锁定，再移动到其他时段。");
-      if (destination === "night" && !plan.settings.night_enabled) throw new Error("请先在每日设置中开启夜游。");
       if (destination === "backup" && (source.priority === "must")) throw new Error("必去地点不能直接转为备选。");
       const changes = destination === "backup" ? { is_backup: true } : { time_block: destination, is_backup: false };
       const updates = destination !== groupId(source) ? [{ id: from, changes }] : [];
@@ -445,18 +400,16 @@ window.TripDaily = (() => {
         group.dataset.blockId = id;
         const title = e("h4", "daily-block", start ? `${name} ${start}–${end}` : name);
         header.append(title);
-        const closed = id === "night" && !daily?.settings?.night_enabled;
-        if (closed) header.append(e("span", "daily-slot-note", "未开启"));
-        if (!closed && id !== "backup") {
+        if (id !== "backup") {
           const add = button("＋ 添加地点", () => open(day, false, id), "daily-slot-add");
           add.setAttribute("aria-label", `向${name}添加地点`); header.append(add);
         }
         group.append(header);
-        group.addEventListener("dragover", event => { if (!closed && dragged?.day === day) event.preventDefault(); });
+        group.addEventListener("dragover", event => { if (dragged?.day === day) event.preventDefault(); });
         group.addEventListener("drop", event => {
-          event.preventDefault(); if (!closed && dragged?.day === day) move(day, dragged.id, null, id); dragged = null;
+          event.preventDefault(); if (dragged?.day === day) move(day, dragged.id, null, id); dragged = null;
         });
-        if (!members.length) group.append(e("p", "daily-slot-empty", closed ? "需要时可在每日设置中开启夜游" : "暂未安排 · 可留空休息或拖入地点"));
+        if (!members.length) group.append(e("p", "daily-slot-empty", "暂未安排 · 可留空休息或拖入地点"));
         members.forEach((visit, index) => {
           const card = itineraryCard(visit, { showTimeBlock: false }); card.draggable = true; card.dataset.visitId = visit.id;
           card.addEventListener("dragstart", event => { dragged = { id: visit.id, day }; event.dataTransfer?.setData("text/plain", visit.id); });

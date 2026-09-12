@@ -102,7 +102,8 @@ test('empty saved days retain every slot without creating placeholder places', (
   assert.equal(h.nodes().filter(n => n.tag === 'article').length, 0);
   assert.ok(h.nodes().some(n => n.textContent === '午后休息 13:00–14:00'));
   assert.ok(h.nodes().some(n => n.textContent === '机动 16:00–17:00'));
-  assert.ok(h.nodes().some(n => n.textContent === '未开启'));
+  assert.equal(h.nodes().some(n => n.textContent === '未开启'),false);
+  assert.ok(h.nodes().some(n => n.attrs['aria-label'] === '向夜间添加地点'));
   assert.ok(h.nodes().some(n => n.attrs['aria-label'] === '向上午添加地点'));
 });
 
@@ -169,4 +170,14 @@ test('date selection is scoped to city and project and falls back when its day d
   h.env.state.projectId='main';render(first);assert.equal(select().value,'2030-01-02');
   h.env.state.dailyPlans=h.env.state.dailyPlans.slice(0,1);render(first);
   assert.equal(select().value,'2030-01-01');
+});
+
+test('night slot accepts a drop and restores backups even with the legacy night switch off', async () => {
+  const h=harness(); h.plan.settings.night_enabled=false;
+  await drop(h,'a','night');
+  assert.deepEqual(h.requests[0].updates,[{id:'a',changes:{time_block:'night',is_backup:false}}]);
+  const backup=harness({is_backup:true,time_block:'night'});
+  backup.plan.settings.night_enabled=false;
+  await backup.nodes().find(n=>n.textContent==='添加到行程中').events.click();
+  assert.deepEqual(backup.requests[0].updates,[{id:'a',changes:{is_backup:false}}]);
 });
