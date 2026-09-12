@@ -157,7 +157,9 @@ def _planning_schema():
     item['properties'].pop('start_time')
     item['properties'].update(time_block={'type':'string','enum':['',*sorted(daily_planner.BLOCK_IDS)]},
                               duration_minutes={'type':'integer','minimum':1,'maximum':1440},
-                              duration_source={'type':'string','enum':['ai_estimate']})
+                              duration_source={'type':'string','enum':['ai_estimate']},
+                              opening_start={'type':'string','maxLength':5},
+                              opening_end={'type':'string','maxLength':5})
     item['required'] = list(item['properties'])
     return schema
 
@@ -766,7 +768,8 @@ class AIService:
                     except ValueError as exc:
                         raise AIError(502, str(exc)) from None
                     item = dict(item)
-                    daily_fields = {key:item.pop(key) for key in ('time_block','duration_minutes','duration_source')}
+                    daily_fields = {key:item.pop(key) for key in ('time_block','duration_minutes','duration_source','opening_start','opening_end')}
+                    daily_fields['opening_source'] = 'ai_estimate'
                     item['start_time'] = ''
                     if len(item.get('attraction_names',[]))>1:
                         raise AIError(502,'每项行程只能安排一个具体游览地点，请重新生成。')
@@ -951,6 +954,7 @@ class AIService:
             instructions += "\n本阶段仅提出选点和分天草稿，尚未核算高德路线。每项行程只包含一个具体地点，不合并多个景点。禁止输出 start_time；每项必须输出 time_block、duration_minutes（1–1440整数分钟）、duration_source=ai_estimate。night 为可规划的 20:00–22:00 时段；每天2–3个主要游览地点，保留午餐、晚餐、午休与机动，不填满所有时段。结合用户偏好和开放时间安排夜间，可留空休息。不要声称交通或时间已经验证。"
             import daily_planner
             prompt_input['time_blocks'] = daily_planner.BLOCKS
+            instructions += "\n生成全部行程时，每项必须同时补充 opening_start 和 opening_end，按城市、具体地点及游览日期填写常见开放与关闭时间（HH:MM），不要写到达或离开时间。明确没有开放时间限制的地点用 00:00 和 23:59 表示全天开放。有开放限制时填写同日开始早于结束的时间点。不确定、跨夜、多段开放或可能闭馆时两者留空，不得把未知时间写成全天开放。开放时间属于 AI 参考，不宣称已实时核实，不在这些字段附加文字说明。"
         if filling:
             prompt_input = {"city": {"name": context["city"]["name"]},
                             "request": {key: request[key] for key in ("purpose", "kinds", "item")}}

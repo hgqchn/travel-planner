@@ -83,7 +83,7 @@ window.TripTypeFilter = (() => {
       $("type-filter-options").replaceChildren(...options);
     }
     const shown = filter(items).length;
-    $("type-filter-count").textContent = `显示 ${shown} / ${items.length} 项${state.tab === "food" ? "美食" : "地点"}`;
+    $("type-filter-count").textContent = `显示 ${shown} / ${items.length} 项${state.tab === "food" ? "美食" : "游玩点"}`;
     renderTags(items);
     renderItineraryStatus(items);
     renderScenicRating(items);

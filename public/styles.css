@@ -840,6 +840,8 @@ dialog::backdrop {
 
 .export-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .export-options button { display: grid; gap: 8px; padding: 18px 12px; text-align: left; white-space: normal; }
+.export-options #export-image { grid-column: 1 / -1; background: #123b3a; color: #fff; border-color: #123b3a; }
+.export-options #export-image span { color: #d7e8e5; }
 .export-options strong { font-size: 16px; }
 .export-options span, .export-note { color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
 .export-sheet #export-status { font-size: 14px; line-height: 1.7; }

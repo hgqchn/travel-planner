@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import daily_planner
-from route_image import route_map
+from route_image import route_map, route_stops, stop_name
 
 import io
 import math
@@ -117,12 +117,10 @@ def daily_summary(plan):
     else:
         slack=ev['slack_minutes']
         lines.append(f"交通 {ev['travel_minutes']} 分钟，缓冲 {ev['buffer_minutes']} 分钟；"+(f"机动余量 {slack} 分钟。" if slack is not None else '机动余量未知。'))
-        names={v['id']:v['title'] for v in plan.get('visits',[])}
-        names.update({'@start':'出发地点','@end':'返回地点'})
+        names={v['id']:stop_name(v) for v in route_stops(plan)}
         modes={'transit':'公交 / 地铁','walking':'步行','driving':'驾车','bicycling':'骑行'}
         for leg in ev.get('leg_summaries',[]):
-            duration=leg['duration_minutes']
-            lines.append(f"{names.get(leg['from_ref'],'上一站')} → {names.get(leg['to_ref'],'下一站')}：{modes[leg['mode']]}，"+(f"约 {duration} 分钟" if duration is not None else '耗时待核算'))
+            lines.append(f"{names.get(leg['from_ref'],'起点待确认')} → {names.get(leg['to_ref'],'终点待确认')} · {modes[leg['mode']]}")
         lines.extend(issue['message'] for issue in ev['issues'])
     return lines
 

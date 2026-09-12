@@ -619,7 +619,7 @@ window.TripUI = (() => {
     document.querySelectorAll('[data-ai-template="food"]').forEach((button) => { button.disabled = locked || replan; });
     $("ai-replan-scope").hidden = !replan;
     const scope = day ? `${formInput("target_date").value || "所选日期"} 当天行程` : "全部行程（包括新日期范围之外的旧行程）";
-    $("ai-replan-scope").textContent = `${ai.cityName || "当前城市"}的${scope}将被新方案替换。确认应用前原行程保留，地点、美食与其他城市的行程保留。`;
+    $("ai-replan-scope").textContent = `${ai.cityName || "当前城市"}的${scope}将被新方案替换。确认应用前原行程保留，游玩点、美食与其他城市的行程保留。`;
     $("ai-replan-range-note").hidden = mode !== "replace_all" || !ai.longRange;
     $("ai-replan-range-note").textContent = ai.longRange ? `已有行程跨度为 ${ai.longRange} 天，将按所选日期和天数重新规划。` : "";
     $("ai-model-input").disabled = locked || !ai.config?.enabled;
@@ -732,7 +732,7 @@ window.TripUI = (() => {
     if (!choosePlanningMode("append", "", true)) return;
     $("ai-form").querySelectorAll('[name="kinds"]').forEach(input => { input.checked = flow === "full" || input.value !== "itinerary"; });
     updateModeControls();
-    $("ai-status").textContent = flow === "full" ? "将生成地点、美食和按天行程草稿；确认保存后，再逐天核对地图位置和路线。" : "仅生成地点和美食清单。确认保存后，新增日期并从地点清单选择当天安排。";
+    $("ai-status").textContent = flow === "full" ? "将生成游玩点、美食和按天行程草稿；确认保存后，再逐天核对地图位置和路线。" : "仅生成游玩点和美食清单。确认保存后，新增日期并从游玩点清单选择当天安排。";
   }
 
   async function openPlanning(flow) {
@@ -774,7 +774,7 @@ window.TripUI = (() => {
       const form = new FormData($("ai-form"));
       const mode = ai.formMode;
       const kinds = mode === "append" ? form.getAll("kinds") : ["itinerary"];
-      if (!kinds.length) { $("ai-error").textContent = "请至少选择地点、美食或行程中的一项。"; return; }
+      if (!kinds.length) { $("ai-error").textContent = "请至少选择游玩点、美食或行程中的一项。"; return; }
       const startDate = mode === "replace_day" ? formInput("target_date").value : formInput("start_date").value;
       const days = mode === "replace_day" ? 1 : Number(formInput("days").value);
       if (kinds.includes("itinerary") && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !requestDateRange({ start_date: startDate, days }))) {
@@ -843,7 +843,7 @@ window.TripUI = (() => {
     ai.cityName = job.city_name || ai.cityName;
     $("ai-city-name").textContent = ai.cityName;
     const replacing = planningMode(job.request) !== "append";
-    const labels = { queued: "正在排队，轮到后会自动开始…", running: "正在思考路线、挑选地点与美食，通常需要一两分钟。可以关闭窗口继续浏览。", ready: replacing ? "新的行程方案已准备好。编辑和勾选后，确认替换原行程。" : "灵感已准备好。编辑和勾选后，加入你的共享清单。", failed: "本次生成未完成，已有旅行内容不受影响。", imported: replacing ? "已应用新的行程方案。" : "已加入共享清单，和同行者一起继续完善吧。" };
+    const labels = { queued: "正在排队，轮到后会自动开始…", running: "正在思考路线、挑选游玩点与美食，通常需要一两分钟。可以关闭窗口继续浏览。", ready: replacing ? "新的行程方案已准备好。编辑和勾选后，确认替换原行程。" : "灵感已准备好。编辑和勾选后，加入你的共享清单。", failed: "本次生成未完成，已有旅行内容不受影响。", imported: replacing ? "已应用新的行程方案。" : "已加入共享清单，和同行者一起继续完善吧。" };
     $("ai-status").textContent = labels[job.status] || "正在校验生成内容…";
     if (["queued", "running"].includes(job.status)) {
       setAiBusy(true);
@@ -988,7 +988,7 @@ window.TripUI = (() => {
       next.hidden = false;
       $("ai-next-step-text").textContent = ai.job.request.kinds?.includes("itinerary")
         ? "行程草稿已确认保存。下一步：逐天确认地图位置、交通方式和路线；不满意时可重排某一天。"
-        : "地点与美食已加入清单。下一步：新增一天，从地点清单选择当天安排，再规划路线。";
+        : "游玩点与美食已加入清单。下一步：新增一天，从游玩点清单选择当天安排，再规划路线。";
     }
   }
 
@@ -1025,6 +1025,9 @@ window.TripUI = (() => {
       if (row.kind === "itinerary") {
         data.duration_minutes = data.duration_minutes === "" ? null : Number(data.duration_minutes);
         data.duration_source = data.duration_minutes === row.record.duration_minutes ? (row.record.duration_source || "ai_estimate") : "user";
+        const sameHours = data.opening_start === (row.record.opening_start || "") && data.opening_end === (row.record.opening_end || "");
+        data.opening_source = data.opening_start ? (sameHours ? (row.record.opening_source || "ai_estimate") : "user") : "unknown";
+        data.opening_note = sameHours ? (row.record.opening_note || "") : "";
         if (!data.priority) data.priority = "preferred";
         if (!data.visit_kind) data.visit_kind = "place";
       }
@@ -1042,7 +1045,7 @@ window.TripUI = (() => {
     if (replan) {
       const oldCount = Number.isInteger(ai.job.replacement?.count) ? `${ai.job.replacement.count} 项旧行程` : "原行程";
       const scope = `${ai.cityName}的${replacementLabel(ai.job.request)}`;
-      if (!window.confirm(`确认替换${scope}？\n\n将删除${oldCount}，应用所选的 ${items.length} 项新行程。${planningMode() === "replace_all" ? "包括新日期范围之外的全部旧行程。" : "其他日期不变。"}\n地点、美食及其他城市不受影响。此操作无法在页面撤销。`)) return;
+      if (!window.confirm(`确认替换${scope}？\n\n将删除${oldCount}，应用所选的 ${items.length} 项新行程。${planningMode() === "replace_all" ? "包括新日期范围之外的全部旧行程。" : "其他日期不变。"}\n游玩点、美食及其他城市不受影响。此操作无法在页面撤销。`)) return;
     }
     $("ai-import").disabled = true;
     $("ai-import").textContent = replan ? "正在替换行程…" : "正在加入共享清单…";
@@ -1063,7 +1066,7 @@ window.TripUI = (() => {
       const deleted = Array.isArray(data.deleted) ? data.deleted.length : Number(data.deleted || 0);
       const autoAdded = Number.isInteger(data.auto_added_attractions) && data.auto_added_attractions > 0 ? data.auto_added_attractions : 0;
       $("ai-status").textContent = replan ? `已替换${ai.cityName}的${replacementLabel(ai.job.request)}：移除 ${deleted} 项旧行程，应用 ${created} 项新行程。` : `已向${ai.cityName}添加 ${created} 项，跳过 ${skipped} 项重复内容。`;
-      if (autoAdded) $("ai-status").textContent += `已自动补充 ${autoAdded} 个行程地点到清单。`;
+      if (autoAdded) $("ai-status").textContent += `已自动补充 ${autoAdded} 个游玩点到清单。`;
       $("ai-open").classList.remove("has-result");
       await fetchSnapshot(true, true);
       showToast(replan ? `已应用${ai.cityName}的新行程方案` : `已向${ai.cityName}添加 ${created} 项旅行灵感`);

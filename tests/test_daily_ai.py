@@ -113,18 +113,53 @@ class DailyAITests(unittest.TestCase):
         context=self.service._context(self.city)
         request={'kinds':['itinerary'],'start_date':self.day,'days':1,'planning_mode':'append'}
         value={'schema_version':2,'summary':'','notices':[],'attractions':[],'foods':[],
-               'itineraries':[{'date':self.day,'time_block':'morning','duration_minutes':90,'duration_source':'ai_estimate','title':'人民公园','category':'观光','location':'人民公园','notes':'','attraction_names':['人民公园']}]}
+               'itineraries':[{'date':self.day,'time_block':'morning','duration_minutes':90,'duration_source':'ai_estimate','opening_start':'08:00','opening_end':'17:30','title':'人民公园','category':'观光','location':'人民公园','notes':'','attraction_names':['人民公园']}]}
         checked=self.service._validate_result(value,request,context)
         self.assertEqual(checked['itineraries'][0]['duration_minutes'],90)
         self.assertEqual(checked['itineraries'][0]['start_time'],'')
         self.assertEqual(checked['itineraries'][0]['fixed_start'],'')
+        self.assertEqual((checked['itineraries'][0]['opening_start'],checked['itineraries'][0]['opening_end'],checked['itineraries'][0]['opening_source']),('08:00','17:30','ai_estimate'))
+        for start,end in [('00:00','23:59'),('','')]:
+            variant=copy.deepcopy(value)
+            variant['itineraries'][0].update(opening_start=start,opening_end=end)
+            result=self.service._validate_result(variant,request,context)['itineraries'][0]
+            self.assertEqual((result['opening_start'],result['opening_end']),(start,end))
+        for start,end in [('17:00','08:00'),('09:00',''),('99:00','18:00')]:
+            variant=copy.deepcopy(value)
+            variant['itineraries'][0].update(opening_start=start,opening_end=end)
+            with self.assertRaises(ai_service.AIError):
+                self.service._validate_result(variant,request,context)
         v1=copy.deepcopy(value);v1['schema_version']=1
         item=v1['itineraries'][0]
-        for k in ('time_block','duration_minutes','duration_source'):item.pop(k)
+        for k in ('time_block','duration_minutes','duration_source','opening_start','opening_end'):item.pop(k)
         item['start_time']='14:00'
         checked=self.service._validate_result(v1,request,context)
         self.assertEqual(checked['itineraries'][0]['time_block'],'afternoon')
         self.assertEqual(checked['itineraries'][0]['fixed_start'],'')
+
+    def test_full_city_generation_imports_opening_hours(self):
+        self.service.output={'schema_version':2,'summary':'','notices':[],'attractions':[],'foods':[],
+            'itineraries':[{'date':self.day,'time_block':'morning','duration_minutes':90,
+                'duration_source':'ai_estimate','opening_start':start,'opening_end':end,
+                'title':title,'category':'观光','location':title,'notes':'','attraction_names':[]}
+                for title,start,end in [('博物馆','09:00','17:00'),('滨江步道','00:00','23:59')]]}
+        job=self.service.create_job(self.user,self.device,{'city_id':self.city,'start_date':self.day,
+            'days':1,'kinds':['itinerary']})
+        until=time.monotonic()+3
+        while job['status'] in {'queued','running'} and time.monotonic()<until:
+            time.sleep(.01)
+            job=self.service.get_job(self.user,self.device,job['id'])
+        self.assertEqual(job['status'],'ready',job.get('error'))
+        schema=self.service.last_payload['text']['format']['schema']['properties']['itineraries']['items']
+        self.assertIn('opening_start',schema['required'])
+        self.assertIn('opening_end',schema['required'])
+        self.assertIn('全天开放',self.service.last_payload['instructions'])
+        self.service.import_job(self.user,self.device,job['id'],{'items':[
+            {'kind':'itinerary','data':item} for item in job['result']['itineraries']]})
+        visits={v['title']:v for v in self.plan()['visits']}
+        for title,start,end in [('博物馆','09:00','17:00'),('滨江步道','00:00','23:59')]:
+            self.assertEqual((visits[title]['opening_start'],visits[title]['opening_end'],visits[title]['opening_source']),
+                (start,end,'ai_estimate'))
 
     def test_choose_preview_contains_authoritative_order_and_applies_it(self):
         plan=self.plan()

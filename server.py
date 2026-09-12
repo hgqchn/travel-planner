@@ -43,6 +43,7 @@ from amap_service import AMapError, AMapService
 from scenic_catalog import RATINGS, enrich_attraction, get_catalog as get_scenic_catalog, rated_payload
 from itinerary_export import MIME_TYPES as EXPORT_MIME_TYPES, build_docx, build_xlsx, filename as export_filename
 import itinerary_links
+from itinerary_image import build_image_data
 import project_itinerary
 import daily_planner
 import daily_plan_store
@@ -2212,11 +2213,14 @@ class TripRequestHandler(SimpleHTTPRequestHandler):
                 file_format = query.get('format', [''])[0]
                 scope = query.get('scope', ['city'])[0]
                 city_id = query.get('city_id', [''])[0]
-                if file_format not in EXPORT_MIME_TYPES or scope not in {'city', 'all'}:
-                    raise ApiError(400, '请选择 Word 或 Excel，以及有效的导出范围。')
+                if file_format not in {*EXPORT_MIME_TYPES, 'image'} or scope not in {'city', 'all'}:
+                    raise ApiError(400, '请选择行程图片、Word 或 Excel，以及有效的导出范围。')
                 if scope == 'city' and not city_id:
                     raise ApiError(400, '请选择要导出的城市。')
                 data = itinerary_export_snapshot(self.db_path, city_id if scope == 'city' else None)
+                if file_format == 'image':
+                    self.send_json(200, build_image_data(data, self.server.amap_service))
+                    return
                 body = (build_docx if file_format == 'docx' else build_xlsx)(data)
                 name = export_filename(data, file_format)
                 self.send_response(200)

@@ -6,14 +6,14 @@
   const hint = dialog.querySelector('[data-help-tour-hint]');
   let opener = null, returnFocus = null, index = 0, frame = 0, active = false, context = '';
   const steps = [
-    ['[data-demo="city"]', '选择旅行城市', '从这里选择或添加城市。地点、美食和行程都按当前项目、当前城市保存。'],
-    ['[data-demo="ai"]', '让 AI 帮你安排旅程', '蓝色入口可生成完整行程，也可只收集地点和美食。生成后先核对、编辑并勾选草稿，再确认导入。'],
-    ['[data-demo="add"]', '按天安排，也可以从空白日开始', '手动安排时先新增日期，再从地点清单添加活动。AI 已生成日期时，无需重复新增。'],
+    ['[data-demo="city"]', '选择旅行城市', '从这里选择或添加城市。游玩点、美食和行程都按当前项目、当前城市保存。'],
+    ['[data-demo="ai"]', '让 AI 帮你安排旅程', '蓝色入口可生成完整行程，也可只收集游玩点和美食。生成后先核对、编辑并勾选草稿，再确认导入。'],
+    ['[data-demo="add"]', '按天安排，也可以从空白日开始', '手动安排时先新增日期，再从游玩点清单添加活动。AI 已生成日期时，无需重复新增。'],
     ['[data-demo="day"]', '选择要查看的日期', '每次显示一天，使用日期下拉框或上一天、下一天切换。'],
     ['[data-demo="confirm"]', '确认当天行程', '添加地点、调整顺序，或设置出发地与返回地。可微调安排、补全停留时长和开放时间，备选地点也可恢复。'],
     ['[data-demo="slots"]', '快速跳转时段', '时段可安排多个地点，也可留空。电脑右侧为纵向导航，手机可横向滑动；点击跳转到对应时段。20:00–22:00 可直接规划。'],
     ['[data-demo="route"]', '规划并保存完整路线', '确认各段具体地点与交通方式，再逐段规划。路线自动保存，行程页地图显示已保存的全程路线；点击地图可重新规划。'],
-    ['[data-demo="export"]', '导出后随身查看', '可导出当前城市或全部城市的 Word、Excel，包含已保存的行程和离线路线轨迹图。修改行程后重新导出。'],
+    ['[data-demo="export"]', '导出后随身查看', '可下载当前城市或全部城市的整体行程图，包含地图、实际起终点和交通方式，也支持 Word、Excel。修改行程后重新导出。'],
   ];
   const tour = document.createElement('dialog');
   tour.className = 'usage-tour';
@@ -30,11 +30,11 @@
       <p class="usage-demo-notice">引导示例 · 点击“下一步”模拟操作，不会保存到项目</p>
       <header class="usage-demo-toolbar"><strong>即刻出发 · 示例旅行</strong><span class="usage-demo-control" data-demo="city">⌖ ${index ? '上海' : '选择城市'} ⌄</span></header>
       <section class="usage-demo-cover"><small>和同行的人，去向往的地方</small><h2>下一站，上海。</h2><p>${imported ? '2 天行程 · 城市漫步' : '从一份期待，开始安排旅程。'}</p></section>
-      <div class="usage-demo-ai" data-demo="ai"><strong>AI 帮你安排旅程</strong><span>生成完整行程，或收集地点与美食 →</span></div>
+      <div class="usage-demo-ai" data-demo="ai"><strong>AI 帮你安排旅程</strong><span>生成完整行程，或收集游玩点与美食 →</span></div>
       ${index === 2 ? '<section class="usage-demo-panel"><strong>AI 草稿 · 已生成，待确认导入</strong><p>✓ 第 1 天：豫园 → 外滩</p><p>✓ 第 2 天：上海博物馆 → 武康路</p><span class="usage-demo-control">确认导入所选行程</span></section>' : ''}
       <section class="usage-demo-panel"><div class="usage-demo-toolbar"><h3>每日行程</h3><span class="usage-demo-control" data-demo="add">＋ 新增日期</span></div>
       ${imported ? `<div class="usage-demo-toolbar"><span class="usage-demo-control" data-demo="day">‹　第 1 天 · 10 月 1 日　⌄　›</span><span>共 2 天</span></div>
-      <div class="usage-demo-toolbar usage-demo-tools"><span class="usage-demo-control" data-demo="confirm">确定当天行程</span><span class="usage-demo-control" data-demo="route">规划路线</span><span class="usage-demo-control" data-demo="export">导出 Word / Excel</span></div>
+      <div class="usage-demo-toolbar usage-demo-tools"><span class="usage-demo-control" data-demo="confirm">确定当天行程</span><span class="usage-demo-control" data-demo="route">规划路线</span><span class="usage-demo-control" data-demo="export">下载整体行程图</span></div>
       <p class="usage-demo-status">${routed ? '✓ 示例路线已保存 · 可导出随身查看' : confirmed ? '✓ 已确认当天行程 · 已补全停留时长' : '✓ 已导入 AI 草稿 · 请核对当天安排'}</p>
       <div class="usage-demo-control usage-demo-slots" data-demo="slots">上午　·　午餐　·　下午　·　晚餐　·　夜间</div>
       <article class="usage-demo-stop"><small>上午 · 09:00–11:00</small><h3>豫园</h3><p>${confirmed ? '停留 2 小时 · 已确认顺序与地点' : '建议停留 2 小时 · 待确认'}</p></article>

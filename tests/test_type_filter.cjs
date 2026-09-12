@@ -60,7 +60,7 @@ test('rating counts are city scoped and combine with type, tags and itinerary st
   rating('4A');
   assert.deepEqual(h.visible().map(item => item.id), ['a', 'c']);
   assert.equal(h.node('scenic-rating-filter-options').children[1]['aria-pressed'], 'true');
-  assert.equal(h.node('type-filter-count').textContent, '显示 2 / 4 项地点');
+  assert.equal(h.node('type-filter-count').textContent, '显示 2 / 4 项游玩点');
   assert.equal(h.filter.active(), true);
   h.choose('博物馆');
   h.node('tag-filter-options').children.find(b => b.dataset.tagKey === '室内').events.click();
@@ -112,7 +112,7 @@ test("types and counts reflect current city, normalize surrounding whitespace an
   assert.deepEqual(h.node("type-filter-options").children.map(button => button.textContent), ["全部 4", "博物馆 2", "公园 1", "未分类 1"]);
   h.choose("博物馆");
   assert.deepEqual(h.visible().map(item => item.id), ["a", "c"]);
-  assert.equal(h.node("type-filter-count").textContent, "显示 2 / 4 项地点");
+  assert.equal(h.node("type-filter-count").textContent, "显示 2 / 4 项游玩点");
   h.choose(""); assert.deepEqual(h.visible().map(item => item.id), ["d"]);
   h.choose(null); assert.equal(h.visible().length, 4);
 });

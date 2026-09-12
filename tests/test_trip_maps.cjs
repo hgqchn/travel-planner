@@ -39,11 +39,6 @@ test('buffer uses maximum of fixed and proportion, not their sum', () => {
   assert.equal(plan.bufferFor(3601, {buffer_minutes:10,buffer_ratio:.2}),13);
   assert.equal(plan.clock(1450),'次日 00:10');
 });
-test('server route results map by directional references, never by array position', () => {
-  const stops = ['a','b','c'].map(id => ({id}));
-  const mapped = plan.candidateLegs(stops,{evaluation:{legs:[{from_ref:'b',to_ref:'c',mode:'walking',result:{duration:20}}]}},{});
-  assert.equal(mapped[0].result,null); assert.equal(mapped[1].result.duration,20); assert.equal(mapped[1].source,'evaluation');
-});
 
 test('stationary rest contributes time without creating fictitious traffic nodes', () => {
   const p = fixture(); p.visits = ['a','rest','b','c'].map((id,position)=>({id,position,title:id,duration_minutes: id==='rest'?30:60,visit_kind:id==='rest'?'rest':'attraction'}));

@@ -34,6 +34,7 @@ DURATION_PROMPT = BASE + '''stage=recommend_durations。为 duration_targets 中
 
 HOURS_PROMPT = BASE + '''stage=recommend_hours。仅为 hours_targets 中列出的每条行程补充常见开放、关闭时间；不修改其他字段或已填写的时间。
 结合城市、具体地点及日期，opening_start 和 opening_end 用 HH:MM；同一天且开始早于结束。不确定、跨夜开放、多段开放或可能闭馆时两者都留空，在 note 简要说明待核实事项；不要为了填满字段猜测。
+明确无开放时间限制的地点用 opening_start=00:00、opening_end=23:59 表示全天开放；未知时间不能视为全天开放。
 每条 note 必须说明这是 AI 参考、未实时核实，可能受季节、闭馆日或临时公告影响；请用户核对景点官方公告。开放时间不是预约入场时刻。
 每个 target 恰好返回一次。place_ref 只能引用给定目标。只输出 hours，不新增地点、不改停留时长、类别、优先级、时段或顺序。
 '''

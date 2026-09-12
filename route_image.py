@@ -11,6 +11,10 @@ DIGITS = ['111101101101111','010110010010111','111001111100111','111001111001111
           '111101111101111','111101111001111']
 
 
+def stop_name(stop):
+    return (stop.get('poi') or {}).get('name') or stop.get('location') or stop.get('title', '')
+
+
 def route_stops(plan):
     visits = [v for v in plan.get('visits',[]) if not v.get('is_backup')]
     for key, ref, first in [('start_anchor','@start',True),('end_anchor','@end',False)]:
@@ -26,7 +30,7 @@ def preview(plan):
     routes = [l for l in plan.get('routes',[]) if l.get('result')]
     if not any(len(part)>1 for leg in routes for part in leg['result'].get('parts',[])):
         return None
-    stops = [dict(number=i+1,name=v.get('location') or v.get('title',''),poi=v.get('poi')) for i,v in enumerate(visits)]
+    stops = [dict(number=i+1,name=stop_name(v),poi=v.get('poi')) for i,v in enumerate(visits)]
     digest = hashlib.sha256(json.dumps([routes,stops],ensure_ascii=False,sort_keys=True).encode()).hexdigest()[:24]
     moving = [v for v in visits if not (v.get('visit_kind')=='rest' and not v.get('poi'))]
     return dict(version=digest, planned=len(routes), total=max(0,len(moving)-1),
@@ -37,7 +41,7 @@ def preview(plan):
 
 def route_map(plan):
     visits = route_stops(plan)
-    names = {v['id']:(i+1,v.get('location') or v.get('title','')) for i,v in enumerate(visits)}
+    names = {v['id']:(i+1,stop_name(v)) for i,v in enumerate(visits)}
     routes = sorted([l for l in plan.get('routes',[]) if l.get('result')],key=lambda l:names.get(l['from_ref'],(999,''))[0])
     if not routes:
         return None
@@ -95,7 +99,6 @@ def route_map(plan):
     modes={'walking':'步行','transit':'公交 / 地铁','driving':'驾车','bicycling':'骑行'}
     for leg in routes:
         a=names.get(leg['from_ref'],('',leg['from_ref'])); b=names.get(leg['to_ref'],('',leg['to_ref']))
-        legend.append(f"{a[0]} → {b[0]} · {modes.get(leg['mode'],leg['mode'])} · 约 {math.ceil(leg['result']['duration']/60)} 分钟")
-        legend.extend(leg['result'].get('instructions',[]))
+        legend.append(f"{a[1]} → {b[1]} · {modes.get(leg['mode'],leg['mode'])}")
         if leg['result'].get('incomplete'): legend.append('此路段部分轨迹缺失。')
     return png,legend

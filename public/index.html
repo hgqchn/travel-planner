@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f3f8fe" />
     <meta
       name="description"
-      content="即刻出发：基于 AI 的多人共享旅行规划，和同行者一起整理每日行程、地点、交通和本地美食。"
+      content="即刻出发：基于 AI 的多人共享旅行规划，和同行者一起整理每日行程、游玩点、交通和本地美食。"
     />
     <title>即刻出发 · 基于 AI 的多人共享旅行规划</title>
     <link rel="stylesheet" href="/styles.css" />
@@ -85,7 +85,7 @@
 
         <button class="ai-launch" id="ai-open" type="button" aria-haspopup="dialog">
           <span class="ai-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/><path d="M20 2v4m-2-2h4"/></svg></span>
-          <span class="ai-launch-copy"><span class="ai-launch-title"><strong>AI 帮你，<br class="ai-desktop-break" />安排旅程。</strong><span class="ai-model-credit">AI 旅行助手 · DeepSeek</span></span><small>生成完整行程，或只收集地点和美食。<br class="ai-desktop-break" />先确认草稿，再核对路线。</small></span>
+          <span class="ai-launch-copy"><span class="ai-launch-title"><strong>AI 帮你，<br class="ai-desktop-break" />安排旅程。</strong><span class="ai-model-credit">AI 旅行助手 · DeepSeek</span></span><small>生成完整行程，或只收集游玩点和美食。<br class="ai-desktop-break" />先确认草稿，再核对路线。</small></span>
           <span class="ai-launch-cta">开始规划 <span aria-hidden="true">↗</span></span>
           <span class="ai-launch-arrow" aria-hidden="true">↗</span>
         </button>
@@ -101,24 +101,24 @@
           <div class="section-heading">
             <div>
               <p class="section-kicker" id="section-kicker">一起挑选</p>
-              <h2 id="section-title">地点</h2>
-              <p id="section-description">地点信息和攻略链接都可以共同修改。</p>
+              <h2 id="section-title">游玩点</h2>
+              <p id="section-description">游玩点信息和攻略链接都可以共同修改。</p>
             </div>
             <div class="section-actions">
               <button class="secondary-button" id="export-open" type="button" hidden>导出行程</button>
               <button class="secondary-button ai-replan-all" id="ai-replan-all" type="button" hidden>AI 重新规划全部行程</button>
               <button class="secondary-button batch-open" id="batch-open" type="button" hidden>批量删除</button>
               <button class="add-button" id="add-button" type="button">
-                <span aria-hidden="true">＋</span><span>添加地点</span>
+                <span aria-hidden="true">＋</span><span>添加游玩点</span>
               </button>
             </div>
           </div>
 
           <section class="type-filter" id="type-filter" aria-label="按景区等级、行程状态、分类和标签筛选" hidden>
             <div class="type-filter-heading"><strong>筛选</strong><span id="type-filter-count" role="status" aria-live="polite"></span></div>
-            <div id="itinerary-filter" class="itinerary-filter" hidden><strong>行程状态</strong><div id="itinerary-filter-options" class="type-filter-options" role="group" aria-label="按是否已排行程筛选地点"></div></div>
-            <div id="scenic-rating-filter" class="itinerary-filter" hidden><strong>景区等级</strong><div id="scenic-rating-filter-options" class="type-filter-options" role="group" aria-label="按4A或5A景区等级筛选地点"></div></div>
-            <div class="type-filter-options" id="type-filter-options" role="group" aria-label="选择地点或美食类型"></div>
+            <div id="itinerary-filter" class="itinerary-filter" hidden><strong>行程状态</strong><div id="itinerary-filter-options" class="type-filter-options" role="group" aria-label="按是否已排行程筛选游玩点"></div></div>
+            <div id="scenic-rating-filter" class="itinerary-filter" hidden><strong>景区等级</strong><div id="scenic-rating-filter-options" class="type-filter-options" role="group" aria-label="按4A或5A景区等级筛选游玩点"></div></div>
+            <div class="type-filter-options" id="type-filter-options" role="group" aria-label="选择游玩点或美食类型"></div>
             <div class="tag-filter-heading">
               <label for="tag-filter-search">标签 <small id="tag-filter-hint">可多选</small></label>
               <button id="filter-reset" class="link-button" type="button">清空筛选</button>
@@ -173,7 +173,7 @@
           <span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4m8-4v4M4 11h16m-12 4h3m-3 3h6"/></svg></span><b>行程</b>
         </button>
         <button class="nav-item is-active" type="button" data-tab="attraction" aria-current="page">
-          <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span><b>地点</b>
+          <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span><b>游玩点</b>
         </button>
         <button class="nav-item" type="button" data-tab="food">
           <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3v5a3 3 0 0 0 6 0V3M7 3v18M17 3c-3 3-3 8 0 9h3V3h-3Zm3 9v9"/></svg></span><b>美食</b>
@@ -216,12 +216,12 @@
         <button class="icon-button" type="button" data-help-close aria-label="关闭使用帮助" autofocus>×</button>
       </header>
       <div class="usage-help-content" tabindex="0" role="region" aria-label="操作说明，可上下滚动">
-        <p id="usage-help-intro">进入项目并选好城市后，可以让 AI 整体规划，也可以先收集地点、美食，再自己按天安排。两条流程最后都要确认具体路线。</p>
+        <p id="usage-help-intro">进入项目并选好城市后，可以让 AI 整体规划，也可以先收集游玩点、美食，再自己按天安排。两条流程最后都要确认具体路线。</p>
         <div class="help-tour-entry"><button class="primary-button" type="button" data-help-tour>开始流程引导</button><p data-help-tour-hint>通过示例页面逐步模拟规划操作，无需已有行程，不会修改实际数据。可随时退出。</p></div>
         <ol class="help-quick-start">
           <li><strong>进入项目，选择署名</strong><span>在弹窗中新建项目或选择已有项目；有密码时输入密码。随后选择已有用户 ID，或创建自己的 ID，用来标记你的修改。</span></li>
-          <li><strong>方式一：AI 整体规划</strong><span>选择“整体规划：地点＋美食＋行程”，填写日期和偏好，生成后核对、编辑并保存草稿。不必提前新增日期。</span></li>
-          <li><strong>方式二：自己按天安排</strong><span>选择“只收集地点和美食”，确认保存清单；再“新增一天”，从时段旁的“添加地点”选入多个地点，也可以自行填写活动。</span></li><li><strong>共同最后一步：规划路线</strong><span>每天点击“规划路线”，确认各地点的地图位置及交通方式，逐段规划并自动保存路线。不满意可在当天“更多”中选择“AI 重排这一天”，确认新草稿后重新核对路线。</span></li>
+          <li><strong>方式一：AI 整体规划</strong><span>选择“整体规划：游玩点＋美食＋行程”，填写日期和偏好，生成后核对、编辑并保存草稿。不必提前新增日期。</span></li>
+          <li><strong>方式二：自己按天安排</strong><span>选择“只收集游玩点和美食”，确认保存清单；再“新增一天”，从时段旁的“添加地点”选入多个地点，也可以自行填写活动。</span></li><li><strong>共同最后一步：规划路线</strong><span>每天点击“规划路线”，确认各地点的地图位置及交通方式，逐段规划并自动保存路线。不满意可在当天“更多”中选择“AI 重排这一天”，确认新草稿后重新核对路线。</span></li>
         </ol>
         <h3 class="help-section-title">按操作查看</h3>
         <details class="help-topic">
@@ -230,26 +230,26 @@
           <p>进入后点击页面右上角的用户 ID 可以切换署名。如果项目密码失效，请向管理员确认最新密码；切换或新建项目请使用“切换项目”；修改项目设置、管理用户与 API 密钥请使用右上角的“管理员入口”。</p>
         </details>
         <details class="help-topic">
-          <summary>如何选择城市、添加地点和美食？</summary>
+          <summary>如何选择城市、添加游玩点和美食？</summary>
           <p>点击上方城市名称，输入中文、拼音、首字母或省份筛选。手机可上下滑动浏览；没有找到时，在列表底部输入完整城市名，点击“添加并前往”。</p>
-          <p>切换到“地点”或“美食”，点击添加按钮，填写名称、介绍等内容并保存。已有卡片可以编辑，分类和标签可以缩小列表范围；地点还可按4A、5A景区等级和是否已排行程筛选，多个条件同时生效。点击“清空筛选”恢复全部。内容保存到当前项目、当前城市。</p>
+          <p>切换到“游玩点”或“美食”，点击添加按钮，填写名称、介绍等内容并保存。已有卡片可以编辑，分类和标签可以缩小列表范围；游玩点还可按4A、5A景区等级和是否已排行程筛选，多个条件同时生效。点击“清空筛选”恢复全部。内容保存到当前项目、当前城市。</p>
         </details>
         <details class="help-topic">
           <summary>如何安排一天的行程？</summary>
-          <p>行程页每次显示一天，可用“选择行程日期”跳转，也可点击“上一天 / 下一天”。新增日期时点击“新增一天”，默认日期为已有行程的下一天，也可自行选择；创建后自动切换到新日期，已有日期不会重复添加。点击“确定当天行程”，再通过“从地点清单添加”把地点加入当天，也可添加行程，默认使用当前选中的日期。</p>
-          <p>每个日期标题的“更多 → 删除这一天”会先显示确认提示。确认后会删除当前城市当天的全部安排（含备选）、每日设置和路线核算结果；地点、美食清单及其他日期保留。若当天内容已被同行者修改，请刷新核对后重新确认。</p>
-          <p>在“确定当天行程”中调整地点；展开“出发地与返回地”可设置住处或车站。停留时长和时段可在地点编辑中修改。同一时段可容纳多个地点，空时段保留，可拖入地点。暂时不确定的地点可转为备选；需要保留时段的安排可锁定。新 AI 行程会填入推荐停留时长，从地点清单添加时继承已有建议；旧行程可点击“AI 补全停留时长”，预览后应用。每个地点均可手动修改，已填写的时长不会被补全操作覆盖。</p>
+          <p>行程页每次显示一天，可用“选择行程日期”跳转，也可点击“上一天 / 下一天”。新增日期时点击“新增一天”，默认日期为已有行程的下一天，也可自行选择；创建后自动切换到新日期，已有日期不会重复添加。点击“确定当天行程”，再通过“从游玩点清单添加”把地点加入当天，也可添加行程，默认使用当前选中的日期。</p>
+          <p>每个日期标题的“更多 → 删除这一天”会先显示确认提示。确认后会删除当前城市当天的全部安排（含备选）、每日设置和路线核算结果；游玩点、美食清单及其他日期保留。若当天内容已被同行者修改，请刷新核对后重新确认。</p>
+          <p>在“确定当天行程”中调整地点；展开“出发地与返回地”可设置住处或车站。停留时长和时段可在地点编辑中修改。同一时段可容纳多个地点，空时段保留，可拖入地点。暂时不确定的地点可转为备选；需要保留时段的安排可锁定。新 AI 行程会填入推荐停留时长，从游玩点清单添加时继承已有建议；旧行程可点击“AI 补全停留时长”，预览后应用。每个地点均可手动修改，已填写的时长不会被补全操作覆盖。</p>
           <p>时段从上午一直到夜间 20:00–22:00，夜间无需额外开启。电脑端右侧“时段导航”显示时间和行程数量，点击可快速跳转；手机上横向滑动导航选择时段。</p>
         </details>
         <details class="help-topic">
           <summary>如何使用 AI 旅行助手？</summary>
           <p>点击主页蓝色的“AI 帮你，安排旅程”入口，选择需要的内容，填写日期、天数、节奏和偏好，然后生成建议。生成后先核对预览，编辑并勾选需要的内容，再确认导入；仅生成不会自动加入行程。</p>
-          <p>想小幅修改时，在“确定当天行程”中使用“AI 微调当天安排”；想重新生成这一天的行程时，使用日期旁“更多 → AI 重排这一天”。两种建议都先预览再确认，修改后重新核对路线。重排仅替换所选日期的行程，地点、美食和其他日期保留。</p>
+          <p>想小幅修改时，在“确定当天行程”中使用“AI 微调当天安排”；想重新生成这一天的行程时，使用日期旁“更多 → AI 重排这一天”。两种建议都先预览再确认，修改后重新核对路线。重排仅替换所选日期的行程，游玩点、美食和其他日期保留。</p>
           <p>如果提示 AI 暂不可用，请联系管理员配置；仍可手动添加、编辑和规划。</p>
         </details>
         <details class="help-topic">
           <summary>如何查看地图、交通和出行提示？</summary>
-          <p>地点卡片的“高德导航”可用于查找目的地。点击“规划路线”确认起终点，选择公交/地铁、步行、骑行或驾车，再规划本段。路线会自动保存；行程页的高德地图显示已保存的全程路线，点击可再次进入规划，默认显示全程。修改地点或顺序后，需重新规划受影响路段。已收录轨道交通图的城市还可从城市名称旁打开线路图，放大查看。</p>
+          <p>游玩点卡片的“高德导航”可用于查找目的地。点击“规划路线”确认起终点，选择公交/地铁、步行、骑行或驾车，再规划本段。路线会自动保存；行程页的高德地图显示已保存的全程路线，点击可再次进入规划，默认显示全程。修改地点或顺序后，需重新规划受影响路段。已收录轨道交通图的城市还可从城市名称旁打开线路图，放大查看。</p>
           <p>完成当前城市的地点、顺序和路线规划后，点击“AI 生成行程提示”，确认规划完毕后生成，编辑并保存。行程草稿不再附带出行提示。已有提示仍可手动编辑或删除。美食卡片可以复制搜索词，方便粘贴到常用应用。出发前请核实营业时间、预约要求和交通情况。</p>
         </details>
         <details class="help-topic">
@@ -314,7 +314,7 @@
         <div class="dialog-header">
           <div>
             <p class="section-kicker" id="edit-kicker">编辑内容</p>
-            <h2 id="edit-title">编辑地点</h2>
+            <h2 id="edit-title">编辑游玩点</h2>
           </div>
           <button class="icon-button" id="edit-close" type="button" aria-label="关闭编辑窗口">×</button>
         </div>
@@ -323,7 +323,7 @@
             <strong id="editor-ai-title">AI 助手</strong>
             <button class="secondary-button" id="editor-ai-fill" type="button">AI 补充基本信息</button>
           </div>
-          <p class="editor-ai-help" id="editor-ai-help">先填写名称，AI 会补充空白的分类、标签和基本信息，特色菜肴还会补充具体菜系。已有内容和链接会保留。地点还可按明确对应的官方名录修正名称。补充后请核对，再点击保存。</p>
+          <p class="editor-ai-help" id="editor-ai-help">先填写名称，AI 会补充空白的分类、标签和基本信息，特色菜肴还会补充具体菜系。已有内容和链接会保留。游玩点还可按明确对应的官方名录修正名称。补充后请核对，再点击保存。</p>
           <details class="editor-ai-settings">
             <summary>模型设置</summary>
             <label class="field" for="editor-ai-model">
@@ -441,7 +441,7 @@
           <button id="ai-new-task" class="secondary-button" type="button">新建任务</button>
         </div>
         <form id="ai-form">
-          <div class="ai-flow-choices" aria-label="选择 AI 的帮助方式"><button type="button" data-ai-flow="full">整体规划：地点＋美食＋行程</button><button type="button" data-ai-flow="collect">只收集地点和美食</button></div>
+          <div class="ai-flow-choices" aria-label="选择 AI 的帮助方式"><button type="button" data-ai-flow="full">整体规划：游玩点＋美食＋行程</button><button type="button" data-ai-flow="collect">只收集游玩点和美食</button></div>
           <label class="field"><span>DeepSeek 模型 ID</span><input id="ai-model-input" name="model" type="text" maxlength="200" required autocomplete="off" spellcheck="false" aria-describedby="ai-model-hint" /><small id="ai-model-hint">默认使用当前配置的模型，可手动填写其他模型 ID。本次生成使用这里填写的模型。</small></label>
           <div class="ai-field-grid">
             <label class="field"><span>如何处理已有行程</span><select name="planning_mode" id="ai-planning-mode"><option value="append">保留已有内容，生成新草稿</option><option value="replace_all">重新规划全部行程</option><option value="replace_day">重新规划某一天</option></select></label>
@@ -449,9 +449,9 @@
           </div>
           <p class="ai-replan-scope" id="ai-replan-scope" role="note" hidden></p>
           <p class="ai-replan-range-note" id="ai-replan-range-note" hidden></p>
-          <fieldset class="ai-kinds"><legend>本次生成的内容（可调整）</legend><label><input type="checkbox" name="kinds" value="attraction" checked /> 地点</label><label><input type="checkbox" name="kinds" value="food" checked /> 美食</label><label><input type="checkbox" name="kinds" value="itinerary" checked /> 行程草稿</label></fieldset>
-          <p id="ai-content-only-note" class="ai-guidance" role="status" aria-live="polite" hidden>仅补充地点或美食时，无需专门设置下方的出发日期、旅行天数、人数、预算和节奏，保留默认值即可。可在“兴趣偏好”和“补充要求”中说明想要的推荐；勾选“行程”后，再按实际出行情况填写这些参数。</p>
-          <p class="ai-guidance">AI 会参考当前城市的已有地点及行程安排，区分已安排和未安排的地点，减少重复推荐。行程中的游览地点会与地点清单同步关联。</p>
+          <fieldset class="ai-kinds"><legend>本次生成的内容（可调整）</legend><label><input type="checkbox" name="kinds" value="attraction" checked /> 游玩点</label><label><input type="checkbox" name="kinds" value="food" checked /> 美食</label><label><input type="checkbox" name="kinds" value="itinerary" checked /> 行程草稿</label></fieldset>
+          <p id="ai-content-only-note" class="ai-guidance" role="status" aria-live="polite" hidden>仅补充游玩点或美食时，无需专门设置下方的出发日期、旅行天数、人数、预算和节奏，保留默认值即可。可在“兴趣偏好”和“补充要求”中说明想要的推荐；勾选“行程”后，再按实际出行情况填写这些参数。</p>
+          <p class="ai-guidance">AI 会参考当前城市的已有游玩点及行程安排，区分已安排和未安排的游玩点，减少重复推荐。行程中的游玩点会与游玩点清单同步关联。</p>
           <div class="ai-templates" aria-label="常用旅行模板"><button type="button" data-ai-template="classic">经典三日游</button><button type="button" data-ai-template="family">亲子轻松游</button><button type="button" data-ai-template="food">本地美食</button><button type="button" data-ai-template="extra">补充新灵感</button></div>
           <div class="ai-field-grid">
             <label class="field"><span>出发日期</span><input name="start_date" id="ai-start-date" type="date" required /></label>
@@ -470,7 +470,7 @@
         <section id="ai-preview" hidden aria-label="AI 生成结果预览">
           <div class="ai-preview-heading"><h3>确认草稿内容</h3><button id="ai-select-all" class="link-button" type="button">全选可导入内容</button></div>
           <p class="ai-replan-scope" id="ai-preview-scope" role="note" hidden></p>
-          <p class="ai-guidance" id="ai-attraction-sync-note" role="note" hidden>导入行程时，会关联已有地点，并将清单中缺少的游览地点自动加入。可展开“编辑详细内容”调整关联地点；路口、普通街道和路线等不会自动收录。</p>
+          <p class="ai-guidance" id="ai-attraction-sync-note" role="note" hidden>导入行程时，会关联已有游玩点，并将清单中缺少的游玩点自动加入。可展开“编辑详细内容”调整关联游玩点；路口、普通街道和路线等不会自动收录。</p>
           <aside id="ai-travel-guidance" class="travel-guidance" aria-labelledby="ai-guidance-title" hidden>
             <div class="travel-guidance-heading"><span class="travel-guidance-icon" aria-hidden="true">!</span><div><h3 id="ai-guidance-title">出行提示</h3><p>行程提示在确认当前城市行程后独立生成。</p></div></div>
             <ul id="ai-notices" class="ai-notices"></ul>
@@ -497,10 +497,11 @@
           <div><p class="section-kicker">本地查看</p><h2 id="export-title">导出行程</h2></div>
           <button class="icon-button" id="export-close" type="button" aria-label="关闭导出窗口">×</button>
         </div>
-        <p class="dialog-lead" id="export-description">下载已保存的行程、路线轨迹图与换乘说明，离线查看或继续编辑。路线图不含街道底图；AI 规划结果请先确认导入。</p>
+        <p class="dialog-lead" id="export-description">将整体行程和地图保存为一张图片，方便分享和离线查看。每段仅展示实际规划的起点、终点和交通方式。</p>
         <label class="field"><span>导出范围</span><select id="export-scope"><option value="city" id="export-city-option">当前城市</option><option value="all">当前项目的全部城市</option></select></label>
-        <p class="export-note">包含日期、时间、城市、安排名称、类型、地点、备注、相关链接和已保存的出行提示。下载文件后，网页中的新修改需要重新导出。</p>
+        <p class="export-note">起终点使用路线规划中已确认的地图地点。请先保存行程并规划路线；修改后需重新导出。</p>
         <div class="export-options">
+          <button class="primary-button" id="export-image" type="button"><strong>下载整体行程图</strong><span>.png · 地图与每日行程合为一张图</span></button>
           <button class="secondary-button" id="export-word" type="button"><strong>下载 Word</strong><span>.docx · 按天阅读，适合打印</span></button>
           <button class="secondary-button" id="export-excel" type="button"><strong>下载 Excel</strong><span>.xlsx · 表格整理，方便筛选</span></button>
         </div>

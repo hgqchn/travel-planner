@@ -132,6 +132,19 @@ class AMapService:
             # Never surface/log the upstream URL containing a private key.
             raise AMapError(502, '无法连接高德服务，请检查服务器网络后重试。') from None
 
+    def static_map(self, location, zoom):
+        if not self.web_key:
+            raise AMapError(503, '请先配置高德 Web 服务 Key，再导出带地图的行程图片。')
+        body, content_type = self.fetch('restapi.amap.com', '/v3/staticmap', {
+            'key': self.web_key, 'location': coordinate(location), 'zoom': zoom,
+            'size': '1000*600', 'scale': 1, 'traffic': 0,
+        })
+        mime = content_type.split(';', 1)[0].lower()
+        if not ((mime == 'image/png' and body.startswith(b'\x89PNG\r\n\x1a\n')) or
+                (mime == 'image/jpeg' and body.startswith(b'\xff\xd8\xff'))):
+            raise AMapError(502, '高德底图生成失败，请检查静态地图权限、配额后重试。')
+        return body, mime
+
     def api(self, path, params):
         if not self.web_key:
             raise AMapError(503, '尚未配置高德 Web 服务 Key，请按 AMAP_SETUP.md 配置并重启。')

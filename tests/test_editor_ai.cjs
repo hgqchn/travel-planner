@@ -230,7 +230,7 @@ test("empty model uses backend default and empty/invalid name never submits", as
   await h.open();
   await h.generate();
   assert.equal(h.posts().length, 0);
-  assert.match(h.node("editor-ai-error").textContent, /先填写有效的地点名称/);
+  assert.match(h.node("editor-ai-error").textContent, /先填写有效的游玩点名称/);
   h.inputs.get("name").value = "长".repeat(61);
   await h.generate();
   assert.equal(h.posts().length, 0);

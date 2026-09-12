@@ -184,7 +184,7 @@ window.TripEditorAI = (() => {
       const fields = new Map(basicKeys[owner.edit.kind].map((key) => [key, dom.editForm.elements.namedItem(key)]));
       const name = fields.get("name");
       if (!name?.value.trim() || !name.checkValidity()) {
-        $("editor-ai-error").textContent = `请先填写有效的${owner.edit.kind === "attraction" ? "地点" : "美食"}名称。`;
+        $("editor-ai-error").textContent = `请先填写有效的${owner.edit.kind === "attraction" ? "游玩点" : "美食"}名称。`;
         name?.focus();
         name?.reportValidity();
         return;

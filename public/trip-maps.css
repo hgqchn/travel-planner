@@ -20,8 +20,6 @@
 .trip-map-stop { min-width: 0; background: white; border: 1px solid #dce5ef; padding: 14px; border-radius: 14px; scroll-margin-top: 16px; }
 .trip-map-search { display: flex; gap: 8px; margin-top: 12px; }
 .trip-map-search button { flex-shrink: 0; }
-.trip-map-candidates, .trip-map-search-results { display: grid; gap: 8px; margin-top: 8px; }
-.trip-map-candidates button, .trip-map-search-results button, .trip-map-selected { width: 100%; text-align: left; white-space: normal; line-height: 1.6; overflow-wrap: anywhere; }
 .trip-map-selected { margin-top: 8px; color: #167451; }
 .trip-map-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .trip-map-canvas { height: 440px; border: 1px solid #cddbea; border-radius: 16px; background: #eaf0f6; overflow: hidden; }
@@ -48,11 +46,6 @@
   .trip-overview-heading { align-items: start; flex-direction: column; gap: 4px; }
   .trip-mode-button { flex: 1; padding: 8px; }
 }
-.trip-map-evaluation { border-top: 1px solid #e2e9f3; padding-top: 8px; margin-top: 12px; }
-.trip-evaluation-state { color: #2458bd; font-weight: 650; line-height: 1.7; }
-.trip-map-day-settings { padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: #edf3fd; font-size: 13px; line-height: 1.7; }
-section.trip-map-candidates { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-section.trip-map-candidates h3 { flex-basis: 100%; }
 .trip-map-dialog [hidden] { display: none !important; }
 /* One selected leg: map → horizontal day strip → endpoint editor. */
 .trip-map-dialog { width: min(1120px, calc(100vw - 32px)); padding: 20px; }
@@ -73,8 +66,6 @@ section.trip-map-candidates h3 { flex-basis: 100%; }
 .trip-map-stop strong { display: block; }
 .trip-map-stop > button:last-child { margin-top: 10px; }
 .trip-segment, .trip-segment.is-selected, .trip-segment:focus { border: 0; border-top: 1px solid #e2e9f3; border-radius: 0; outline: 0; margin: 16px 0 0; padding: 14px 0 0; }
-.trip-map-advanced { margin-top: 16px; padding: 14px 16px; border: 1px solid #dce5ef; border-radius: 12px; background: white; }
-.trip-map-advanced > summary { cursor: pointer; color: #536781; font-size: 14px; }
 .trip-map-dialog button:focus-visible { outline: 3px solid #7397d6; outline-offset: 2px; }
 @media (max-width: 750px) {
   .trip-map-dialog { padding: 12px; width: calc(100vw - 16px); }
@@ -86,3 +77,6 @@ section.trip-map-candidates h3 { flex-basis: 100%; }
 }
 .trip-map-picker{padding:14px 16px;background:#eaf2ff;border:1px solid #adc9ec;border-radius:12px;margin:10px 0;color:#203550;font-size:14px;line-height:1.6}.trip-map-picker p{margin:6px 0 10px}.trip-map-picker button{margin-right:10px}.trip-map-pick-pin{background:#b95017;box-shadow:0 0 0 4px #ffffffb3}
 .trip-map-stop>.trip-map-pick-button{display:block;margin:10px 0}
+
+.trip-map-search-results { display: grid; gap: 8px; margin-top: 8px; }
+.trip-map-search-results button, .trip-map-selected { width: 100%; text-align: left; white-space: normal; line-height: 1.6; overflow-wrap: anywhere; }

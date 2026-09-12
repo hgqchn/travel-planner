@@ -66,7 +66,7 @@ function harness(options = {}) {
   state.revision = 1;
   const document = { city_id: 'shanghai', date: '2026-09-12', version: 'v1', visits: state.items.itinerary, settings: { start_time: '09:00', end_time:'20:00', buffer_minutes:10, buffer_ratio:.2, leg_modes:{}, start_anchor:null, end_anchor:null }, blocks: [{id:'morning',label:'上午',start:'09:00'}] };
   if (options.setup) options.setup(document);
-  let failure = null, evaluations = null, candidateOrders = null, refreshes = 0;
+  let failure = null, refreshes = 0;
   const clone = value => JSON.parse(JSON.stringify(value));
   let handler = async payload => ({ duration: payload.mode === 'walking' ? 1200 : 600, distance: 1000, parts: [[[121, 31], [121.1, 31.1]]], instructions: ['按路标步行'], incomplete: false });
   const env = { window: { AMap, TripProject: { id: 'main' } }, AMap, state, AbortController, Date, console, setTimeout, clearTimeout,
@@ -83,19 +83,6 @@ function harness(options = {}) {
         Object.assign(document.settings,payload.settings || {});
         document.routes = [];
         document.version = 'v'+(Number(document.version.slice(1))+1); return {data:clone(document)};
-      }
-      if (url.endsWith('/evaluate')) {
-        assert.equal(payload.version,document.version);
-        const order = document.visits.filter(v=>!v.is_backup).sort((a,b)=>a.position-b.position).map(v=>v.id);
-        const orders = candidateOrders || (payload.optimize ? [order,[...order].reverse()] : [order]);
-        const candidates = orders.map((order,i)=>({candidate_ref:'c'+i,order,evaluation:{time_fit:'fits',route_status:'checked',constraint_status:'needs_verification',travel_minutes:20,buffer_minutes:20,slack_minutes:40,issues:[{code:'hours',message:'开放时间待核实'}], rows:[],legs:order.slice(0,-1).map((from_ref,j)=>({from_ref,to_ref:order[j+1],mode:document.settings.leg_modes[JSON.stringify([from_ref,order[j+1]])]||'transit',result:{duration:600,distance:1000,parts:[[[121,31],[121.1,31.1]]],instructions:['测试路线']},status:'checked',departure:{minutes:600+j*80,provisional:false}}))}}));
-        evaluations = {version:document.version,candidates}; return {data:clone(evaluations)};
-      }
-      if (url.endsWith('/apply')) {
-        assert.equal(payload.version,document.version);
-        const candidate = evaluations.candidates.find(c=>c.candidate_ref===payload.candidate_ref);
-        candidate.order.forEach((id,i)=>{document.visits.find(v=>v.id===id).position=i;});
-        document.settings.order_mode='manual'; document.version='v'+(Number(document.version.slice(1))+1); return {data:clone(document)};
       }
       if (url.endsWith('config')) return { data: { enabled: true, max_stops: 12 } };
       if (url.endsWith('search')) return { data: { places: [{ name: payload.keywords, address: '上海', location: `121.${payload.keywords === '甲' ? 1 : payload.keywords === '乙' ? 2 : 3},31` }] } };
@@ -124,7 +111,7 @@ function harness(options = {}) {
     await click(card(), '搜索地点');
     await click(card(), `${['甲', '乙', '丙'][i]} · 上海`);
   }
-  return { env, get, panel, maps, routes, click, confirm, requests, document, setFailure: error=>{failure=error;}, setOrders: orders=>{candidateOrders=orders;}, get refreshes(){return refreshes;}, setHandler: fn => { handler = fn; },
+  return { env, get, panel, maps, routes, click, confirm, requests, document, setFailure: error=>{failure=error;}, get refreshes(){return refreshes;}, setHandler: fn => { handler = fn; },
     open: () => env.window.TripMaps.open('2026-09-12'), summary: () => get('.trip-map-summary').textContent };
 }
 
@@ -209,31 +196,15 @@ test('mode changes save a directed stable pair and independently query without t
   await h.click(h.panel(0),'步行');
   assert.equal(h.document.settings.leg_modes['["0","1"]'],'walking'); assert.equal(h.routes().length,0); await h.click(h.panel(0),'规划本段路线'); assert.equal(h.routes().length,1);
   assert.equal(h.document.routes[0].mode,'walking'); assert.match(h.summary(),/1\/2.*未包含/);
-  assert.match(h.get('.trip-map-evaluation').textContent,/分段路线参考/);
 });
-test('independent result never replaces full server feasibility, even if all routes exist', async () => {
-  const h=harness(); await h.open(); for(let i=0;i<3;i++) await h.confirm(i);
-  await h.click(h.get('dialog'),'核算全天');
-  assert.match(h.get('.trip-map-evaluation').textContent,/时长可容纳.*约束待核实/);
-  assert.match(h.get('.trip-map-evaluation').textContent,/开放时间待核实/);
-  await h.click(h.panel(0),'重新规划本段');
-  assert.match(h.get('.trip-map-evaluation').textContent,/尚未核算完整日程/);
-  assert.match(h.panel(0).textContent,/单段参考/);
-});
-test('optimization is preview-only; only applying chosen server candidate changes shared order', async () => {
-  const h=harness(); await h.open();
-  await h.click(h.get('dialog'),'优化顺序');
-  await h.click(h.get('.trip-map-candidates'),'预览方案 2');
-  assert.match(h.get('.trip-map-timeline').textContent,/1\. 丙/);
-  assert.equal(h.requests.some(r=>r.url.endsWith('/apply')),false); assert.deepEqual(h.document.visits.map(v=>v.position),[0,1,2]);
-  await h.click(h.get('dialog'),'应用此方案');
-  assert.equal(h.requests.find(r=>r.url.endsWith('/apply')).payload.candidate_ref,'c1');
-  assert.deepEqual(h.document.visits.map(v=>v.position),[2,1,0]); assert.equal(h.get('dialog').open,true);
-});
-test('return from preview never sends apply or writes a new order', async () => {
-  const h=harness(); await h.open(); await h.click(h.get('dialog'),'优化顺序'); await h.click(h.get('.trip-map-candidates'),'预览方案 2');
-  await h.click(h.get('dialog'),'返回已保存顺序');
-  assert.match(h.get('.trip-map-timeline').textContent,/1\. 甲/); assert.equal(h.requests.some(r=>r.method==='PUT'||r.url.endsWith('/apply')),false);
+test('route planning has no budget or order optimization actions and preserves order', async () => {
+  const h=harness(); await h.open(); await h.confirm(0); await h.confirm(1);
+  assert.equal(h.get('.trip-map-advanced'),null);
+  assert.doesNotMatch(h.get('dialog').textContent,/全天预算|核算全天|优化顺序|应用此方案|返回已保存顺序/);
+  await h.click(h.panel(0),'规划本段路线');
+  assert.equal(h.requests.some(r=>/\/(evaluate|apply)$/.test(r.url)),false);
+  assert.deepEqual(h.document.visits.map(v=>v.position),[0,1,2]);
+  assert.equal(h.document.routes.length,1);
 });
 test('409 preserves search drafts, disables stale actions and requires explicit reload', async () => {
   const h=harness(); await h.open();
@@ -247,8 +218,8 @@ test('409 preserves search drafts, disables stale actions and requires explicit 
   assert.equal(h.get('.trip-map-stops').children[0].querySelectorAll('input')[0].value,'甲');
 });
 
-test('settings-only remote revision invalidates evaluation even with unchanged itinerary payload', async () => {
-  const h=harness(); await h.open(); await h.click(h.get('dialog'),'核算全天');
+test('settings-only remote revision invalidates routes even with unchanged itinerary payload', async () => {
+  const h=harness(); await h.open(); for(let i=0;i<3;i++) await h.confirm(i); await h.click(h.panel(0),'规划本段路线'); await h.click(h.panel(1),'规划本段路线');
   h.document.version='v2'; h.document.settings.buffer_minutes=30; h.env.state.revision++;
   await h.env.window.TripMaps.sync();
   assert.match(h.get('.trip-map-status').textContent,/已被修改/); assert.equal(h.get('[data-reload]').hidden,false);
@@ -261,7 +232,7 @@ test('legacy activities block precise route queries instead of guessing location
   assert.equal(h.routes().length,0); assert.match(h.get('.trip-map-status').textContent,/拆分/);
 });
 test('overview and polyline navigation still focus the referenced panel with server results', async () => {
-  const h=harness(); await h.open(); await h.click(h.get('dialog'),'核算全天');
+  const h=harness(); await h.open(); for(let i=0;i<3;i++) await h.confirm(i); await h.click(h.panel(0),'规划本段路线'); await h.click(h.panel(1),'规划本段路线');
   h.get('.trip-map-timeline').querySelectorAll('.trip-overview-leg')[1].events.click(); assert.equal(h.panel(1).focused,true);
   assert.equal(h.maps[0].overlays.filter(x=>x.options.path).length,1); h.maps[0].overlays.filter(x=>x.options.path)[0].events.click(); assert.equal(h.panel(1).focused,true);
 });

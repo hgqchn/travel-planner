@@ -67,7 +67,7 @@ test('delete confirms scope and uses the visible version',async()=>{
   const h=harness();await h.remove();
   assert.match(h.confirmations[0],/上海 · 2030-01-01/);
   assert.match(h.confirmations[0],/0 项安排/);
-  assert.match(h.confirmations[0],/地点、美食清单及其他日期保留/);
+  assert.match(h.confirmations[0],/游玩点、美食清单及其他日期保留/);
   assert.deepEqual(h.requests[0],{url:'/api/day-plan',method:'DELETE',body:{city_id:'shanghai',date:'2030-01-01',version:'visible-version'}});
   assert.equal(h.refreshes(),1);
 });

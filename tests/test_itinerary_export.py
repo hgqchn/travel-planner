@@ -63,7 +63,8 @@ class ExportFormatTests(unittest.TestCase):
                 images=[name for name in archive.namelist() if name.endswith('.png')]
                 self.assertEqual(len(images),1)
                 self.assertTrue(archive.read(images[0]).startswith(b'\x89PNG'))
-            self.assertIn('沿河向北步行',content(body))
+            self.assertNotIn('沿河向北步行',content(body))
+            self.assertIn('起点公园 → 终点广场 · 步行', content(body))
             self.assertTrue(any(node.attrib.get('Type','').endswith('/image') for root in parts.values() for node in root.iter()))
 
     def test_excel_typed_dates_times_and_formula_like_text(self):
@@ -159,6 +160,31 @@ class ExportApiTests(unittest.TestCase):
             self.download(opener=opener_with_cookies())
         self.assertEqual(error.exception.code, 401)
         self.assertEqual(json.loads(error.exception.read())['code'], 'PROJECT_LOCKED')
+
+    def test_image_snapshot_endpoint_and_locked_access(self):
+        from unittest.mock import patch
+        from route_image import route_map
+        self.add('shanghai', '游览安排')
+        with server.connect_db(self.running.httpd.db_path) as db:
+            row = db.execute("SELECT id,payload FROM items WHERE kind='itinerary'").fetchone()
+            payload = json.loads(row['payload'])
+            payload['poi'] = dict(name='实际景区东门', location='121.4,31.2', address='入口')
+            db.execute('UPDATE items SET payload=? WHERE id=?', (json.dumps(payload), row['id']))
+        # Valid image bytes from an existing fixture; no external map requests.
+        png = route_map(dict(settings={}, visits=[], routes=[dict(from_ref='a', to_ref='b', mode='walking',
+            result=dict(duration=60, parts=[[[121.4,31.2],[121.5,31.3]]]))]))[0]
+        with patch.object(self.running.httpd.amap_service, 'static_map', return_value=(png, 'image/png')) as service:
+            response, body = self.download('format=image&scope=all')
+            data = json.loads(body)
+            self.assertIn('application/json', response.headers['Content-Type'])
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertEqual(data['days'][0]['stops'], ['1. 实际景区东门'])
+            self.assertTrue(data['map']['image'].startswith('data:image/png;base64,'))
+            service.assert_called_once()
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                self.download('format=image&scope=all', opener=opener_with_cookies())
+            self.assertEqual(caught.exception.code, 401)
+            service.assert_called_once()
 
     def test_projects_are_isolated_for_both_header_and_query_selection(self):
         self.add('shanghai', '主项目专属安排')

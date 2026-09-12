@@ -9,10 +9,10 @@ const CATEGORY = {
     accent: "#315ca8",
   },
   attraction: {
-    title: "地点",
+    title: "游玩点",
     kicker: "一起挑选",
-    description: "地点信息和攻略链接都可以共同修改。",
-    addLabel: "添加地点",
+    description: "游玩点信息和攻略链接都可以共同修改。",
+    addLabel: "添加游玩点",
     accent: "#f05b3f",
   },
   food: {
@@ -42,9 +42,9 @@ const FIELDS = {
     { key: "category", label: "类型", maxlength: 30, placeholder: "例如：地点 / 用餐 / 交通" },
     { key: "location", label: "地点", maxlength: 120, placeholder: "例如：外滩观景平台" },
     {
-      key: "attraction_names", label: "关联地点", attractionNames: true, multiline: true, maxlength: 1000,
+      key: "attraction_names", label: "关联游玩点", attractionNames: true, multiline: true, maxlength: 1000,
       placeholder: "例如：故宫博物院、景山公园",
-      help: "用顿号、逗号或换行分隔，最多 12 个地点。留空时按地点自动识别游览地点；路口、普通街道、路线等不会自动收录。可点选已有地点，或明确填写历史街区等游览目的地；保存后缺少的地点会自动加入清单。",
+      help: "用顿号、逗号或换行分隔，最多 12 个游玩点。留空时按地点自动识别游玩点；路口、普通街道、路线等不会自动收录。可点选已有游玩点，或明确填写历史街区等游览目的地；保存后缺少的游玩点会自动加入清单。",
     },
     {
       key: "notes",
@@ -64,7 +64,7 @@ const FIELDS = {
   ],
   attraction: [
     { key: "navigation_link", label: "导航链接", maxlength: 500, type: "url", placeholder: "留空时按名称打开高德地图" },
-    { key: "name", label: "地点名称", required: true, maxlength: 60, placeholder: "例如：外滩风景区" },
+    { key: "name", label: "游玩点名称", required: true, maxlength: 60, placeholder: "例如：外滩风景区" },
     {
       key: "scenic_rating", label: "景区级别", type: "select",
       options: [{ value: "", label: "自动匹配 / 暂不填写" }, { value: "4A", label: "4A" }, { value: "5A", label: "5A" }],
@@ -434,9 +434,10 @@ function itineraryCard(item, { showTimeBlock = true } = {}) {
     row.append(element("dt", "", "地点"), location);
     details.append(row);
   }
-  const hours = item.opening_start && item.opening_end ? `${item.opening_start}–${item.opening_end}` : "待补充";
+  const hours = item.opening_start === "00:00" && item.opening_end === "23:59" ? "全天开放"
+    : item.opening_start && item.opening_end ? `${item.opening_start}–${item.opening_end}` : "待补充";
   const hoursRow = element("div", "detail-row");
-  hoursRow.append(element("dt", "", "开放时间"), element("dd", "", `${hours}${item.opening_note ? `（${item.opening_note}）` : ""}`));
+  hoursRow.append(element("dt", "", "开放时间"), element("dd", "", hours));
   details.append(hoursRow);
   if (item.visit_kind === "legacy") {
     const legacyRow = element("div", "detail-row");
@@ -445,15 +446,15 @@ function itineraryCard(item, { showTimeBlock = true } = {}) {
   body.append(details);
   if (links.length) {
     const related = element("div", "itinerary-attractions");
-    related.append(element("span", "itinerary-attractions-label", "已关联地点"));
+    related.append(element("span", "itinerary-attractions-label", "已关联游玩点"));
     for (const link of links) {
       const button = element("button", "linked-attraction-chip", link.name);
       button.type = "button";
-      button.setAttribute("aria-label", `查看并编辑地点：${link.name}`);
+      button.setAttribute("aria-label", `查看并编辑游玩点：${link.name}`);
       button.addEventListener("click", () => {
         const attraction = (state.items.attraction || []).find(candidate => candidate.id === link.id && candidate.city_id === item.city_id);
         if (attraction) openEditor("attraction", attraction);
-        else showToast("地点已发生变化，请刷新后重试。");
+        else showToast("游玩点已发生变化，请刷新后重试。");
       });
       related.append(button);
     }
@@ -672,7 +673,7 @@ function renderActivity() {
     return;
   }
   const actionLabel = { create: "添加了", update: "更新了", delete: "删除了" };
-  const kindLabel = { itinerary: "行程", attraction: "地点", transit: "线路", food: "美食" };
+  const kindLabel = { itinerary: "行程", attraction: "游玩点", transit: "线路", food: "美食" };
   for (const activity of state.activity.filter((entry) => entry.city_id === state.cityId)) {
     const item = element("li");
     const avatar = element("span", "activity-avatar", activity.user_id.slice(0, 1).toUpperCase());
@@ -711,7 +712,7 @@ function render() {
   dom.sectionTitle.textContent = meta.title;
   dom.sectionDescription.textContent = meta.description;
   const count = (kind) => state.items[kind].filter((item) => item.city_id === state.cityId).length;
-  dom.tripStats.textContent = `${count("itinerary")} 项行程 · ${count("attraction")} 个地点 · ${count("food")} 种美食`;
+  dom.tripStats.textContent = `${count("itinerary")} 项行程 · ${count("attraction")} 个游玩点 · ${count("food")} 种美食`;
   document.querySelector(".eyebrow").textContent = `共享旅行清单 · ${state.cities.find((city) => city.id === state.cityId)?.name || "选择城市"}`;
   dom.identityLabel.textContent = state.userId || "设置 ID";
 
@@ -771,16 +772,16 @@ function parseAttractionNames(value) {
 
 function attractionNamesError(value) {
   const names = parseAttractionNames(value);
-  if (names.length > 12) return "每项行程最多关联 12 个地点。";
-  if (names.some(name => [...name].length > 60)) return "每个关联地点名称不能超过 60 个字。";
-  if (names.some(name => /[\u0000-\u001f\u007f]/.test(name))) return "关联地点名称不能包含控制字符。";
+  if (names.length > 12) return "每项行程最多关联 12 个游玩点。";
+  if (names.some(name => [...name].length > 60)) return "每个关联游玩点名称不能超过 60 个字。";
+  if (names.some(name => /[\u0000-\u001f\u007f]/.test(name))) return "关联游玩点名称不能包含控制字符。";
   return "";
 }
 
 function enhanceAttractionNames(wrapper, input, cityId) {
   const suggestions = element("div", "attraction-name-suggestions");
   suggestions.setAttribute("role", "group");
-  suggestions.setAttribute("aria-label", "点选已有地点");
+  suggestions.setAttribute("aria-label", "点选已有游玩点");
   const names = [...new Set((state.items.attraction || []).filter(item => item.city_id === cityId).map(item => item.name).filter(name => typeof name === "string" && name.trim()))];
   const refresh = () => {
     input.setCustomValidity(attractionNamesError(input.value));
@@ -804,7 +805,7 @@ function enhanceAttractionNames(wrapper, input, cityId) {
   input.addEventListener("change", refresh);
   refresh();
   if (names.length) {
-    wrapper.append(element("small", "", "点选已有地点（可多选）"), suggestions);
+    wrapper.append(element("small", "", "点选已有游玩点（可多选）"), suggestions);
   }
 }
 
@@ -1382,7 +1383,7 @@ function registerWebMcpTools() {
         {
           name: "get_trip_plan_snapshot",
           title: "读取旅行计划",
-          description: "读取当前共享项目中的行程、地点、公共交通和美食条目。",
+          description: "读取当前共享项目中的行程、游玩点、公共交通和美食条目。",
           inputSchema: { type: "object", properties: {}, additionalProperties: false },
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute() {
@@ -1403,8 +1404,8 @@ function registerWebMcpTools() {
       context.registerTool(
         {
           name: "add_attraction_to_trip_plan",
-          title: "添加当前城市地点",
-          description: "以当前用户身份向共享计划添加一个地点，并刷新可见列表。",
+          title: "添加当前城市游玩点",
+          description: "以当前用户身份向共享计划添加一个游玩点，并刷新可见列表。",
           inputSchema: {
             type: "object",
             properties: {
@@ -1454,7 +1455,7 @@ function registerWebMcpTools() {
               title: { type: "string", minLength: 1, maxLength: 80 },
               category: { type: "string", maxLength: 30 },
               location: { type: "string", maxLength: 120 },
-              attraction_names: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 60 }, description: "本项行程游览的地点名称，留空自动识别；不包含路口、普通街道或交通路线。" },
+              attraction_names: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 60 }, description: "本项行程关联的游玩点名称，留空自动识别；不包含路口、普通街道或交通路线。" },
               notes: { type: "string", maxLength: 600 },
               link: { type: "string", maxLength: 500 },
             },

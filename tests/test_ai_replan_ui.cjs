@@ -12,6 +12,8 @@ const fields = [
   { key: "title", required: true },
   { key: "start_time" },
   { key: "location" },
+  { key: "opening_start", type: "time" },
+  { key: "opening_end", type: "time" },
   { key: "attraction_names", label: "关联景点", attractionNames: true, multiline: true },
 ];
 
@@ -177,7 +179,21 @@ test("AI preview edits linked attraction names as an array and reports automatic
   field.value = '外滩，上海博物馆\n外滩';
   await h.apply();
   assert.deepEqual(h.imports()[0].body.items[0].data.attraction_names, ['外滩', '上海博物馆']);
-  assert.match(h.node('ai-status').textContent, /自动补充 2 个行程[景地]点/);
+  assert.match(h.node('ai-status').textContent, /自动补充 2 个(?:行程[景地]点|游玩点)/);
+});
+
+test("AI preview preserves opening hours and marks edited hours as user input", async () => {
+  for (const edited of [false, true]) {
+    const job=readyJob('append');
+    Object.assign(job.result.itineraries[0], {duplicate:false, opening_start:'00:00', opening_end:'23:59', opening_source:'ai_estimate'});
+    const h=harness({storedJob:job}); await h.click('ai-open');
+    if (edited) h.cards()[0].querySelector('[name$=":opening_end"]').value='18:00';
+    await h.apply();
+    const data=h.imports()[0].body.items[0].data;
+    assert.equal(data.opening_start,'00:00');
+    assert.equal(data.opening_end,edited ? '18:00' : '23:59');
+    assert.equal(data.opening_source,edited ? 'user' : 'ai_estimate');
+  }
 });
 
 test("old AI previews omit no relationship field and import an empty array", async () => {

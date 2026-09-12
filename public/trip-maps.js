@@ -58,19 +58,13 @@ const TripMapPlan = (() => {
     // Local estimates never account for all protected blocks/anchors/constraints.
     return { minutes: ready, provisional: true, context: known ? 'estimated-prefix' : 'missing-prefix' };
   }
-  function candidateLegs(stops, candidate, selected) {
-    return segments(stops, selected).map(leg => {
-      const result = (candidate.evaluation.legs || []).find(x => x.from_ref === leg.from_ref && x.to_ref === leg.to_ref);
-      return result ? { ...leg, ...result, id: leg.id, source: 'evaluation' } : leg;
-    });
-  }
-  return { minutes, clock, pair, nodes, segments, bufferFor, referenceDeparture, candidateLegs };
+  return { minutes, clock, pair, nodes, segments, bufferFor, referenceDeparture };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = TripMapPlan;
 if (typeof window !== 'undefined') window.TripMaps = (() => {
   let dialog, view, map, sdkPromise, controller, generation = 0, busy = false, enabled = false;
   let plan = null, stops = [], legs = [], day = '', signature = '', activeScope = '', observedRevision = null;
-  let saving = false, checking = false, conflicted = false, preview = null, evaluated = null, candidates = [], selectedLeg = -1;
+  let saving = false, checking = false, conflicted = false, selectedLeg = -1;
   let routeLines = [], showWholeRoute = true, overview = null;
   let picking = null, pickMarker = null;
   const drafts = new Map();
@@ -96,19 +90,13 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   }
   function setBusy(value) {
     busy = value;
-    dialog.querySelectorAll('button:not([data-map-close]):not([data-map-nav]), input').forEach(n => { n.disabled = busy || !enabled || conflicted || !!preview; });
+    dialog.querySelectorAll('button:not([data-map-close]):not([data-map-nav]), input').forEach(n => { n.disabled = busy || !enabled || conflicted; });
     view.reload.disabled = busy; view.reload.hidden = !conflicted;
-    view.apply.disabled = busy || conflicted || !preview; view.apply.hidden = !preview;
-    view.restore.disabled = busy || conflicted; view.restore.hidden = !preview;
-    view.candidates.querySelectorAll('button').forEach(n => { n.disabled = busy || conflicted; });
   }
   function clearLeg(leg, status = 'idle') { leg.result = null; leg.status = status; leg.error = ''; leg.departure = null; leg.source = 'reference'; }
-  function clearAssessment() { evaluated = null; candidates = []; preview = null; view.candidates.replaceChildren(); }
   function refDeparture(i) {
     const leg = legs[i];
     if (leg.source === 'evaluation' && leg.result) return leg.departure;
-    const serverLeg = evaluated?.evaluation.legs?.find(x => x.from_ref === leg.from_ref && x.to_ref === leg.to_ref);
-    if (serverLeg?.departure && Number.isFinite(serverLeg.departure.minutes)) return serverLeg.departure;
     return TripMapPlan.referenceDeparture(stops, legs, stops.findIndex(s => s.id === leg.from_ref), plan);
   }
   function reconcile() {
@@ -122,8 +110,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     cancelPick();
     if (!next || typeof next.version !== 'string' || !Array.isArray(next.visits) || !next.settings) throw new Error('每日计划返回格式无效。');
     const oldStops = stops, oldDate = plan?.date, selectedId = legs[selectedLeg]?.id;
-    plan = next; stops = TripMapPlan.nodes(plan); clearAssessment();
-    if (plan.evaluation?.legs?.length) evaluated = { evaluation: plan.evaluation };
+    plan = next; stops = TripMapPlan.nodes(plan);
     const savedLegs = (plan.routes || []).map(l => ({ ...l, id: TripMapPlan.pair(l.from_ref, l.to_ref) }));
     legs = TripMapPlan.segments(stops, plan.settings.leg_modes || {}, savedLegs);
     legs.forEach(leg => {
@@ -137,7 +124,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   }
   function markConflict(text = '当天计划已被修改。当前输入保留，请载入最新日计划后再保存或规划。') {
     cancelPick();
-    conflicted = true; generation++; controller?.abort(); clearAssessment(); legs.forEach(l => clearLeg(l, 'stale'));
+    conflicted = true; generation++; controller?.abort(); legs.forEach(l => clearLeg(l, 'stale'));
     busy = false; saving = false; checking = false; render(); message(text);
   }
   async function afterOwnSave(token) {
@@ -148,14 +135,14 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     signature = nextSignature; observedRevision = revision; return true;
   }
   async function savePatch(body, onSaved = null) {
-    if (busy || conflicted || preview || !enabled) return false;
+    if (busy || conflicted || !enabled) return false;
     const token = generation; saving = true; setBusy(true); let written = false;
     try {
       const next = await dayRequest('PUT', '', body); if (!valid(token)) return false;
       written = true;
       adopt(next, true);
       if (!await afterOwnSave(token)) return false;
-      message('已保存到共享日计划。全天核算需要按最新设置重新进行。');
+      message('已保存到共享日计划。');
     } catch (error) {
       if (valid(token)) {
         if (error.status === 409) markConflict();
@@ -199,25 +186,21 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       <section class="trip-map-main" aria-label="当天路线地图"><div class="trip-map-canvas" aria-label="高德地图"></div><div class="trip-map-picker" role="status" hidden></div></section>
       <section class="trip-map-overview" aria-label="今天整体行程"><div class="trip-overview-heading"><h3>当天行程</h3><button type="button" class="secondary-button" data-map-nav data-fit>查看全程地图</button></div><p class="trip-map-summary"></p><div class="trip-map-timeline" aria-label="左右滑动选择行程或路段"></div></section>
       <p class="trip-map-status" role="status" aria-live="polite"></p><button type="button" class="secondary-button" data-map-nav data-reload hidden>载入最新日计划</button>
-      <section class="trip-map-editor" aria-label="当前路段规划"><div class="trip-map-stops"></div><div class="trip-map-segments"></div></section>
-      <details class="trip-map-advanced"><summary>全天预算与顺序优化</summary><p class="trip-map-note">需要检查整天是否安排得下时，再核算全天交通、停留和余量。</p><div class="trip-map-day-settings"></div><div class="trip-map-actions"><button class="secondary-button" type="button" data-evaluate>核算全天</button><button class="secondary-button" type="button" data-optimize>优化顺序</button></div><div class="trip-map-evaluation"></div>
-      <section class="trip-map-candidates" aria-label="顺序优化候选"></section><div class="trip-map-actions"><button type="button" class="primary-button" data-map-nav data-apply hidden>应用此方案</button><button type="button" class="secondary-button" data-map-nav data-restore hidden>返回已保存顺序</button></div></details>`;
+      <section class="trip-map-editor" aria-label="当前路段规划"><div class="trip-map-stops"></div><div class="trip-map-segments"></div></section>`;
     document.body.append(dialog);
     const q = selector => dialog.querySelector(selector);
     view = { picker: q('.trip-map-picker'), status: q('.trip-map-status'), list: q('.trip-map-stops'), segments: q('.trip-map-segments'), summary: q('.trip-map-summary'),
-      evaluation: q('.trip-map-evaluation'), timeline: q('.trip-map-timeline'), canvas: q('.trip-map-canvas'), overview: q('.trip-map-overview'),
-      candidates: q('.trip-map-candidates'), daySettings: q('.trip-map-day-settings'), reload: q('[data-reload]'), apply: q('[data-apply]'), restore: q('[data-restore]') };
+      timeline: q('.trip-map-timeline'), canvas: q('.trip-map-canvas'), overview: q('.trip-map-overview'),
+      reload: q('[data-reload]') };
     q('[data-map-close]').addEventListener('click', () => dialog.close());
     q('[data-fit]').addEventListener('click', () => { showWholeRoute = true; drawMap(); view.canvas.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
-    view.reload.addEventListener('click', reloadPlan); view.apply.addEventListener('click', applyCandidate);
-    view.restore.addEventListener('click', () => { const saved = plan; adopt(saved); message('已返回保存的顺序，候选未应用。'); });
-    q('[data-evaluate]').addEventListener('click', () => evaluate(false)); q('[data-optimize]').addEventListener('click', () => evaluate(true));
+    view.reload.addEventListener('click', reloadPlan);
     dialog.addEventListener('close', () => {
       cancelPick();
       generation++; controller?.abort(); map?.destroy(); map = null; plan = null; stops = []; legs = []; routeLines = [];
-      busy = enabled = saving = checking = conflicted = false; preview = evaluated = null; candidates = [];
+      busy = enabled = saving = checking = conflicted = false;
       drafts.clear();
-      [view.canvas, view.list, view.timeline, view.segments, view.candidates, view.evaluation, view.summary, view.daySettings].forEach(n => n.replaceChildren());
+      [view.canvas, view.list, view.timeline, view.segments, view.summary].forEach(n => n.replaceChildren());
       if (state.projectUnlocked) fetchSnapshot(true, true).catch(() => {});
     });
   }
@@ -271,7 +254,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     setBusy(busy);
   }
   function startPick(stop, label) {
-    if (busy || conflicted || preview || !enabled || !map) return;
+    if (busy || conflicted || !enabled || !map) return;
     cancelPick(); picking = { stop, label, token: generation, poi: null }; renderPicker();
     if (stop.poi) map.setZoomAndCenter(16, stop.poi.location.split(',').map(Number));
     view.canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -280,7 +263,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     if (event?.lnglat) pickLocation([event.lnglat.getLng(), event.lnglat.getLat()]);
   }
   function pickLocation(coords, existing = null) {
-    if (!picking || busy || preview || !valid(picking.token)) return;
+    if (!picking || busy || !valid(picking.token)) return;
     if (coords.length !== 2 || !coords.every(Number.isFinite) || Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) return;
     const location = coords.map(n => n.toFixed(6)).join(',');
     picking.poi = existing ? { ...existing, location } : { id: '', name: `${picking.stop.name.slice(0, 105)}（地图选点）`, address: `地图选点 · ${location}`, location };
@@ -295,26 +278,13 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     if (!leg.result) return '待规划';
     return `约 ${Math.ceil(leg.result.duration / 60)} 分钟${leg.result.distance == null ? '' : ` · ${(leg.result.distance / 1000).toFixed(1)} 公里`}`;
   }
-  function renderEvaluation() {
-    view.evaluation.replaceChildren();
-    if (!plan.settings.start_anchor || !plan.settings.end_anchor) view.evaluation.append(el('p', 'trip-map-warning', '仅核算已提供地点间交通，首末接驳未完整计入；请在每日设置补充起终点。'));
-    if (!evaluated) { view.evaluation.append(el('p', 'trip-map-note', '当前为分段路线参考，尚未核算完整日程。')); return; }
-    const e = evaluated.evaluation;
-    const fits = { fits: '时长可容纳', tight: '安排偏紧', overflow: '时长超出', unknown: '时长待核实' };
-    const routes = { checked: '路线已核算', partial: '路线部分完成', unavailable: '路线不可用', stale: '路线已过期' };
-    const constraints = { clear: '已知约束无冲突', needs_verification: '约束待核实', conflict: '约束冲突' };
-    view.evaluation.append(el('p', 'trip-evaluation-state', `${fits[e.time_fit] || '时长待核实'} · ${routes[e.route_status] || '路线待核实'} · ${constraints[e.constraint_status] || '约束待核实'}`));
-    if (Number.isFinite(e.travel_minutes)) view.evaluation.append(el('p', 'trip-map-note', `交通 ${e.travel_minutes} 分钟 · 缓冲 ${e.buffer_minutes ?? '待核实'} 分钟 · 剩余机动 ${e.slack_minutes ?? '待核实'} 分钟`));
-    for (const issue of e.issues || []) view.evaluation.append(el('p', 'trip-map-warning', issue.message));
-  }
   function blockName(stop) { return (plan.blocks || []).find(b => b.id === stop.block)?.label || stop.block || '待安排时段'; }
   function render() {
     if (!plan) { setBusy(busy); return; }
     const timelineScroll = view.timeline.scrollLeft;
     const done = legs.filter(l => l.result).length, total = legs.reduce((n, l) => n + (l.result ? Math.ceil(l.result.duration / 60) : 0), 0);
-    view.summary.textContent = `${preview ? '候选预览 · ' : ''}${done}/${legs.length} 段已查询${done ? ` · 已查询交通约 ${total} 分钟` : ' · 交通耗时待查询'}${done < legs.length ? '（未包含待规划路段）' : ''}`;
-    renderEvaluation(); view.timeline.replaceChildren(); view.segments.replaceChildren();
-    view.daySettings.textContent = `当天 ${plan.settings.start_time}–${plan.settings.end_time} · 交通缓冲至少 ${plan.settings.buffer_minutes} 分钟，按 ${Math.round((plan.settings.buffer_ratio ?? 0.2) * 100)}% 预留。可在每日设置调整。`;
+    view.summary.textContent = `${done}/${legs.length} 段已查询${done ? ` · 已查询交通约 ${total} 分钟` : ' · 交通耗时待查询'}${done < legs.length ? '（未包含待规划路段）' : ''}`;
+    view.timeline.replaceChildren(); view.segments.replaceChildren();
     stops.forEach((stop, i) => {
       const label = stop.id === '@start' ? '出发' : stop.id === '@end' ? '返回' : `${i + 1}`;
       const point = nav(`${label}. ${name(i)}`, () => focusStop(i), 'trip-overview-stop');
@@ -338,7 +308,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       });
       panel.append(group);
       const dep = refDeparture(segmentIndex);
-      panel.append(el('p', 'trip-map-note', dep ? `${dep.provisional ? '参考' : '核算'}出发：${TripMapPlan.clock(dep.minutes)}${dep.provisional ? '（仅供独立查路参考，请核算全天）' : ''}` : '请先在每日计划拆分多地点行程。'));
+      panel.append(el('p', 'trip-map-note', dep ? `${dep.provisional ? '参考' : '核算'}出发：${TripMapPlan.clock(dep.minutes)}${dep.provisional ? '（仅供查路参考）' : ''}` : '请先在每日计划拆分多地点行程。'));
       const actions = el('div', 'trip-map-actions'); actions.append(button(leg.result ? '重新规划本段' : '规划本段路线', () => calculate(segmentIndex), 'primary-button'));
       for (const endpoint of [i, toIndex]) if (!stops[endpoint].poi) actions.append(nav(`确认地点 ${endpoint + 1}`, () => focusStop(endpoint)));
       panel.append(actions, el('p', leg.error ? 'trip-map-warning' : 'trip-segment-status', leg.error || legText(leg)));
@@ -375,7 +345,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       input.value = draft.query ?? stop.query; stop.query = input.value; input.maxLength = 100; input.setAttribute('aria-label', `搜索 ${stop.name} 的具体地点`);
       input.addEventListener('input', () => { draft.query = stop.query = input.value; });
       const search = button('搜索地点', async () => {
-        if (busy || conflicted || preview) return;
+        if (busy || conflicted) return;
         const token = generation; setBusy(true); results.replaceChildren();
         try {
           const data = await mapRequest('search', { keywords: stop.query }); if (!valid(token)) return;
@@ -410,46 +380,14 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     } catch (error) { if (valid(token)) { leg.status = 'error'; leg.error = error.message; render(); } throw error; }
   }
   async function calculate(index) {
-    if (busy || !enabled || conflicted || preview) return;
-    const token = generation; clearAssessment(); reconcile(); setBusy(true);
+    if (busy || !enabled || conflicted) return;
+    const token = generation; reconcile(); setBusy(true);
     try {
       message(`正在规划第 ${index + 1} 段…`);
       await queryLeg(index, token);
       if (valid(token)) message('本段路线已自动保存，重新打开仍可查看。点击其他行程或路段继续规划。');
     } catch (error) { if (valid(token)) { if (error.status === 409) markConflict(); else message(error.message); } }
     finally { if (valid(token)) setBusy(false); }
-  }
-  function showCandidate(candidate, isPreview) {
-    if (!candidate || !candidate.evaluation) throw new Error('候选核算结果不完整。');
-    stops = TripMapPlan.nodes(plan, candidate.order); legs = TripMapPlan.candidateLegs(stops, candidate, plan.settings.leg_modes || {});
-    evaluated = candidate; preview = isPreview ? candidate : null; selectedLeg = legs.length ? 0 : -1; renderStops(); render();
-  }
-  async function evaluate(optimize) {
-    if (busy || !enabled || conflicted || preview) return;
-    const token = generation, version = plan.version; setBusy(true);
-    message(optimize ? '正在比较候选顺序…' : '正在核算全天交通、停留和约束…');
-    try {
-      const data = await dayRequest('POST', '/evaluate', { optimize }); if (!valid(token)) return;
-      if (data.version !== version) { markConflict(); return; }
-      if (!data.candidates?.length) throw new Error('未返回可用的核算候选，请检查当天访问。');
-      candidates = data.candidates; view.candidates.replaceChildren();
-      if (optimize) {
-        view.candidates.append(el('h3', '', '顺序优化候选（尚未保存）'));
-        candidates.forEach((candidate, i) => view.candidates.append(button(`预览方案 ${i + 1}`, () => { if (!busy && !conflicted) showCandidate(candidate, true); })));
-        showCandidate(candidates[0], true); message('点击候选查看顺序和核算结果；点击“应用此方案”才更新共享日计划。');
-      } else { showCandidate(candidates[0], false); message('全天核算完成，请查看容量、路线与约束状态。'); }
-    } catch (error) { if (valid(token)) { if (error.status === 409) markConflict(); else message(error.message); } }
-    finally { if (valid(token)) setBusy(false); }
-  }
-  async function applyCandidate() {
-    if (busy || conflicted || !preview) return;
-    const token = generation; saving = true; setBusy(true); let written = false;
-    try {
-      const next = await dayRequest('POST', '/apply', { candidate_ref: preview.candidate_ref }); if (!valid(token)) return;
-      written = true; adopt(next);
-      if (await afterOwnSave(token)) message('方案已应用，共享顺序已更新。可继续调整每段交通方式。');
-    } catch (error) { if (valid(token)) { if (error.status === 409 || written) markConflict(); else message(error.message); } }
-    finally { if (valid(token)) { saving = false; setBusy(false); } }
   }
   async function open(date) {
     if (!requireIdentity()) return;

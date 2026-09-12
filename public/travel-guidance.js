@@ -50,7 +50,7 @@ window.TripGuidance = (() => {
   async function submit(deleting = false) {
     if (!editor || busy || editor.scope !== scope()) return;
     const active = editor, request = generation;
-    if (deleting && !window.confirm(`删除${active.group.city_name}的出行提示？行程、地点和美食都会保留。`)) return;
+    if (deleting && !window.confirm(`删除${active.group.city_name}的出行提示？行程、游玩点和美食都会保留。`)) return;
     if (conflict) {
       $("guidance-error").textContent = "请先核对并载入最新版，再保存或删除。";
       return;

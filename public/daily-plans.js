@@ -85,7 +85,7 @@ window.TripDaily = (() => {
   function settingsView() {
     content.replaceChildren(); dialog.querySelector("h2").textContent = `${current.date} · 确定当天行程`;
     const nav = e("div", "daily-actions");
-    nav.append(button("从地点清单添加", () => poolView()), button("AI 微调当天安排", () => aiView("daily_adjust")));
+    nav.append(button("从游玩点清单添加", () => poolView()), button("AI 微调当天安排", () => aiView("daily_adjust")));
     if (current.visits.some(v => v.duration_minutes == null)) nav.append(button("AI 补全停留时长", () => aiView("daily_duration")));
     if (current.visits.some(v => !v.opening_start && !['legacy','rest','transit'].includes(v.visit_kind))) nav.append(button("AI 补全开放时间", () => aiView("daily_hours")));
     content.append(nav);
@@ -117,7 +117,7 @@ window.TripDaily = (() => {
       const line = e("p"); line.append(e("strong", "", `${title}：`), e("span", "", description)); help.append(line);
     }
     content.append(help);
-    if (!current.visits.length) content.append(e("p", "daily-hint", "当天还没有地点。可从地点清单添加，也可保留为空白日。"));
+    if (!current.visits.length) content.append(e("p", "daily-hint", "当天还没有地点。可从游玩点清单添加，也可保留为空白日。"));
     for (const visit of current.visits) {
       const row = e("div", "daily-visit-row"); row.append(e("span", "", `${visit.position}. ${visit.title} · ${label(visit.time_block)} · ${visit.duration_minutes == null ? "待补充建议时长" : `${visit.duration_source === "ai_estimate" ? "AI 推荐 " : ""}${visit.duration_minutes} 分钟`}${visit.is_backup ? " · 备选" : ""}`));
       row.append(button("编辑", () => { dialog.close(); openEditor("itinerary", visit); }));
@@ -138,7 +138,7 @@ window.TripDaily = (() => {
     content.append(button("下一步：规划路线", () => { const date = current.date; dialog.close(); window.TripMaps?.open(date); }, "primary-button"));
   }
   function poolView(block = "") {
-    content.replaceChildren(); content.append(button("返回当天行程", settingsView), e("h3", "", "从地点清单选择"));
+    content.replaceChildren(); content.append(button("返回当天行程", settingsView), e("h3", "", "从游玩点清单选择"));
     const list = e("div", "daily-choices"), picked = new Map(); content.append(list);
     const scheduled = new Set(current.visits.flatMap(v => v.attraction_names || []));
     for (const place of state.items.attraction.filter(p => p.city_id === current.city_id && !scheduled.has(p.name))) {
@@ -146,8 +146,8 @@ window.TripDaily = (() => {
       check.addEventListener("change", () => check.checked ? picked.set(place.id, place) : picked.delete(place.id));
       row.append(check, e("span", "", `${place.name}${place.duration ? ` · ${place.duration}` : ""}${place.in_itinerary ? " · 已在其他行程安排" : ""}`)); list.append(row);
     }
-    content.append(button("添加所选地点", () => work(token => {
-      if (!picked.size) throw new Error("请先选择地点。");
+    content.append(button("添加所选游玩点", () => work(token => {
+      if (!picked.size) throw new Error("请先选择游玩点。");
       return save({ additions: [...picked.values()].map(p => ({ source_place_id: p.id, title: p.name, location: p.name, attraction_names: [p.name], visit_kind: "attraction", time_block: block })) }, token);
     }), "primary-button"), button("添加行程", () => {
       const date = current.date; dialog.close(); openEditor("itinerary"); dom.editForm.elements.namedItem("date").value = date;
@@ -296,7 +296,7 @@ window.TripDaily = (() => {
     if (!daily?.version) { showToast('请刷新行程后再删除这一天。'); return; }
     const active = scope(), cityId = state.cityId;
     const cityName = state.cities?.find(city => city.id === cityId)?.name || '当前城市';
-    if (!window.confirm(`删除 ${cityName} · ${day} 这一天？\n\n将删除当天 ${count} 项安排（含备选）、每日设置和路线核算结果。\n地点、美食清单及其他日期保留。此操作无法直接恢复。`)) return;
+    if (!window.confirm(`删除 ${cityName} · ${day} 这一天？\n\n将删除当天 ${count} 项安排（含备选）、每日设置和路线核算结果。\n游玩点、美食清单及其他日期保留。此操作无法直接恢复。`)) return;
     setDayMutation(true);
     try {
       await api('/api/day-plan', { city_id: cityId, date: day, version: daily.version }, 'DELETE');
@@ -322,8 +322,8 @@ window.TripDaily = (() => {
     workflow.append(e("p", "daily-workflow-steps", "生成或收集 → 确认草稿 → 按天安排 → 规划路线"));
     if (!items.length) {
       const choices = e("div", "daily-workflow-choices");
-      for (const [flow, title, detail] of [["full", "AI 帮我规划", "一起生成地点、美食和行程草稿，确认后再核对路线。"],
-        ["collect", "先收集地点和美食", "AI 只补充清单；再新增日期，从清单选择当天地点。"]]) {
+      for (const [flow, title, detail] of [["full", "AI 帮我规划", "一起生成游玩点、美食和行程草稿，确认后再核对路线。"],
+        ["collect", "先收集游玩点和美食", "AI 只补充清单；再新增日期，从清单选择当天地点。"]]) {
         const choice = button("", () => window.TripUI?.openPlanning(flow), "daily-workflow-choice");
         choice.append(e("strong", "", title), e("span", "", detail)); choices.append(choice);
       }
@@ -339,7 +339,7 @@ window.TripDaily = (() => {
     add.append(create);
     add.addEventListener('submit', event => { event.preventDefault(); return createDay(date.value); });
     wrapper.append(add);
-    if (!dates.length) wrapper.append(e('p', 'daily-hint', '自己安排：选择日期并新增一天，再从地点清单添加。使用 AI 整体规划时，不必提前创建日期。'));
+    if (!dates.length) wrapper.append(e('p', 'daily-hint', '自己安排：选择日期并新增一天，再从游玩点清单添加。使用 AI 整体规划时，不必提前创建日期。'));
     if (dates.length) {
       const picker = e('nav', 'daily-day-picker'); picker.setAttribute('aria-label', '按天查看行程');
       const index = dates.indexOf(selectedDate), field = e('label', 'daily-day-choice'), select = e('select', 'daily-day-select');

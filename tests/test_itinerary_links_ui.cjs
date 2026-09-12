@@ -157,17 +157,18 @@ test('explicit names deduplicate separators, preserve official punctuation and r
 test('conflict reload updates linked names while preserving explicit keep-local edits', () => {
   const h = harness(); h.env.openEditor('itinerary', { id: 'i', attraction_names: ['故宫'], version: 1 });
   h.env.showConflict({ id: 'i', attraction_names: ['景山'], version: 2 });
-  assert.match(text(h.dom.conflictDetails), /关联[景地]点的最新内容：景山/);
+  assert.match(text(h.dom.conflictDetails), /关联游玩点的最新内容：景山/);
   h.env.loadRemoteConflict(); assert.equal(h.names().value, '景山');
   h.names().value = '故宫、景山'; h.env.showConflict({ id: 'i', attraction_names: ['天坛'], version: 3 });
   h.env.keepLocalConflict(); assert.equal(h.names().value, '故宫、景山'); assert.equal(h.state.currentEdit.item.version, 3);
 });
 
-test('itinerary cards expose priority and distinguish AI opening hours from confirmed inputs', () => {
+test('itinerary cards show only opening time points, all-day hours or missing hours', () => {
   const h=harness();
   const card=h.env.itineraryCard({title:'公园',priority:'must',opening_start:'08:00',opening_end:'17:30',opening_source:'ai_estimate',opening_note:'以官方公告为准'});
-  assert.match(text(card),/优先级：必去/);assert.match(text(card),/08:00–17:30（以官方公告为准）/);
-  assert.doesNotMatch(text(card),/AI 参考，待核实/);
+  assert.match(text(card),/优先级：必去/);assert.match(text(card),/08:00–17:30/);
+  assert.doesNotMatch(text(card),/以官方公告为准|AI 参考，待核实/);
+  assert.match(text(h.env.itineraryCard({title:'外滩',opening_start:'00:00',opening_end:'23:59'})),/全天开放/);
   assert.match(text(h.env.itineraryCard({title:'未查询地点'})),/开放时间待补充/);
 });
 

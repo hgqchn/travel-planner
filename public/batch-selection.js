@@ -42,7 +42,7 @@ window.TripBatch = (() => {
     for (const id of batch.selected.keys()) if (!ids.has(id)) batch.selected.delete(id);
     $("batch-open").hidden = !visible || batch.active || !items.length;
     $("batch-toolbar").hidden = !visible || !batch.active;
-    $("batch-count").textContent = `已选 ${batch.selected.size} / ${items.length} 项${state.tab === "food" ? "美食" : "地点"}`;
+    $("batch-count").textContent = `已选 ${batch.selected.size} / ${items.length} 项${state.tab === "food" ? "美食" : "游玩点"}`;
     const allSelected = items.length > 0 && items.every((item) => batch.selected.has(item.id));
     $("batch-select-all").textContent = allSelected ? "取消全选" : (window.TripTypeFilter?.active?.() ?? window.TripTypeFilter?.selection() != null) ? "全选筛选结果" : "全选当前分类";
     $("batch-select-all").disabled = batch.deleting || !items.length;
@@ -61,7 +61,7 @@ window.TripBatch = (() => {
     checkbox.checked = batch.selected.has(item.id);
     checkbox.disabled = batch.deleting;
     checkbox.dataset.batchId = item.id;
-    checkbox.setAttribute("aria-label", `选择${kind === "food" ? "美食" : "地点"}：${item.name}`);
+    checkbox.setAttribute("aria-label", `选择${kind === "food" ? "美食" : "游玩点"}：${item.name}`);
     label.append(checkbox, element("span", "", checkbox.checked ? "已选择" : "选择此项"));
     checkbox.addEventListener("change", () => {
       if (batch.deleting) return;
@@ -100,7 +100,7 @@ window.TripBatch = (() => {
     batch.pending = { city_id: state.cityId, kind: state.tab, userId: state.userId, scope: scope(), items: Array.from(batch.selected.values(), (item) => ({ ...item })) };
     batch.conflict = false;
     const cityName = state.cities.find((city) => city.id === state.cityId)?.name || "当前城市";
-    $("batch-confirm-message").textContent = `将从“${state.projectName}”中删除${cityName}的 ${batch.pending.items.length} 项${state.tab === "food" ? "美食" : "地点"}。`;
+    $("batch-confirm-message").textContent = `将从“${state.projectName}”中删除${cityName}的 ${batch.pending.items.length} 项${state.tab === "food" ? "美食" : "游玩点"}。`;
     $("batch-confirm-error").textContent = "";
     $("batch-confirm-refresh").hidden = true;
     setDeleting(false);
