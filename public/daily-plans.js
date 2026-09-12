@@ -356,6 +356,7 @@ window.TripDaily = (() => {
     } finally { setDayMutation(false); }
   }
   function render(items) {
+    let overview = null;
     if (dialog?.open && activeScope !== scope()) dialog.close();
     const dates = [...new Set([...items.map(v => v.date), ...(state.dailyPlans || []).filter(p => p.city_id === state.cityId).map(p => p.date)])].sort();
     const previousDate = selectedDates.get(scope());
@@ -426,18 +427,15 @@ window.TripDaily = (() => {
       if (route) {
         const card = e('section','daily-route-preview'), header = e('div','daily-route-heading');
         header.append(e('h4','','当天路线'), e('span','daily-route-count',`已保存 ${route.planned}/${route.total} 段 · 交通约 ${route.minutes} 分钟`));
-        const imageButton = button('', () => window.TripMaps?.open(day), 'daily-route-image-button');
-        imageButton.setAttribute('aria-label', `查看或调整 ${day} 的已保存路线`);
-        const image = e('img','daily-route-image');
-        image.width=1000; image.height=600; image.loading='lazy'; image.decoding='async';
-        image.alt=`${day} 已保存路线轨迹图，地点编号见下方清单`;
-        image.src=window.TripProject.url(`/api/day-plan/route.png?city_id=${encodeURIComponent(state.cityId)}&date=${encodeURIComponent(day)}&v=${encodeURIComponent(route.version)}`,state.projectId);
-        const note=e('p','daily-hint',`点击路线图可查看或调整。北向上，无街道底图；${route.planned<route.total || route.incomplete ? '部分路段尚未规划或轨迹不完整。' : '耗时为规划时参考。'}`);
-        image.addEventListener('error',()=>{ image.hidden=true; note.textContent='路线图暂时无法加载，点击下方按钮查看或重新规划。'; });
-        imageButton.append(image);
+        const shell=e('div','daily-route-map-shell'), canvas=e('div','daily-route-map');
+        canvas.setAttribute('aria-label', `${day} 高德地图与已保存的全程路线`); canvas.setAttribute('aria-busy','true');
+        const mapButton=button('查看全程 · 重新规划',()=>window.TripMaps?.open(day),'daily-route-map-button');
+        mapButton.setAttribute('aria-label', `查看或调整 ${day} 的已保存路线`);
+        const note=e('p','daily-hint',`点击地图可进入路线规划。${route.planned<route.total || route.incomplete ? '部分路段尚未规划或轨迹不完整。' : '已显示全部已保存路线，耗时为规划时参考。'}`);
+        shell.append(canvas,mapButton); overview={canvas,date:day,note};
         const places=e('div','daily-route-places');
         route.stops.forEach(stop=>places.append(e('span','daily-route-place',`${stop.number}. ${stop.name}`)));
-        card.append(header,imageButton,places,note,button('查看 / 调整路线',()=>window.TripMaps?.open(day)));
+        card.append(header,shell,places,note,button('查看 / 调整路线',()=>window.TripMaps?.open(day)));
         section.append(card);
       }
       const groups = [...(visits.some(v => groupId(v) === "") ? [["", "待安排", "", ""]] : []), ...blocks,
@@ -478,6 +476,7 @@ window.TripDaily = (() => {
       wrapper.append(section);
     }
     dom.cards.replaceChildren(wrapper);
+    window.TripMaps?.mountOverview?.(overview?.canvas,overview?.date,overview?.note);
   }
   return { blocks, options, label, render, open, openHours, selectedDate: () => selectedDates.get(scope()) || '' };
 })();

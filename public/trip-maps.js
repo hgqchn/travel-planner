@@ -72,7 +72,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   let dialog, view, map, sdkPromise, controller, generation = 0, busy = false, enabled = false;
   let plan = null, stops = [], legs = [], day = '', signature = '', activeScope = '', observedRevision = null;
   let saving = false, checking = false, conflicted = false, preview = null, evaluated = null, candidates = [], selectedLeg = -1;
-  let routeLines = [];
+  let routeLines = [], showWholeRoute = true, overview = null;
   let picking = null, pickMarker = null;
   const drafts = new Map();
   const modes = { transit: '公交 / 地铁', walking: '步行', bicycling: '骑行', driving: '驾车' };
@@ -186,7 +186,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   function focusLeg(i) {
     if (!legs[i]) return;
     cancelPick();
-    selectedLeg = i; renderStops(); render();
+    showWholeRoute = false; selectedLeg = i; renderStops(); render();
     view.segments.children[0]?.focus({ preventScroll: true });
   }
   function focusStop(i) {
@@ -213,7 +213,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
       evaluation: q('.trip-map-evaluation'), timeline: q('.trip-map-timeline'), canvas: q('.trip-map-canvas'), overview: q('.trip-map-overview'),
       candidates: q('.trip-map-candidates'), daySettings: q('.trip-map-day-settings'), reload: q('[data-reload]'), apply: q('[data-apply]'), restore: q('[data-restore]') };
     q('[data-map-close]').addEventListener('click', () => dialog.close());
-    q('[data-fit]').addEventListener('click', () => { drawMap(true); view.canvas.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    q('[data-fit]').addEventListener('click', () => { showWholeRoute = true; drawMap(); view.canvas.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
     view.reload.addEventListener('click', reloadPlan); view.apply.addEventListener('click', applyCandidate);
     view.restore.addEventListener('click', () => { const saved = plan; adopt(saved); message('已返回保存的顺序，候选未应用。'); });
     q('[data-evaluate]').addEventListener('click', () => evaluate(false)); q('[data-optimize]').addEventListener('click', () => evaluate(true));
@@ -241,7 +241,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     });
     return sdkPromise;
   }
-  function drawMap(showAll = false) {
+  function drawMap(showAll = showWholeRoute) {
     if (!map) return;
     map.clearMap(); routeLines = []; const points = [];
     stops.forEach((stop, i) => {
@@ -469,7 +469,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
   async function open(date) {
     if (!requireIdentity()) return;
     init(); if (dialog.open) return;
-    day = date; generation++; controller = new AbortController(); const token = generation;
+    showWholeRoute = true; day = date; generation++; controller = new AbortController(); const token = generation;
     activeScope = scope(); signature = fingerprint(); observedRevision = state.revision; enabled = false; conflicted = false; selectedLeg = -1;
     dialog.querySelector('h2').textContent = `${date} · 规划路线`; dialog.showModal(); setBusy(true); message('正在加载共享日计划…');
     try {
@@ -484,6 +484,7 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     finally { if (valid(token)) setBusy(false); }
   }
   async function sync() {
+    if (overview && (overview.scope !== scope() || state.tab !== 'itinerary' || !overview.canvas.isConnected)) mountOverview();
     if (!dialog?.open) return;
     if (activeScope !== scope()) { dialog.close(); return; }
     if (!plan || saving || checking || conflicted || (observedRevision === state.revision && signature === fingerprint())) return;
@@ -494,5 +495,34 @@ if (typeof window !== 'undefined') window.TripMaps = (() => {
     } catch (error) { if (valid(token) && !saving && plan.version === version) markConflict('无法核对共享日计划版本，请载入最新版后继续。'); }
     finally { if (generation === token) checking = false; }
   }
-  return { open, sync };
+  async function mountOverview(canvas, date, note) {
+    overview?.controller.abort(); overview?.map?.destroy(); overview = null;
+    if (!canvas) return;
+    const current = { canvas, scope: scope(), controller: new AbortController(), map: null };
+    overview = current;
+    const validOverview = () => overview === current && current.scope === scope() && canvas.isConnected;
+    try {
+      const [response, configuration] = await Promise.all([
+        requestJson('/api/day-plan?city_id=' + encodeURIComponent(state.cityId) + '&date=' + encodeURIComponent(date), { signal: current.controller.signal }),
+        requestJson('/api/maps/config', { signal: current.controller.signal })
+      ]);
+      if (!validOverview()) return;
+      if (!configuration.data.enabled) throw new Error('高德地图尚未配置');
+      await loadSDK(configuration.data);
+      if (!validOverview()) return;
+      const overviewMap = current.map = new AMap.Map(canvas, { viewMode: '2D', zoom: 5, center: [104.1, 35.8], dragEnable: false, zoomEnable: false, scrollWheel: false, doubleClickZoom: false, keyboardEnable: false, touchZoom: false });
+      const overlays = [];
+      TripMapPlan.nodes(response.data).forEach((stop, index) => {
+        if (!stop.poi || stop.kind === 'legacy') return;
+        overlays.push(new AMap.Marker({ position: stop.poi.location.split(',').map(Number), content: el('span', 'trip-map-pin', stop.id === '@start' ? '起' : stop.id === '@end' ? '终' : String(index + 1)), title: stop.poi.name || stop.name }));
+      });
+      (response.data.routes || []).forEach((leg, index) => (leg.result?.parts || []).forEach(path => overlays.push(new AMap.Polyline({ path, strokeColor: colors[index % colors.length], strokeWeight: 6, strokeOpacity: 0.85, showDir: true }))));
+      overviewMap.add(overlays);
+      if (overlays.length) overviewMap.setFitView(overlays, true, [45, 35, 45, 35], 16);
+      canvas.setAttribute('aria-busy', 'false');
+    } catch (error) {
+      if (validOverview()) { canvas.setAttribute('aria-busy', 'false'); note.textContent = '地图暂时无法加载：' + error.message + '。可点击下方按钮查看或重新规划。'; }
+    }
+  }
+  return { open, sync, mountOverview };
 })();

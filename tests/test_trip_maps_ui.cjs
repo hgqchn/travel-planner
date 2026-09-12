@@ -321,3 +321,20 @@ test('upstream planning invalidates downstream transit without automatically que
   assert.equal(h.routes().length,2);
   assert.match(h.get('.trip-map-timeline').textContent,/已过期/);
 });
+
+test('itinerary street map fits every saved route and disposes on replacement', async () => {
+  const h=harness({setup:p=>{
+    p.visits.forEach((v,i)=>v.poi={name:v.title,location:`121.${47+i},31.23`});
+    p.settings.leg_modes={'["0","1"]':'walking','["1","2"]':'walking'};
+    p.routes=[0,1].map(i=>({from_ref:String(i),to_ref:String(i+1),mode:'walking',result:{parts:[[[121.47+i*.01,31.23],[121.48+i*.01,31.23]]]}}));
+  }});
+  const canvas={isConnected:true,setAttribute(){}}, note={textContent:''};
+  await h.env.window.TripMaps.mountOverview(canvas,'2026-09-12',note);
+  assert.equal(h.maps[0].overlays.filter(x=>x.options.path).length,2);
+  assert.equal(h.maps[0].fit.length,5);
+  await h.env.window.TripMaps.mountOverview();
+  assert.equal(h.maps[0].destroyed,true);
+  await h.open();
+  assert.equal(h.maps[1].overlays.filter(x=>x.options.path).length,2);
+  assert.equal(h.maps[1].fit.length,5);
+});
