@@ -79,7 +79,7 @@ class AIItineraryLinksTests(unittest.TestCase):
         schema = payload["text"]["format"]["schema"]["properties"]["itineraries"]["items"]
         self.assertIn("attraction_names", schema["required"])
         self.assertEqual(schema["properties"]["attraction_names"]["type"], "array")
-        self.assertEqual(schema["properties"]["attraction_names"]["maxItems"], 12)
+        self.assertEqual(schema["properties"]["attraction_names"]["maxItems"], 1)
         self.assertEqual(schema["properties"]["attraction_names"]["items"]["maxLength"], 60)
         self.assertEqual(prompt["request"]["kinds"], ["itinerary"])
         for text in ("路口、普通街道、路线不是景点", "餐厅、酒店、车站", "纯交通", "真正参观、游览", "不限制在行程中游览已收录的景点", "不能强塞"):
@@ -130,6 +130,48 @@ class AIItineraryLinksTests(unittest.TestCase):
                 self.service.import_job("Alice", "device", job["id"], {"items": [{"kind": "itinerary", "data": item}]})
                 self.assertEqual(self.imported[-1]["data"]["attraction_names"], expected)
                 self.assertEqual(self.imported[-1]["kind"], "itinerary")
+
+    def test_planning_schema_limits_each_visit_in_both_provider_modes(self):
+        for fallback in (False, True):
+            with self.subTest(fallback=fallback):
+                self.service._post.side_effect = [ai._SchemaUnsupported(), {}] if fallback else None
+                _, payload, _ = self.prompt()
+                if fallback:
+                    schema = json.loads(payload['instructions'].split('JSON Schema：')[-1])
+                else:
+                    schema = payload['text']['format']['schema']
+                self.assertEqual(schema['properties']['itineraries']['items']['properties']['attraction_names']['maxItems'], 1)
+                self.assertIn('一天可以安排多项行程', payload['instructions'])
+                self.assertIn('同一时间段（time_block）也可以安排多项行程', payload['instructions'])
+                self.assertIn('单地点规则同时适用于 title、location、notes 和 attraction_names', payload['instructions'])
+                self.assertEqual(payload['reasoning']['effort'], 'high')
+        self.assertEqual(ai.OUTPUT_SCHEMA['properties']['itineraries']['items']['properties']['attraction_names']['maxItems'], 12)
+
+    def test_planning_deduplicates_names_but_rejects_distinct_combined_visits(self):
+        for names in ([], ['外滩'], ['外滩', ' 外滩 '], ['外滩', '豫园']):
+            with self.subTest(names=names):
+                item = itinerary(names=names)
+                item.pop('start_time')
+                item.update(time_block='morning', duration_minutes=90, duration_source='ai_estimate',
+                            opening_start='', opening_end='')
+                value = dict(output(item), schema_version=2)
+                if names == ['外滩', '豫园']:
+                    with self.assertRaisesRegex(ai.AIError, '每项行程只能安排一个具体游览地点'):
+                        self.service._validate_result(value, self.request(), self.context)
+                else:
+                    job = self.ready(value)
+                    self.assertEqual(job['result']['itineraries'][0]['attraction_names'], ['外滩'] if names else [])
+
+    def test_planning_allows_multiple_separate_visits_in_same_time_block(self):
+        items = []
+        for name in ('外滩', '豫园'):
+            item = itinerary(names=[name], title='游览' + name)
+            item.pop('start_time')
+            item.update(location=name, time_block='morning', duration_minutes=90,
+                        duration_source='ai_estimate', opening_start='', opening_end='')
+            items.append(item)
+        job = self.ready(dict(output(*items), schema_version=2))
+        self.assertEqual(len(job['result']['itineraries']), 2)
 
     def test_result_and_import_reject_malformed_attraction_name_arrays(self):
         request = self.request()

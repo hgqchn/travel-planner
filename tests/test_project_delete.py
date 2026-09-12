@@ -155,7 +155,11 @@ class ProjectDeletionTests(unittest.TestCase):
         before_main = server.snapshot(main_path, "beijing")
         before_cache = place_cache.load_city(main_path, "北京")
         self.delete_project(self.child)
-        self.assertEqual(server.snapshot(main_path, "beijing"), before_main)
+        after_main = server.snapshot(main_path, "beijing")
+        # The response clock can advance while deletion runs; compare all
+        # project state, including revision, without requiring the same second.
+        self.assertEqual({k: v for k, v in after_main.items() if k != "server_time"},
+                         {k: v for k, v in before_main.items() if k != "server_time"})
         self.assertEqual(place_cache.load_city(main_path, "北京"), before_cache)
         self.assertTrue(self.child_path.is_file())
         with sqlite3.connect(self.child_path) as db:

@@ -7,6 +7,7 @@ transaction; this module deliberately does not import the HTTP server.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import queue
 import re
@@ -154,6 +155,7 @@ def _planning_schema():
     schema['properties']['schema_version']['enum'] = [2]
     schema['properties']['notices']['maxItems'] = 0
     item = schema['properties']['itineraries']['items']
+    item['properties']['attraction_names']['maxItems'] = 1
     item['properties'].pop('start_time')
     item['properties'].update(time_block={'type':'string','enum':['',*sorted(daily_planner.BLOCK_IDS)]},
                               duration_minutes={'type':'integer','minimum':1,'maximum':1440},
@@ -771,7 +773,8 @@ class AIService:
                     daily_fields = {key:item.pop(key) for key in ('time_block','duration_minutes','duration_source','opening_start','opening_end')}
                     daily_fields['opening_source'] = 'ai_estimate'
                     item['start_time'] = ''
-                    if len(item.get('attraction_names',[]))>1:
+                    item['attraction_names'] = _attraction_names(item['attraction_names'], status=502)
+                    if len(item['attraction_names']) > 1:
                         raise AIError(502,'每项行程只能安排一个具体游览地点，请重新生成。')
                 if kind == "attraction" and name_correction:
                     item = dict(item, name=name_correction["to"])
@@ -963,6 +966,8 @@ class AIService:
             instructions += "\n本阶段仅提出选点和分天草稿，尚未核算高德路线。每项行程只包含一个具体地点，不合并多个景点。禁止输出 start_time；每项必须输出 time_block、duration_minutes（1–1440整数分钟）、duration_source=ai_estimate。night 为可规划的 20:00–22:00 时段；每天2–3个主要游览地点，保留午餐、晚餐、午休与机动，不填满所有时段。结合用户偏好和开放时间安排夜间，可留空休息。不要声称交通或时间已经验证。"
             import daily_planner
             prompt_input['time_blocks'] = daily_planner.BLOCKS
+            instructions += '\n每项 itineraries 的 attraction_names 只能是空数组或包含一个景点名称的数组，不重复填写同一名称。一天可以安排多项行程，同一时间段（time_block）也可以安排多项行程，每条游览行程对应一个具体游览地点；游览多个景点时必须拆成独立行程，分别填写地点、时段和停留分钟数，不把全天或整段路线合并为一项。交通、用餐、休息的 attraction_names=[]。'
+            instructions += '\n单地点规则同时适用于 title、location、notes 和 attraction_names，不能只让关联数组保留一个名称，却在标题或说明中安排其他独立游玩点。游览行程的 title 使用该唯一地点的名称，可加简短游览动作；location 只写该地点或其地址。不要写“太古里与春熙路”“河坊街与南宋御街”“外滩→豫园”这类组合，必须各拆成一条行程，可以使用同一 time_block。notes 可描述该地点内部看点，但不要追加另一个独立景点或街区。单一景区内部的建筑、展厅不必拆分，已有正式复合名称的同一景区也保持原名。'
             instructions += "\n生成全部行程时，每项必须同时补充 opening_start 和 opening_end，按城市、具体地点及游览日期填写常见开放与关闭时间（HH:MM），不要写到达或离开时间。明确没有开放时间限制的地点用 00:00 和 23:59 表示全天开放。有开放限制时填写同日开始早于结束的时间点。不确定、跨夜、多段开放或可能闭馆时两者留空，不得把未知时间写成全天开放。开放时间属于 AI 参考，不宣称已实时核实，不在这些字段附加文字说明。"
         if filling:
             prompt_input = {"city": {"name": context["city"]["name"]},
@@ -1034,26 +1039,38 @@ class AIService:
                 # so the total request deadline is checked between keepalives.
                 read_chunk = getattr(response, "read1", response.read)
                 chunks, size = [], 0
+                interrupted = False
                 while True:
                     if self._closed.is_set() or time.monotonic() > deadline:
                         raise AIError(504, "AI 生成超时，请减少天数或生成分类后重试。")
-                    chunk = read_chunk(min(65536, MAX_RESPONSE_BYTES + 1 - size))
+                    try:
+                        chunk = read_chunk(min(65536, MAX_RESPONSE_BYTES + 1 - size))
+                    except http.client.IncompleteRead as exc:
+                        # A missing HTTP chunk terminator can follow a complete
+                        # JSON response. Keep received bytes and validate the
+                        # entire object below; never invent or retry its content.
+                        chunk = exc.partial
+                        interrupted = True
                     if time.monotonic() > deadline:
                         raise AIError(504, "AI 生成超时，请减少天数或生成分类后重试。")
                     if not chunk:
                         break
                     chunks.append(chunk)
                     size += len(chunk)
-                    if size > MAX_RESPONSE_BYTES:
+                    if size > MAX_RESPONSE_BYTES or interrupted:
                         break
                 raw = b"".join(chunks)
             if len(raw) > MAX_RESPONSE_BYTES:
                 raise AIError(502, "AI 响应过大，请减少需求后重试。")
             if not raw.strip():
+                if interrupted:
+                    raise AIError(502, "AI 连接中断，未收到完整结果，请稍后重试。")
                 raise AIError(502, "AI 返回空响应，请稍后重试。")
             try:
                 value = json.loads(raw)
             except (UnicodeDecodeError, ValueError) as exc:
+                if interrupted:
+                    raise AIError(502, "AI 连接中断，未收到完整结果，请稍后重试。") from None
                 raise AIError(502, "AI 响应不是有效 JSON，请稍后重试。") from exc
             if not isinstance(value, dict):
                 raise AIError(502, "AI 响应格式无效，请稍后重试。")

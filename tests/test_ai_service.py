@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import io
+import http.client
 import json
 import sqlite3
 import tempfile
@@ -432,6 +433,35 @@ class AIServiceTests(unittest.TestCase):
         with self.assertRaises(ai.AIError) as error:
             service._post({})
         self.assertEqual(error.exception.status, 504)
+
+    def test_incomplete_http_framing_accepts_only_a_complete_json_response(self):
+        service = self.make_service(cls=ai.AIService)
+        response = provider_response()
+        raw = json.dumps(response).encode()
+        for chunks in ([raw, http.client.IncompleteRead(b'')],
+                       [raw[:20], http.client.IncompleteRead(raw[20:])]):
+            with self.subTest(chunks=len(chunks)):
+                stream = Mock()
+                stream.read1.side_effect = chunks
+                service._opener = Mock()
+                service._opener.open.return_value.__enter__ = Mock(return_value=stream)
+                service._opener.open.return_value.__exit__ = Mock(return_value=False)
+                self.assertEqual(service._post({}), response)
+                self.assertEqual(service._opener.open.call_count, 1)
+
+    def test_interrupted_json_is_rejected_without_retry_or_content_disclosure(self):
+        service = self.make_service(cls=ai.AIService)
+        for partial in (b'', b'{"secret":"test-provider-secret', b'\xe4\xb8'):
+            with self.subTest(partial_length=len(partial)):
+                stream = Mock()
+                stream.read1.side_effect = [http.client.IncompleteRead(partial)]
+                service._opener = Mock()
+                service._opener.open.return_value.__enter__ = Mock(return_value=stream)
+                service._opener.open.return_value.__exit__ = Mock(return_value=False)
+                with self.assertRaisesRegex(ai.AIError, '连接中断') as error:
+                    service._post({})
+                self.assertNotIn('test-provider-secret', error.exception.message)
+                self.assertEqual(service._opener.open.call_count, 1)
 
     def test_fallback_only_for_explicit_schema_rejection_and_preserves_model(self):
         service = self.make_service(cls=ai.AIService)
